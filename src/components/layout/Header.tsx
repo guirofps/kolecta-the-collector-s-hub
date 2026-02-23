@@ -13,9 +13,11 @@ const Logo = () => (
 );
 
 const navLinks = [
+  { label: 'Explorar', href: '/busca' },
   { label: 'Categorias', href: '/categorias' },
   { label: 'Modo Lance', href: '/modo-lance', icon: Gavel },
   { label: 'Vender', href: '/painel-vendedor/anuncios/novo' },
+  { label: 'Ajuda', href: '/ajuda' },
 ];
 
 export default function Header() {
