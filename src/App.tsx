@@ -16,6 +16,10 @@ import PlaceholderPage from "./components/PlaceholderPage";
 import SellerDashboard from "./pages/seller/Dashboard";
 import SellerListings from "./pages/seller/Listings";
 import CreateListing from "./pages/seller/CreateListing";
+import AdminOverview from "./pages/admin/Overview";
+import AdminListings from "./pages/admin/Listings";
+import AdminUsers from "./pages/admin/Users";
+import AdminReports from "./pages/admin/Reports";
 
 const queryClient = new QueryClient();
 
@@ -67,17 +71,17 @@ const App = () => (
           <Route path="/painel-vendedor/configuracoes" element={<PlaceholderPage title="Configurações do Vendedor" />} />
           <Route path="/painel-vendedor/midia" element={<PlaceholderPage title="Mídia & Destaque" description="Compre destaque para seus anúncios." />} />
           {/* Admin */}
-          <Route path="/admin" element={<PlaceholderPage title="Admin – Overview" description="Dashboard geral do marketplace." />} />
-          <Route path="/admin/usuarios" element={<PlaceholderPage title="Admin – Usuários" />} />
+          <Route path="/admin" element={<AdminOverview />} />
+          <Route path="/admin/usuarios" element={<AdminUsers />} />
           <Route path="/admin/vendedores/verificacao" element={<PlaceholderPage title="Admin – Verificação de Vendedores" />} />
-          <Route path="/admin/anuncios" element={<PlaceholderPage title="Admin – Fila de Aprovação" description="Aprovar ou reprovar anúncios." />} />
+          <Route path="/admin/anuncios" element={<AdminListings />} />
           <Route path="/admin/anuncios/:id" element={<PlaceholderPage title="Admin – Detalhe do Anúncio" />} />
           <Route path="/admin/leiloes" element={<PlaceholderPage title="Admin – Monitoramento de Leilões" />} />
           <Route path="/admin/denuncias" element={<PlaceholderPage title="Admin – Denúncias" />} />
           <Route path="/admin/comissoes-e-taxas" element={<PlaceholderPage title="Admin – Comissões e Taxas" />} />
           <Route path="/admin/financeiro" element={<PlaceholderPage title="Admin – Financeiro" />} />
           <Route path="/admin/midia" element={<PlaceholderPage title="Admin – Mídia & Campanhas" />} />
-          <Route path="/admin/relatorios" element={<PlaceholderPage title="Admin – Relatórios" description="GMV, receita, conversão, top categorias." />} />
+          <Route path="/admin/relatorios" element={<AdminReports />} />
           <Route path="/admin/configuracoes" element={<PlaceholderPage title="Admin – Configurações" />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
