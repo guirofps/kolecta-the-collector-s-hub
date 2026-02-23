@@ -38,7 +38,7 @@ export default function ProductCard({ product, className = '' }: ProductCardProp
           )}
           {isAuction && (
             <Badge className="bg-accent text-accent-foreground text-[10px] font-heading font-bold uppercase tracking-wider animate-pulse-glow">
-              Leilão
+              Modo Lance
             </Badge>
           )}
         </div>

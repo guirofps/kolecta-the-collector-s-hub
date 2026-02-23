@@ -115,7 +115,7 @@ export default function AdminListings() {
                         <div className="flex items-center gap-2 mb-1">
                           <h3 className="text-sm font-medium truncate">{listing.title}</h3>
                           <Badge variant="outline" className="text-[10px] border-border shrink-0">
-                            {listing.type === 'auction' ? 'Leilão' : 'Venda Direta'}
+                            {listing.type === 'auction' ? 'Modo Lance' : 'Venda Direta'}
                           </Badge>
                         </div>
                         <div className="flex items-center gap-3 text-xs text-muted-foreground mb-1">
@@ -197,7 +197,7 @@ export default function AdminListings() {
                   <div className="flex-1">
                     <h3 className="font-heading text-base font-bold mb-1">{selectedListing.title}</h3>
                     <div className="flex flex-wrap gap-2 mb-2">
-                      <Badge variant="outline" className="text-xs">{selectedListing.type === 'auction' ? 'Leilão' : 'Venda Direta'}</Badge>
+                      <Badge variant="outline" className="text-xs">{selectedListing.type === 'auction' ? 'Modo Lance' : 'Venda Direta'}</Badge>
                       <Badge variant="outline" className="text-xs">{conditionLabel(selectedListing.condition)}</Badge>
                       <Badge variant="outline" className="text-xs">{selectedListing.category}</Badge>
                     </div>

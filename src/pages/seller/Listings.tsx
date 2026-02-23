@@ -133,7 +133,7 @@ export default function SellerListings() {
                         <span>·</span>
                         <span>{conditionLabel(product.condition)}</span>
                         <span>·</span>
-                        <span>{product.type === 'auction' ? 'Leilão' : 'Venda Direta'}</span>
+                        <span>{product.type === 'auction' ? 'Modo Lance' : 'Venda Direta'}</span>
                       </div>
                     </div>
                     <div className="text-right shrink-0 hidden sm:block">

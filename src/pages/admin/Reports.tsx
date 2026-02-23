@@ -19,9 +19,9 @@ const dailyUsers = [
 ];
 
 const auctionMetrics = [
-  { month: 'Set', leiloes: 45, lances: 320 }, { month: 'Out', leiloes: 62, lances: 480 },
-  { month: 'Nov', leiloes: 78, lances: 610 }, { month: 'Dez', leiloes: 95, lances: 820 },
-  { month: 'Jan', leiloes: 88, lances: 750 }, { month: 'Fev', leiloes: 124, lances: 980 },
+  { month: 'Set', modoLance: 45, lances: 320 }, { month: 'Out', modoLance: 62, lances: 480 },
+  { month: 'Nov', modoLance: 78, lances: 610 }, { month: 'Dez', modoLance: 95, lances: 820 },
+  { month: 'Jan', modoLance: 88, lances: 750 }, { month: 'Fev', modoLance: 124, lances: 980 },
 ];
 
 const topCategories = [
@@ -126,7 +126,7 @@ export default function AdminReports() {
 
           <Card className="bg-card border-border">
             <CardHeader className="pb-2">
-              <CardTitle className="font-heading text-sm font-semibold uppercase tracking-wider">Leilões & Lances por Mês</CardTitle>
+              <CardTitle className="font-heading text-sm font-semibold uppercase tracking-wider">Modo Lance & Lances por Mês</CardTitle>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={220}>
@@ -135,7 +135,7 @@ export default function AdminReports() {
                   <XAxis dataKey="month" tick={{ fill: 'hsl(225, 8%, 55%)', fontSize: 11 }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fill: 'hsl(225, 8%, 55%)', fontSize: 11 }} axisLine={false} tickLine={false} />
                   <Tooltip {...tooltipStyle} />
-                  <Bar dataKey="leiloes" fill="hsl(0, 80%, 55%)" radius={[4, 4, 0, 0]} name="Leilões" />
+                  <Bar dataKey="modoLance" fill="hsl(0, 80%, 55%)" radius={[4, 4, 0, 0]} name="Modo Lance" />
                   <Bar dataKey="lances" fill="hsl(48, 100%, 50%)" radius={[4, 4, 0, 0]} name="Lances" />
                 </BarChart>
               </ResponsiveContainer>

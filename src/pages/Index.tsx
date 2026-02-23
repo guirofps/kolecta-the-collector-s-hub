@@ -69,7 +69,7 @@ export default function Index() {
               custom={2}
               className="text-lg sm:text-xl text-muted-foreground max-w-xl mx-auto mb-8"
             >
-              Compre, venda e participe de leilões de carrinhos, miniaturas e artigos exclusivos. Comunidade verificada, transações seguras.
+              Compre, venda e dê lances em carrinhos, miniaturas e artigos exclusivos. Comunidade verificada, transações seguras.
             </motion.p>
 
             <motion.div variants={fadeUp} custom={3} className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -169,9 +169,9 @@ export default function Index() {
       <section className="py-16 lg:py-20">
         <div className="container mx-auto px-4">
           <SectionHeader
-            title="Leilões Encerrando"
+            title="Encerrando em Breve"
             subtitle="Não perca — últimos minutos para dar lance"
-            action={{ label: 'Todos os leilões', href: '/leiloes' }}
+            action={{ label: 'Ver todos', href: '/modo-lance' }}
             accentTitle
           />
 
@@ -263,7 +263,7 @@ export default function Index() {
               {
                 icon: Search,
                 title: 'Encontre',
-                desc: 'Navegue por milhares de itens colecionáveis ou participe de leilões exclusivos.',
+                desc: 'Navegue por milhares de itens colecionáveis ou dê lances em itens exclusivos.',
               },
               {
                 icon: ShieldCheck,

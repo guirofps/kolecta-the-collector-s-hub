@@ -89,7 +89,7 @@ export default function ProductDetail() {
               </Badge>
               {isAuction && (
                 <Badge className="bg-accent text-accent-foreground text-[10px] font-heading uppercase tracking-wider">
-                  Leilão
+                  Modo Lance
                 </Badge>
               )}
               {product.featured && (
@@ -143,7 +143,7 @@ export default function ProductDetail() {
                       <DialogHeader>
                         <DialogTitle className="font-heading text-xl uppercase">Confirmar Lance</DialogTitle>
                         <DialogDescription>
-                          Ao confirmar, você se compromete a pagar caso vença o leilão.
+                          Ao confirmar, você se compromete a pagar caso vença a disputa.
                         </DialogDescription>
                       </DialogHeader>
 

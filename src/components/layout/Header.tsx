@@ -14,7 +14,7 @@ const Logo = () => (
 
 const navLinks = [
   { label: 'Categorias', href: '/categorias' },
-  { label: 'Leilões', href: '/leiloes', icon: Gavel },
+  { label: 'Modo Lance', href: '/modo-lance', icon: Gavel },
   { label: 'Vender', href: '/painel-vendedor/anuncios/novo' },
 ];
 

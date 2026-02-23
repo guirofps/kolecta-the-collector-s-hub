@@ -134,7 +134,7 @@ export default function SellerDashboard() {
                   <div className="font-heading text-xl font-bold">{formatBRL(metrics.pendingPayout)}</div>
                 </div>
                 <div>
-                  <span className="text-[11px] text-muted-foreground uppercase">Leilões Ativos</span>
+                  <span className="text-[11px] text-muted-foreground uppercase">Modo Lance Ativos</span>
                   <div className="font-heading text-xl font-bold">{metrics.activeAuctions}</div>
                 </div>
                 <div>
@@ -185,9 +185,9 @@ export default function SellerDashboard() {
                 <div className="flex items-center justify-between">
                   <CardTitle className="font-heading text-sm font-semibold uppercase tracking-wider flex items-center gap-2">
                     <Gavel className="h-4 w-4 text-accent" />
-                    Leilões Ativos
+                    Modo Lance Ativos
                   </CardTitle>
-                  <Link to="/painel-vendedor/leiloes" className="text-xs text-primary hover:underline">Ver todos</Link>
+                  <Link to="/painel-vendedor/modo-lance" className="text-xs text-primary hover:underline">Ver todos</Link>
                 </div>
               </CardHeader>
               <CardContent className="p-0">

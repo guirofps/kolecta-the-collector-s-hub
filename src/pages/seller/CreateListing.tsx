@@ -219,7 +219,7 @@ function StepType({ form, update }: { form: FormData; update: (f: keyof FormData
           {
             value: 'auction' as const,
             icon: Gavel,
-            title: 'Leilão',
+            title: 'Modo Lance',
             desc: 'Lances competitivos. Maior lance vence.',
             features: ['Preço inicial mínimo', 'Duração configurável', 'Ideal para itens raros e disputados'],
           },
@@ -388,12 +388,12 @@ function StepPricing({ form, update }: { form: FormData; update: (f: keyof FormD
   return (
     <div className="space-y-5">
       <h2 className="font-heading text-lg font-bold uppercase mb-1">
-        {form.type === 'direct' ? 'Preço de Venda' : 'Configuração do Leilão'}
+        {form.type === 'direct' ? 'Preço de Venda' : 'Configuração do Modo Lance'}
       </h2>
       <p className="text-sm text-muted-foreground mb-4">
         {form.type === 'direct'
           ? 'Defina o preço fixo para venda imediata.'
-          : 'Configure os parâmetros do leilão.'}
+          : 'Configure os parâmetros do modo lance.'}
       </p>
 
       {form.type === 'direct' ? (
@@ -483,7 +483,7 @@ function StepPricing({ form, update }: { form: FormData; update: (f: keyof FormD
           <div className="flex items-center justify-between p-3 rounded-md bg-card border border-border">
             <div>
               <span className="text-sm font-medium">Anti-Sniper</span>
-              <p className="text-xs text-muted-foreground">Estende o leilão se houver lance nos últimos minutos</p>
+              <p className="text-xs text-muted-foreground">Estende o tempo se houver lance nos últimos minutos</p>
             </div>
             <Switch checked={form.antiSniper} onCheckedChange={(v) => update('antiSniper', v)} />
           </div>
@@ -528,7 +528,7 @@ function StepReview({ form }: { form: FormData }) {
           {/* Type */}
           <div className="flex items-center gap-2">
             <Badge className="bg-primary/10 text-primary text-xs">
-              {form.type === 'direct' ? 'Venda Direta' : 'Leilão'}
+              {form.type === 'direct' ? 'Venda Direta' : 'Modo Lance'}
             </Badge>
             {conditionObj && (
               <Badge variant="outline" className="text-xs border-border">{conditionObj.label}</Badge>

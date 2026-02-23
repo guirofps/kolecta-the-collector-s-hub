@@ -8,7 +8,7 @@ const sidebarLinks = [
   { label: 'Anúncios', href: '/painel-vendedor/anuncios', icon: Package },
   { label: 'Novo Anúncio', href: '/painel-vendedor/anuncios/novo', icon: PlusCircle },
   { label: 'Pedidos', href: '/painel-vendedor/pedidos', icon: ShoppingBag },
-  { label: 'Leilões', href: '/painel-vendedor/leiloes', icon: Gavel },
+  { label: 'Modo Lance', href: '/painel-vendedor/modo-lance', icon: Gavel },
   { label: 'Financeiro', href: '/painel-vendedor/financeiro', icon: Wallet },
   { label: 'Mensagens', href: '/painel-vendedor/mensagens', icon: MessageSquare },
   { label: 'Mídia', href: '/painel-vendedor/midia', icon: Megaphone },
