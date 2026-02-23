@@ -1,22 +1,19 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Heart, ShieldCheck, Star, Gavel, ShoppingCart, Flag, ChevronRight, ArrowLeft, MessageSquare } from 'lucide-react';
+import { Heart, ShieldCheck, Star, Gavel, ShoppingCart, Flag, ChevronRight, ArrowLeft, MessageSquare, AlertTriangle, CreditCard } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
 import ProductCard from '@/components/ProductCard';
 import AuctionCountdown from '@/components/AuctionCountdown';
+import BidHistory from '@/components/BidHistory';
+import VerificationBadge from '@/components/VerificationBadge';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from '@/components/ui/dialog';
-import { getProductById, mockProducts, mockBids, formatBRL, conditionLabel, type Bid } from '@/lib/mock-data';
+import { getProductById, mockProducts, mockBids, formatBRL, conditionLabel } from '@/lib/mock-data';
 import { trackEvent } from '@/lib/analytics';
 
 export default function ProductDetail() {
@@ -25,11 +22,14 @@ export default function ProductDetail() {
   const [bidAmount, setBidAmount] = useState('');
   const [bidDialogOpen, setBidDialogOpen] = useState(false);
   const [bidConfirmed, setBidConfirmed] = useState(false);
+  const [bidAccepted, setBidAccepted] = useState(false);
+
+  // Mock states for verification/payment blocks
+  const [mockVerified] = useState(true);
+  const [mockHasPayment] = useState(true);
 
   useEffect(() => {
-    if (product) {
-      trackEvent('view_product', { id: product.id, type: product.type });
-    }
+    if (product) trackEvent('view_product', { id: product.id, type: product.type });
   }, [product]);
 
   if (!product) {
@@ -52,13 +52,14 @@ export default function ProductDetail() {
 
   const handleBid = () => {
     const amount = parseFloat(bidAmount);
-    if (isNaN(amount) || amount < minBid) return;
+    if (isNaN(amount) || amount < minBid || !bidAccepted) return;
     trackEvent('bid_confirm', { productId: product.id, amount });
     setBidConfirmed(true);
     setTimeout(() => {
       setBidDialogOpen(false);
       setBidConfirmed(false);
       setBidAmount('');
+      setBidAccepted(false);
     }, 2000);
   };
 
@@ -108,11 +109,13 @@ export default function ProductDetail() {
               {isAuction ? (
                 <div className="space-y-4">
                   <div>
-                    <span className="text-xs text-muted-foreground uppercase tracking-wider">Lance atual</span>
+                    <span className="text-xs text-muted-foreground uppercase tracking-wider">Maior lance atual</span>
                     <div className="font-heading text-4xl font-extrabold text-accent mt-1">
                       {formatBRL(product.currentBid || product.startingBid || 0)}
                     </div>
-                    <span className="text-xs text-muted-foreground">{product.bidsCount} lances · Incremento mín. {formatBRL(product.minIncrement || 0)}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {product.bidsCount} lances · Incremento mín. {formatBRL(product.minIncrement || 0)}
+                    </span>
                   </div>
 
                   <div className="line-tech" />
@@ -124,26 +127,48 @@ export default function ProductDetail() {
                     </div>
                   </div>
 
+                  {/* Verification/Payment warnings */}
+                  {!mockVerified && (
+                    <div className="rounded-md bg-accent/5 border border-accent/20 p-3 text-xs text-accent flex items-start gap-2">
+                      <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-medium">Conta não verificada</p>
+                        <p className="text-muted-foreground mt-0.5">Você precisa <Link to="/conta/verificacao" className="text-accent underline">verificar sua conta</Link> para dar lances.</p>
+                      </div>
+                    </div>
+                  )}
+                  {!mockHasPayment && (
+                    <div className="rounded-md bg-primary/5 border border-primary/20 p-3 text-xs text-primary flex items-start gap-2">
+                      <CreditCard className="h-4 w-4 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-medium">Nenhum método de pagamento</p>
+                        <p className="text-muted-foreground mt-0.5">Adicione um <Link to="/conta/pagamentos" className="text-primary underline">método de pagamento</Link> para participar.</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Bid button */}
                   <Dialog open={bidDialogOpen} onOpenChange={setBidDialogOpen}>
                     <DialogTrigger asChild>
                       <Button
                         variant="accent"
                         size="lg"
                         className="w-full text-base"
+                        disabled={!mockVerified || !mockHasPayment}
                         onClick={() => {
                           trackEvent('bid_place', { productId: product.id });
                           setBidDialogOpen(true);
                         }}
                       >
                         <Gavel className="h-5 w-5" />
-                        Dar Lance
+                        Enviar Lance
                       </Button>
                     </DialogTrigger>
                     <DialogContent className="bg-card border-border">
                       <DialogHeader>
                         <DialogTitle className="font-heading text-xl uppercase">Confirmar Lance</DialogTitle>
                         <DialogDescription>
-                          Ao confirmar, você se compromete a pagar caso vença a disputa.
+                          {product.title}
                         </DialogDescription>
                       </DialogHeader>
 
@@ -154,7 +179,7 @@ export default function ProductDetail() {
                         </div>
                       ) : (
                         <>
-                          <div className="space-y-3">
+                          <div className="space-y-4">
                             <div className="text-sm text-muted-foreground">
                               Lance mínimo: <span className="text-foreground font-semibold">{formatBRL(minBid)}</span>
                             </div>
@@ -168,9 +193,33 @@ export default function ProductDetail() {
                                 className="w-full h-12 rounded-md border border-border bg-input pl-10 pr-4 text-lg font-heading font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-accent"
                               />
                             </div>
+
+                            {/* Legal text */}
+                            <div className="rounded-md bg-secondary/50 p-3 space-y-2 text-xs text-muted-foreground">
+                              <p>• Ao vencer, o pagamento é <span className="text-foreground font-medium">obrigatório</span>.</p>
+                              <p>• Você terá <span className="text-foreground font-medium">7 dias após a entrega</span> para verificar o item.</p>
+                            </div>
+
+                            {/* Commitment checkbox */}
+                            <div className="flex items-start gap-2">
+                              <Checkbox
+                                id="bid-accept"
+                                checked={bidAccepted}
+                                onCheckedChange={(v) => setBidAccepted(!!v)}
+                                className="mt-0.5"
+                              />
+                              <label htmlFor="bid-accept" className="text-xs text-muted-foreground cursor-pointer">
+                                Entendo o compromisso de compra e concordo com os <Link to="/termos" className="text-primary underline">termos</Link>.
+                              </label>
+                            </div>
                           </div>
                           <DialogFooter>
-                            <Button variant="accent" className="w-full" onClick={handleBid} disabled={!bidAmount || parseFloat(bidAmount) < minBid}>
+                            <Button
+                              variant="accent"
+                              className="w-full"
+                              onClick={handleBid}
+                              disabled={!bidAmount || parseFloat(bidAmount) < minBid || !bidAccepted}
+                            >
                               Confirmar Lance
                             </Button>
                           </DialogFooter>
@@ -183,14 +232,7 @@ export default function ProductDetail() {
                   {bids.length > 0 && (
                     <div className="mt-4">
                       <h3 className="font-heading text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">Histórico de Lances</h3>
-                      <div className="space-y-1.5 max-h-40 overflow-y-auto">
-                        {bids.map((bid, i) => (
-                          <div key={bid.id} className={`flex items-center justify-between text-sm py-1.5 px-2 rounded ${i === 0 ? 'bg-accent/10 text-accent' : 'text-muted-foreground'}`}>
-                            <span>{bid.userName}</span>
-                            <span className="font-heading font-bold">{formatBRL(bid.amount)}</span>
-                          </div>
-                        ))}
-                      </div>
+                      <BidHistory bids={bids} />
                     </div>
                   )}
                 </div>
@@ -202,22 +244,12 @@ export default function ProductDetail() {
                       {formatBRL(product.price || 0)}
                     </div>
                   </div>
-
                   <div className="flex gap-3">
-                    <Button
-                      variant="kolecta"
-                      size="lg"
-                      className="flex-1 text-base"
-                      onClick={() => trackEvent('buy_now_click', { productId: product.id })}
-                    >
+                    <Button variant="kolecta" size="lg" className="flex-1 text-base" onClick={() => trackEvent('buy_now_click', { productId: product.id })}>
                       <ShoppingCart className="h-5 w-5" />
                       Comprar Agora
                     </Button>
-                    <Button
-                      variant="ghost-light"
-                      size="lg"
-                      onClick={() => trackEvent('add_to_favorites', { productId: product.id })}
-                    >
+                    <Button variant="ghost-light" size="lg" onClick={() => trackEvent('add_to_favorites', { productId: product.id })}>
                       <Heart className="h-5 w-5" />
                     </Button>
                   </div>
@@ -236,7 +268,7 @@ export default function ProductDetail() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">
                   <span className="text-sm font-medium text-foreground">{product.seller.name}</span>
-                  {product.seller.verified && <ShieldCheck className="h-3.5 w-3.5 text-primary" />}
+                  <VerificationBadge verified={product.seller.verified} />
                 </div>
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <Star className="h-3 w-3 text-primary fill-primary" /> {product.seller.rating}
@@ -253,17 +285,14 @@ export default function ProductDetail() {
 
             {/* Actions */}
             <div className="flex items-center gap-3 text-xs text-muted-foreground">
-              <button
-                className="flex items-center gap-1 hover:text-foreground transition-colors"
-                onClick={() => trackEvent('report_listing', { productId: product.id })}
-              >
+              <button className="flex items-center gap-1 hover:text-foreground transition-colors" onClick={() => trackEvent('report_listing', { productId: product.id })}>
                 <Flag className="h-3 w-3" /> Denunciar
               </button>
             </div>
           </div>
         </div>
 
-        {/* Tabs: Description / Details */}
+        {/* Tabs */}
         <div className="mt-10">
           <Tabs defaultValue="description">
             <TabsList className="bg-card border border-border">
