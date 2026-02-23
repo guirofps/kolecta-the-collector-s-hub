@@ -13,6 +13,7 @@ import CategoryPage from "./pages/CategoryPage";
 import LoginPage from "./pages/auth/Login";
 import RegisterPage from "./pages/auth/Register";
 import PlaceholderPage from "./components/PlaceholderPage";
+import FeesPage from "./pages/Fees";
 import SellerDashboard from "./pages/seller/Dashboard";
 import SellerListings from "./pages/seller/Listings";
 import CreateListing from "./pages/seller/CreateListing";
@@ -42,7 +43,7 @@ const App = () => (
           <Route path="/esqueci-senha" element={<PlaceholderPage title="Esqueci a Senha" description="Recuperação de senha por e-mail." />} />
           <Route path="/vendedor/:slug" element={<PlaceholderPage title="Loja do Vendedor" description="Perfil público e anúncios do vendedor." />} />
           <Route path="/como-funciona" element={<PlaceholderPage title="Como Funciona" description="Guia completo do marketplace Kolecta." />} />
-          <Route path="/taxas-e-comissoes" element={<PlaceholderPage title="Taxas e Comissões" description="Calculadora de taxas e comissões do marketplace." />} />
+          <Route path="/taxas-e-comissoes" element={<FeesPage />} />
           <Route path="/seguranca" element={<PlaceholderPage title="Segurança" description="Como protegemos vendedores e compradores." />} />
           <Route path="/ajuda" element={<PlaceholderPage title="Central de Ajuda" description="Perguntas frequentes e suporte." />} />
           <Route path="/ajuda/:slug" element={<PlaceholderPage title="Artigo de Ajuda" />} />
