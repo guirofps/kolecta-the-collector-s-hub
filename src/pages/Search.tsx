@@ -189,7 +189,7 @@ export default function SearchPage() {
               <div className="flex flex-wrap gap-2">
                 {[
                   { value: 'direct' as ProductType, label: 'Compra Direta' },
-                  { value: 'auction' as ProductType, label: 'Leilão' },
+                  { value: 'auction' as ProductType, label: 'Modo Lance' },
                 ].map((opt) => (
                   <Badge
                     key={opt.value}

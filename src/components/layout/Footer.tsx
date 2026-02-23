@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 const footerLinks = {
   marketplace: [
     { label: 'Categorias', href: '/categorias' },
-    { label: 'Leilões', href: '/leiloes' },
+    { label: 'Modo Lance', href: '/modo-lance' },
     { label: 'Destaques', href: '/busca?sort=featured' },
     { label: 'Como funciona', href: '/como-funciona' },
     { label: 'Taxas e Comissões', href: '/taxas-e-comissoes' },
@@ -38,7 +38,7 @@ export default function Footer() {
               <span className="font-heading text-xl font-extrabold italic tracking-tight text-foreground">OLECTA</span>
             </Link>
             <p className="text-sm text-muted-foreground max-w-xs">
-              O marketplace dos colecionadores. Compre, venda e participe de leilões com segurança.
+              O marketplace dos colecionadores. Compre, venda e dê lances com segurança.
             </p>
           </div>
 

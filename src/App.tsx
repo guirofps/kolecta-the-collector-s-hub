@@ -33,8 +33,8 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/busca" element={<SearchPage />} />
           <Route path="/produto/:id" element={<ProductDetail />} />
-          <Route path="/leiloes" element={<AuctionsPage />} />
-          <Route path="/leilao/:id" element={<ProductDetail />} />
+          <Route path="/modo-lance" element={<AuctionsPage />} />
+          <Route path="/modo-lance/:id" element={<ProductDetail />} />
           <Route path="/categorias" element={<CategoriesPage />} />
           <Route path="/categoria/:slug" element={<CategoryPage />} />
           <Route path="/entrar" element={<LoginPage />} />
@@ -65,7 +65,7 @@ const App = () => (
           <Route path="/painel-vendedor/anuncios/:id/editar" element={<PlaceholderPage title="Editar Anúncio" />} />
           <Route path="/painel-vendedor/pedidos" element={<PlaceholderPage title="Pedidos Recebidos" />} />
           <Route path="/painel-vendedor/pedidos/:id" element={<PlaceholderPage title="Detalhe do Pedido" />} />
-          <Route path="/painel-vendedor/leiloes" element={<PlaceholderPage title="Meus Leilões" />} />
+          <Route path="/painel-vendedor/modo-lance" element={<PlaceholderPage title="Meu Modo Lance" />} />
           <Route path="/painel-vendedor/financeiro" element={<PlaceholderPage title="Financeiro" description="Saldo, comissões, repasses e saques." />} />
           <Route path="/painel-vendedor/mensagens" element={<PlaceholderPage title="Mensagens" />} />
           <Route path="/painel-vendedor/configuracoes" element={<PlaceholderPage title="Configurações do Vendedor" />} />
@@ -76,7 +76,7 @@ const App = () => (
           <Route path="/admin/vendedores/verificacao" element={<PlaceholderPage title="Admin – Verificação de Vendedores" />} />
           <Route path="/admin/anuncios" element={<AdminListings />} />
           <Route path="/admin/anuncios/:id" element={<PlaceholderPage title="Admin – Detalhe do Anúncio" />} />
-          <Route path="/admin/leiloes" element={<PlaceholderPage title="Admin – Monitoramento de Leilões" />} />
+          <Route path="/admin/modo-lance" element={<PlaceholderPage title="Admin – Monitoramento Modo Lance" />} />
           <Route path="/admin/denuncias" element={<PlaceholderPage title="Admin – Denúncias" />} />
           <Route path="/admin/comissoes-e-taxas" element={<PlaceholderPage title="Admin – Comissões e Taxas" />} />
           <Route path="/admin/financeiro" element={<PlaceholderPage title="Admin – Financeiro" />} />

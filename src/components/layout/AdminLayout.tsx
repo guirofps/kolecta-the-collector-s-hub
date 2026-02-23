@@ -11,7 +11,7 @@ const sidebarLinks = [
   { label: 'Usuários', href: '/admin/usuarios', icon: Users },
   { label: 'Verificação', href: '/admin/vendedores/verificacao', icon: ShieldCheck },
   { label: 'Anúncios', href: '/admin/anuncios', icon: Package },
-  { label: 'Leilões', href: '/admin/leiloes', icon: Gavel },
+  { label: 'Modo Lance', href: '/admin/modo-lance', icon: Gavel },
   { label: 'Denúncias', href: '/admin/denuncias', icon: AlertTriangle },
   { label: 'Comissões', href: '/admin/comissoes-e-taxas', icon: DollarSign },
   { label: 'Financeiro', href: '/admin/financeiro', icon: Wallet },

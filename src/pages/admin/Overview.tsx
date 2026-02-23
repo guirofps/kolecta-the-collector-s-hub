@@ -18,7 +18,7 @@ const kpis = [
   { label: 'Receita (Comissões)', value: formatBRL(18745), change: 15.8, icon: TrendingUp },
   { label: 'Usuários Ativos', value: '1.284', change: 12.5, icon: Users },
   { label: 'Anúncios Ativos', value: '847', change: 8.3, icon: Package },
-  { label: 'Leilões Ativos', value: '124', change: 22.1, icon: Gavel },
+  { label: 'Modo Lance Ativos', value: '124', change: 22.1, icon: Gavel },
   { label: 'Denúncias Pendentes', value: '7', change: -15, icon: AlertTriangle, negative: true },
 ];
 
