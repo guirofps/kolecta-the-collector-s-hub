@@ -80,39 +80,43 @@ export default function MyBidsPage() {
               const cfg = statusConfig[bid.status];
               const StatusIcon = cfg.icon;
               return (
-                <div key={bid.id} className="flex items-center gap-4 p-4 rounded-lg border border-border bg-card hover:border-primary/20 transition-colors">
-                  <Link to={`/produto/${bid.productId}`} className="shrink-0 w-16 h-16 rounded-md overflow-hidden bg-kolecta-dark">
-                    <img src={bid.productImage} alt="" className="w-full h-full object-cover" />
-                  </Link>
-
-                  <div className="flex-1 min-w-0">
-                    <Link to={`/produto/${bid.productId}`}>
-                      <h3 className="text-sm font-medium text-foreground line-clamp-1 hover:text-primary transition-colors">{bid.productTitle}</h3>
+                <div key={bid.id} className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-4 rounded-lg border border-border bg-card hover:border-primary/20 transition-colors">
+                  <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                    <Link to={`/produto/${bid.productId}`} className="shrink-0 w-14 h-14 sm:w-16 sm:h-16 rounded-md overflow-hidden bg-kolecta-dark">
+                      <img src={bid.productImage} alt="" className="w-full h-full object-cover" />
                     </Link>
-                    <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                      <span>Seu lance: <span className="text-foreground font-medium">{formatBRL(bid.myBid)}</span></span>
-                      <span>·</span>
-                      <span>Maior: <span className="text-foreground font-medium">{formatBRL(bid.currentBid)}</span></span>
+
+                    <div className="flex-1 min-w-0">
+                      <Link to={`/produto/${bid.productId}`}>
+                        <h3 className="text-sm font-medium text-foreground line-clamp-2 sm:line-clamp-1 hover:text-primary transition-colors">{bid.productTitle}</h3>
+                      </Link>
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-xs text-muted-foreground">
+                        <span>Seu lance: <span className="text-foreground font-medium">{formatBRL(bid.myBid)}</span></span>
+                        <span className="hidden sm:inline">·</span>
+                        <span>Maior: <span className="text-foreground font-medium">{formatBRL(bid.currentBid)}</span></span>
+                      </div>
                     </div>
                   </div>
 
-                  <Badge className={`${cfg.color} border text-xs shrink-0`}>
-                    <StatusIcon className="h-3 w-3 mr-1" />
-                    {cfg.label}
-                  </Badge>
+                  <div className="flex items-center gap-2 sm:gap-3 justify-end">
+                    <Badge className={`${cfg.color} border text-xs shrink-0`}>
+                      <StatusIcon className="h-3 w-3 mr-1" />
+                      {cfg.label}
+                    </Badge>
 
-                  {(bid.status === 'outbid' || bid.status === 'leading') && (
-                    <Button variant="accent" size="sm" className="text-xs shrink-0" asChild>
-                      <Link to={`/produto/${bid.productId}`}>
-                        {bid.status === 'outbid' ? 'Aumentar lance' : 'Ver'}
-                      </Link>
-                    </Button>
-                  )}
-                  {bid.status === 'won_pending' && (
-                    <Button variant="kolecta" size="sm" className="text-xs shrink-0">
-                      Pagar
-                    </Button>
-                  )}
+                    {(bid.status === 'outbid' || bid.status === 'leading') && (
+                      <Button variant="accent" size="sm" className="text-xs shrink-0" asChild>
+                        <Link to={`/produto/${bid.productId}`}>
+                          {bid.status === 'outbid' ? 'Aumentar lance' : 'Ver'}
+                        </Link>
+                      </Button>
+                    )}
+                    {bid.status === 'won_pending' && (
+                      <Button variant="kolecta" size="sm" className="text-xs shrink-0">
+                        Pagar
+                      </Button>
+                    )}
+                  </div>
                 </div>
               );
             })}
