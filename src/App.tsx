@@ -13,6 +13,9 @@ import CategoryPage from "./pages/CategoryPage";
 import LoginPage from "./pages/auth/Login";
 import RegisterPage from "./pages/auth/Register";
 import PlaceholderPage from "./components/PlaceholderPage";
+import SellerDashboard from "./pages/seller/Dashboard";
+import SellerListings from "./pages/seller/Listings";
+import CreateListing from "./pages/seller/CreateListing";
 
 const queryClient = new QueryClient();
 
@@ -52,9 +55,9 @@ const App = () => (
           <Route path="/conta/avaliacoes" element={<PlaceholderPage title="Avaliações" />} />
           <Route path="/conta/disputas" element={<PlaceholderPage title="Disputas" />} />
           {/* Vendedor */}
-          <Route path="/painel-vendedor" element={<PlaceholderPage title="Painel do Vendedor" description="Dashboard com métricas de vendas e leilões." />} />
-          <Route path="/painel-vendedor/anuncios" element={<PlaceholderPage title="Meus Anúncios" />} />
-          <Route path="/painel-vendedor/anuncios/novo" element={<PlaceholderPage title="Criar Anúncio" description="Wizard de criação: tipo, categoria, fotos, preço e revisão." />} />
+          <Route path="/painel-vendedor" element={<SellerDashboard />} />
+          <Route path="/painel-vendedor/anuncios" element={<SellerListings />} />
+          <Route path="/painel-vendedor/anuncios/novo" element={<CreateListing />} />
           <Route path="/painel-vendedor/anuncios/:id/editar" element={<PlaceholderPage title="Editar Anúncio" />} />
           <Route path="/painel-vendedor/pedidos" element={<PlaceholderPage title="Pedidos Recebidos" />} />
           <Route path="/painel-vendedor/pedidos/:id" element={<PlaceholderPage title="Detalhe do Pedido" />} />
