@@ -15,7 +15,8 @@ type EventName =
   | 'report_listing'
   | 'admin_approve_listing'
   | 'admin_reject_listing'
-  | 'promo_click';
+  | 'promo_click'
+  | 'view_seller_dashboard';
 
 export function trackEvent(event: EventName, data?: Record<string, unknown>) {
   console.log(`[Kolecta Analytics] ${event}`, data);
