@@ -12,7 +12,7 @@ const sidebarLinks = [
   { label: 'Verificação', href: '/admin/vendedores/verificacao', icon: ShieldCheck },
   { label: 'Anúncios', href: '/admin/anuncios', icon: Package },
   { label: 'Modo Lance', href: '/admin/modo-lance', icon: Gavel },
-  { label: 'Denúncias', href: '/admin/denuncias', icon: AlertTriangle },
+  { label: 'Disputas', href: '/admin/disputas', icon: AlertTriangle },
   { label: 'Comissões', href: '/admin/comissoes-e-taxas', icon: DollarSign },
   { label: 'Financeiro', href: '/admin/financeiro', icon: Wallet },
   { label: 'Mídia', href: '/admin/midia', icon: Megaphone },
