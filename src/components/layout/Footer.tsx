@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import kolectaLogo from '@/assets/kolecta-logo.png';
 
 const footerLinks = {
   marketplace: [
@@ -32,10 +33,8 @@ export default function Footer() {
         <div className="grid grid-cols-2 gap-8 md:grid-cols-4 lg:grid-cols-5">
           {/* Brand */}
           <div className="col-span-2 md:col-span-4 lg:col-span-1 mb-4 lg:mb-0">
-            <Link to="/" className="flex items-center gap-0 select-none mb-4">
-              <span className="font-heading text-xl font-extrabold italic tracking-tight text-foreground">K</span>
-              <span className="font-heading text-xl font-extrabold italic tracking-tight text-primary">/</span>
-              <span className="font-heading text-xl font-extrabold italic tracking-tight text-foreground">OLECTA</span>
+            <Link to="/" className="flex items-center select-none mb-4">
+              <img src={kolectaLogo} alt="Kolecta" className="h-6 w-auto" />
             </Link>
             <p className="text-sm text-muted-foreground max-w-xs">
               O marketplace dos colecionadores. Compre, venda e dê lances com segurança.

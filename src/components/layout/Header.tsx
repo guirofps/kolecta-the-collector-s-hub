@@ -3,12 +3,11 @@ import { Search, Heart, ShoppingCart, MessageSquare, Menu, X, Gavel, User } from
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import kolectaLogo from '@/assets/kolecta-logo.png';
 
 const Logo = () => (
-  <Link to="/" className="flex items-center gap-0 select-none">
-    <span className="font-heading text-2xl font-extrabold italic tracking-tight text-foreground">K</span>
-    <span className="font-heading text-2xl font-extrabold italic tracking-tight text-primary">/</span>
-    <span className="font-heading text-2xl font-extrabold italic tracking-tight text-foreground">OLECTA</span>
+  <Link to="/" className="flex items-center select-none">
+    <img src={kolectaLogo} alt="Kolecta" className="h-7 w-auto" />
   </Link>
 );
 
