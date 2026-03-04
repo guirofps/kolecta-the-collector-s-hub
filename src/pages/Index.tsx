@@ -296,20 +296,20 @@ export default function Index() {
       </section>
 
       {/* ─── CTA BANNER ───────────────────────────────── */}
-      <section className="py-16 lg:py-20 bg-gradient-dark">
+      <section className="py-16 lg:py-20">
         <div className="container mx-auto px-4 text-center">
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5 }}
-            className="max-w-2xl mx-auto p-10 rounded-xl border border-primary/20 bg-card glow-primary"
+            className="max-w-2xl mx-auto p-10 rounded-xl border border-primary/30 bg-kolecta-dark text-white glow-primary"
           >
             <TrendingUp className="h-8 w-8 text-primary mx-auto mb-4" />
             <h2 className="font-heading text-3xl sm:text-4xl font-extrabold italic uppercase mb-3">
               Tem algo para <span className="text-primary">vender</span>?
             </h2>
-            <p className="text-muted-foreground mb-6">
+            <p className="text-white/60 mb-6">
               Anuncie seus itens colecionáveis e alcance milhares de compradores. Comece em minutos.
             </p>
             <Button variant="kolecta" size="lg" className="text-base px-8" asChild>
