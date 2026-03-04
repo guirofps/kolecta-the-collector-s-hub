@@ -31,7 +31,7 @@ export default function Header() {
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-background/80 backdrop-blur-xl">
+    <header className="fixed top-0 left-0 right-0 z-50 border-b border-kolecta-carbon/20 bg-kolecta-dark backdrop-blur-xl">
       <div className="container mx-auto flex h-16 items-center gap-4 px-4">
         {/* Mobile menu */}
         <Sheet>
@@ -40,7 +40,7 @@ export default function Header() {
               <Menu className="h-5 w-5" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="w-72 bg-background border-border">
+          <SheetContent side="left" className="w-72 bg-kolecta-dark border-kolecta-carbon/30">
             <div className="mt-8 flex flex-col gap-6">
               <Logo />
               <nav className="flex flex-col gap-4">
@@ -48,14 +48,14 @@ export default function Header() {
                   <Link
                     key={link.href}
                     to={link.href}
-                    className="font-heading text-lg font-semibold uppercase tracking-wider text-foreground/80 hover:text-primary transition-colors"
+                    className="font-heading text-lg font-semibold uppercase tracking-wider text-white/80 hover:text-primary transition-colors"
                   >
                     {link.label}
                   </Link>
                 ))}
                 <div className="line-tech my-2" />
-                <Link to="/como-funciona" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Como funciona</Link>
-                <Link to="/ajuda" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Central de Ajuda</Link>
+                <Link to="/como-funciona" className="text-sm text-white/50 hover:text-white transition-colors">Como funciona</Link>
+                <Link to="/ajuda" className="text-sm text-white/50 hover:text-white transition-colors">Central de Ajuda</Link>
               </nav>
             </div>
           </SheetContent>
@@ -67,13 +67,13 @@ export default function Header() {
         {/* Desktop search */}
         <form onSubmit={handleSearch} className="hidden lg:flex flex-1 max-w-md mx-4">
           <div className="relative w-full">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
             <input
               type="text"
               placeholder="Buscar colecionáveis..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full h-9 rounded-md border border-border bg-input pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary transition-all"
+              className="w-full h-9 rounded-md border border-white/20 bg-white/10 pl-10 pr-4 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-primary transition-all"
             />
           </div>
         </form>
@@ -84,7 +84,7 @@ export default function Header() {
             <Link
               key={link.href}
               to={link.href}
-              className="font-heading text-sm font-semibold uppercase tracking-wider text-foreground/70 hover:text-primary transition-colors flex items-center gap-1.5"
+              className="font-heading text-sm font-semibold uppercase tracking-wider text-white/70 hover:text-primary transition-colors flex items-center gap-1.5"
             >
               {link.icon && <link.icon className="h-3.5 w-3.5" />}
               {link.label}
@@ -105,13 +105,13 @@ export default function Header() {
           </Button>
 
           <Link to="/conta/favoritos">
-            <Button variant="ghost" size="icon" className="text-foreground/70 hover:text-primary">
+            <Button variant="ghost" size="icon" className="text-white/70 hover:text-primary">
               <Heart className="h-5 w-5" />
             </Button>
           </Link>
 
           <Link to="/conta/mensagens" className="hidden sm:block">
-            <Button variant="ghost" size="icon" className="text-foreground/70 hover:text-foreground">
+            <Button variant="ghost" size="icon" className="text-white/70 hover:text-white">
               <MessageSquare className="h-5 w-5" />
             </Button>
           </Link>
@@ -121,7 +121,7 @@ export default function Header() {
               <User className="h-4 w-4" />
               Entrar
             </Button>
-            <Button variant="ghost" size="icon" className="sm:hidden text-foreground/70">
+            <Button variant="ghost" size="icon" className="sm:hidden text-white/70">
               <User className="h-5 w-5" />
             </Button>
           </Link>
@@ -130,17 +130,17 @@ export default function Header() {
 
       {/* Mobile search bar */}
       {searchOpen && (
-        <div className="lg:hidden border-t border-border bg-background/95 backdrop-blur-xl px-4 py-3 animate-slide-up">
+        <div className="lg:hidden border-t border-white/10 bg-kolecta-dark px-4 py-3 animate-slide-up">
           <form onSubmit={handleSearch}>
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
               <input
                 type="text"
                 placeholder="Buscar colecionáveis..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 autoFocus
-                className="w-full h-10 rounded-md border border-border bg-input pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                className="w-full h-10 rounded-md border border-white/20 bg-white/10 pl-10 pr-4 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </div>
           </form>

@@ -38,7 +38,7 @@ export default function Index() {
         {/* Background */}
         <div className="absolute inset-0">
           <img src={heroBg} alt="" className="w-full h-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/80 to-background/40" />
+          <div className="absolute inset-0 bg-gradient-to-t from-kolecta-dark via-kolecta-dark/80 to-kolecta-dark/40" />
           <div className="absolute inset-0 bg-carbon-texture opacity-30" />
         </div>
 
@@ -58,7 +58,7 @@ export default function Index() {
             <motion.h1
               variants={fadeUp}
               custom={1}
-              className="font-heading text-5xl sm:text-6xl lg:text-7xl font-extrabold italic uppercase leading-[0.9] mb-6"
+              className="font-heading text-5xl sm:text-6xl lg:text-7xl font-extrabold italic uppercase leading-[0.9] mb-6 text-white"
             >
               O point dos{' '}
               <span className="text-primary text-glow-primary">colecionadores</span>
@@ -67,7 +67,7 @@ export default function Index() {
             <motion.p
               variants={fadeUp}
               custom={2}
-              className="text-lg sm:text-xl text-muted-foreground max-w-xl mx-auto mb-8"
+              className="text-lg sm:text-xl text-white/60 max-w-xl mx-auto mb-8"
             >
               Compre, venda e dê lances em carrinhos, miniaturas e artigos exclusivos. Comunidade verificada, transações seguras.
             </motion.p>
@@ -79,7 +79,7 @@ export default function Index() {
                   Explorar
                 </Link>
               </Button>
-              <Button variant="ghost-light" size="lg" className="text-base px-8" asChild>
+              <Button variant="ghost-light" size="lg" className="text-base px-8 text-white border-white/20 hover:bg-white/10" asChild>
                 <Link to="/painel-vendedor/anuncios/novo">
                   Anunciar Item
                   <ArrowRight className="h-5 w-5" />
@@ -103,7 +103,7 @@ export default function Index() {
             ].map((stat) => (
               <div key={stat.label} className="text-center">
                 <div className="font-heading text-2xl font-bold text-primary">{stat.value}</div>
-                <div className="text-xs text-muted-foreground uppercase tracking-wider">{stat.label}</div>
+                <div className="text-xs text-white/50 uppercase tracking-wider">{stat.label}</div>
               </div>
             ))}
           </motion.div>

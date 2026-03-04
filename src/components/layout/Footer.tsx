@@ -28,7 +28,7 @@ const footerLinks = {
 
 export default function Footer() {
   return (
-    <footer className="border-t border-border bg-kolecta-dark">
+    <footer className="border-t border-kolecta-carbon/20 bg-kolecta-dark text-white">
       <div className="container mx-auto px-4 py-12">
         <div className="grid grid-cols-2 gap-8 md:grid-cols-4 lg:grid-cols-5">
           {/* Brand */}
@@ -36,7 +36,7 @@ export default function Footer() {
             <Link to="/" className="flex items-center select-none mb-4">
               <img src={kolectaLogo} alt="Kolecta" className="h-6 w-auto" />
             </Link>
-            <p className="text-sm text-muted-foreground max-w-xs">
+            <p className="text-sm text-white/50 max-w-xs">
               O marketplace dos colecionadores. Compre, venda e dê lances com segurança.
             </p>
           </div>
@@ -47,7 +47,7 @@ export default function Footer() {
             <ul className="space-y-2.5">
               {footerLinks.marketplace.map((link) => (
                 <li key={link.href + link.label}>
-                  <Link to={link.href} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                  <Link to={link.href} className="text-sm text-white/50 hover:text-white transition-colors">
                     {link.label}
                   </Link>
                 </li>
@@ -60,7 +60,7 @@ export default function Footer() {
             <ul className="space-y-2.5">
               {footerLinks.vendedores.map((link) => (
                 <li key={link.href + link.label}>
-                  <Link to={link.href} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                  <Link to={link.href} className="text-sm text-white/50 hover:text-white transition-colors">
                     {link.label}
                   </Link>
                 </li>
@@ -73,7 +73,7 @@ export default function Footer() {
             <ul className="space-y-2.5">
               {footerLinks.suporte.map((link) => (
                 <li key={link.href + link.label}>
-                  <Link to={link.href} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                  <Link to={link.href} className="text-sm text-white/50 hover:text-white transition-colors">
                     {link.label}
                   </Link>
                 </li>
@@ -83,7 +83,7 @@ export default function Footer() {
             <ul className="space-y-2.5">
               {footerLinks.legal.map((link) => (
                 <li key={link.href + link.label}>
-                  <Link to={link.href} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                  <Link to={link.href} className="text-sm text-white/50 hover:text-white transition-colors">
                     {link.label}
                   </Link>
                 </li>
@@ -94,7 +94,7 @@ export default function Footer() {
 
         {/* Bottom bar */}
         <div className="line-tech mt-10 mb-6" />
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-white/40">
           <p>© {new Date().getFullYear()} Kolecta. Todos os direitos reservados.</p>
           <p>Feito para colecionadores, por colecionadores.</p>
         </div>
