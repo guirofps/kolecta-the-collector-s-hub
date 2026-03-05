@@ -47,8 +47,8 @@ const App = () => (
           <Route path="/modo-lance/:id" element={<ProductDetail />} />
           <Route path="/categorias" element={<CategoriesPage />} />
           <Route path="/categoria/:slug" element={<CategoryPage />} />
-          <Route path="/entrar" element={<LoginPage />} />
-          <Route path="/criar-conta" element={<RegisterPage />} />
+          <Route path="/entrar/*" element={<LoginPage />} />
+          <Route path="/criar-conta/*" element={<RegisterPage />} />
           <Route path="/esqueci-senha" element={<PlaceholderPage title="Esqueci a Senha" description="Recuperação de senha por e-mail." />} />
           <Route path="/vendedor/:slug" element={<PlaceholderPage title="Loja do Vendedor" description="Perfil público e anúncios do vendedor." />} />
           <Route path="/como-funciona" element={<HowItWorksPage />} />
