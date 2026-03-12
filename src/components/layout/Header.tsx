@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
-import { Search, Heart, ShoppingCart, MessageSquare, Menu, X, Gavel, User } from 'lucide-react';
-import { SignedIn, SignedOut, UserButton } from '@clerk/clerk-react';
+import { Search, Heart, MessageSquare, Menu, X, Gavel, User } from 'lucide-react';
+import { SignedIn, SignedOut, UserButton, useUser } from '@clerk/clerk-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -122,6 +122,9 @@ export default function Header() {
           {CLERK_ENABLED ? (
             <>
               <SignedIn>
+                <Link to="/conta" className="hidden sm:flex items-center gap-2 text-white/70 hover:text-primary transition-colors">
+                  <span className="text-sm font-medium">Minha Conta</span>
+                </Link>
                 <UserButton afterSignOutUrl="/" />
               </SignedIn>
               <SignedOut>

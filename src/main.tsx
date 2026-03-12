@@ -8,7 +8,7 @@ const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || "pk_test_c
 const Root = () => {
   if (PUBLISHABLE_KEY) {
     return (
-      <ClerkProvider publishableKey={PUBLISHABLE_KEY} afterSignOutUrl="/">
+      <ClerkProvider publishableKey={PUBLISHABLE_KEY} afterSignOutUrl="/" afterSignInUrl="/conta" afterSignUpUrl="/conta">
         <App />
       </ClerkProvider>
     );

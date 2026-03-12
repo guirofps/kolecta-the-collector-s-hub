@@ -14,7 +14,7 @@ export default function LoginPage() {
             path="/entrar"
             routing="path"
             signUpUrl="/criar-conta"
-            fallbackRedirectUrl="/"
+            fallbackRedirectUrl="/conta"
           />
         </div>
       </div>

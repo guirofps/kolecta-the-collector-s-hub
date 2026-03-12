@@ -14,7 +14,7 @@ export default function RegisterPage() {
             path="/criar-conta"
             routing="path"
             signInUrl="/entrar"
-            fallbackRedirectUrl="/"
+            fallbackRedirectUrl="/conta"
           />
         </div>
       </div>
