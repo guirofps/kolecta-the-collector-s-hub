@@ -1,12 +1,11 @@
 import { Link } from 'react-router-dom';
 import { Search, Heart, MessageSquare, Menu, X, Gavel, User } from 'lucide-react';
-import { SignedIn, SignedOut, UserButton, useUser } from '@clerk/clerk-react';
+import { SignedIn, SignedOut, UserButton } from '@clerk/clerk-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import kolectaLogo from '@/assets/kolecta-logo.png';
-
-const CLERK_ENABLED = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+import { CLERK_ENABLED } from '@/lib/clerk';
 
 const Logo = () => (
   <Link to="/" className="flex items-center select-none">

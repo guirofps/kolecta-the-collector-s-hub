@@ -2,21 +2,23 @@ import { createRoot } from "react-dom/client";
 import { ClerkProvider } from "@clerk/clerk-react";
 import App from "./App.tsx";
 import "./index.css";
+import { CLERK_ENABLED, CLERK_PUBLISHABLE_KEY } from "./lib/clerk";
 
-const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || "pk_test_cmVuZXdlZC1kaW5nby00MC5jbGVyay5hY2NvdW50cy5kZXYk";
+const root = createRoot(document.getElementById("root")!);
 
-const Root = () => {
-  if (PUBLISHABLE_KEY) {
-    return (
-      <ClerkProvider publishableKey={PUBLISHABLE_KEY} afterSignOutUrl="/" afterSignInUrl="/conta" afterSignUpUrl="/conta">
-        <App />
-      </ClerkProvider>
-    );
-  }
-
-  // Fallback: render without Clerk when key is not configured
+if (CLERK_ENABLED) {
+  root.render(
+    <ClerkProvider
+      publishableKey={CLERK_PUBLISHABLE_KEY}
+      afterSignOutUrl="/"
+      afterSignInUrl="/conta"
+      afterSignUpUrl="/conta"
+    >
+      <App />
+    </ClerkProvider>
+  );
+} else {
   console.warn("Clerk Publishable Key não configurada — autenticação desativada.");
-  return <App />;
-};
+  root.render(<App />);
+}
 
-createRoot(document.getElementById("root")!).render(<Root />);
