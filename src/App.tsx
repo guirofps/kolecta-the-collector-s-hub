@@ -20,6 +20,7 @@ import HowItWorksPage from "./pages/HowItWorks";
 import MyBidsPage from "./pages/account/MyBids";
 import OrderDetailPage from "./pages/account/OrderDetail";
 import VerificationPage from "./pages/account/Verification";
+import AccountDashboard from "./pages/account/Dashboard";
 import PaymentsPage from "./pages/account/Payments";
 import SellerDashboard from "./pages/seller/Dashboard";
 import SellerListings from "./pages/seller/Listings";
