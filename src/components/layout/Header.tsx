@@ -130,11 +130,25 @@ export default function Header() {
             </Button>
           </Link>
 
-          <SignedIn>
-            <UserButton afterSignOutUrl="/" />
-          </SignedIn>
+          {CLERK_ENABLED && SignedIn && UserButton ? (
+            <SignedIn>
+              <UserButton afterSignOutUrl="/" />
+            </SignedIn>
+          ) : null}
 
-          <SignedOut>
+          {CLERK_ENABLED && SignedOut ? (
+            <SignedOut>
+              <Link to="/entrar">
+                <Button variant="outline-gold" size="sm" className="hidden sm:flex gap-1.5">
+                  <User className="h-4 w-4" />
+                  Entrar
+                </Button>
+                <Button variant="ghost" size="icon" className="sm:hidden text-white/70">
+                  <User className="h-5 w-5" />
+                </Button>
+              </Link>
+            </SignedOut>
+          ) : !CLERK_ENABLED ? (
             <Link to="/entrar">
               <Button variant="outline-gold" size="sm" className="hidden sm:flex gap-1.5">
                 <User className="h-4 w-4" />
@@ -144,7 +158,7 @@ export default function Header() {
                 <User className="h-5 w-5" />
               </Button>
             </Link>
-          </SignedOut>
+          ) : null}
         </div>
       </div>
 
