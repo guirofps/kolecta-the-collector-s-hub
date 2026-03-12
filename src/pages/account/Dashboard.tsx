@@ -43,7 +43,7 @@ export default function AccountDashboard() {
   }
 
   if (!isSignedIn) {
-    return <RedirectToSignIn />;
+    return <Navigate to="/entrar" replace />;
   }
 
   return (
