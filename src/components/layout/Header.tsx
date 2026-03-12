@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import kolectaLogo from '@/assets/kolecta-logo.png';
 
+const CLERK_ENABLED = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+
 const Logo = () => (
   <Link to="/" className="flex items-center select-none">
     <img src={kolectaLogo} alt="Kolecta" className="h-7 w-auto" />
@@ -117,11 +119,24 @@ export default function Header() {
             </Button>
           </Link>
 
-          <SignedIn>
-            <UserButton afterSignOutUrl="/" />
-          </SignedIn>
-
-          <SignedOut>
+          {CLERK_ENABLED ? (
+            <>
+              <SignedIn>
+                <UserButton afterSignOutUrl="/" />
+              </SignedIn>
+              <SignedOut>
+                <Link to="/entrar">
+                  <Button variant="outline-gold" size="sm" className="hidden sm:flex gap-1.5">
+                    <User className="h-4 w-4" />
+                    Entrar
+                  </Button>
+                  <Button variant="ghost" size="icon" className="sm:hidden text-white/70">
+                    <User className="h-5 w-5" />
+                  </Button>
+                </Link>
+              </SignedOut>
+            </>
+          ) : (
             <Link to="/entrar">
               <Button variant="outline-gold" size="sm" className="hidden sm:flex gap-1.5">
                 <User className="h-4 w-4" />
@@ -131,7 +146,7 @@ export default function Header() {
                 <User className="h-5 w-5" />
               </Button>
             </Link>
-          </SignedOut>
+          )}
         </div>
       </div>
 
