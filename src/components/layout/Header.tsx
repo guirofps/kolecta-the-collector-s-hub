@@ -1,23 +1,12 @@
 import { Link } from 'react-router-dom';
 import { Search, Heart, ShoppingCart, MessageSquare, Menu, X, Gavel, User } from 'lucide-react';
+import { SignedIn, SignedOut, UserButton } from '@clerk/clerk-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import kolectaLogo from '@/assets/kolecta-logo.png';
 
 const CLERK_ENABLED = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
-
-// Conditionally import Clerk components
-let SignedIn: React.ComponentType<{ children: React.ReactNode }> | null = null;
-let SignedOut: React.ComponentType<{ children: React.ReactNode }> | null = null;
-let UserButton: React.ComponentType<{ afterSignOutUrl?: string }> | null = null;
-
-if (CLERK_ENABLED) {
-  const clerk = await import('@clerk/clerk-react');
-  SignedIn = clerk.SignedIn;
-  SignedOut = clerk.SignedOut;
-  UserButton = clerk.UserButton;
-}
 
 const Logo = () => (
   <Link to="/" className="flex items-center select-none">
