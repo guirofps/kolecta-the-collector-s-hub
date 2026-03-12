@@ -122,6 +122,9 @@ export default function Header() {
           {CLERK_ENABLED ? (
             <>
               <SignedIn>
+                <Link to="/conta" className="hidden sm:flex items-center gap-2 text-white/70 hover:text-primary transition-colors">
+                  <span className="text-sm font-medium">Minha Conta</span>
+                </Link>
                 <UserButton afterSignOutUrl="/" />
               </SignedIn>
               <SignedOut>
