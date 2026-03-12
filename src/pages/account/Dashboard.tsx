@@ -1,5 +1,5 @@
-import { useUser, SignedIn, RedirectToSignIn } from '@clerk/clerk-react';
-import { Link } from 'react-router-dom';
+import { useUser } from '@clerk/clerk-react';
+import { Link, Navigate } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
