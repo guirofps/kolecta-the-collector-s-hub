@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
-import { Search, Heart, ShoppingCart, MessageSquare, Menu, X, Gavel, User } from 'lucide-react';
-import { SignedIn, SignedOut, UserButton } from '@clerk/clerk-react';
+import { Search, Heart, MessageSquare, Menu, X, Gavel, User } from 'lucide-react';
+import { SignedIn, SignedOut, UserButton, useUser } from '@clerk/clerk-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
