@@ -20,8 +20,7 @@ import { trackEvent } from '@/lib/analytics';
 
 export default function ProductDetail() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  const { addItem } = useCart();
+  const { addItem, openCart } = useCart();
   const product = getProductById(id || '');
   const [bidAmount, setBidAmount] = useState('');
   const [bidDialogOpen, setBidDialogOpen] = useState(false);
