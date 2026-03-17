@@ -18,10 +18,10 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
-// Seed with 2 items from different sellers for initial visualization
+// Seed with 2 direct-sale items from different sellers for initial visualization
 const initialItems: CartItem[] = [
   { product: mockProducts.find(p => p.id === 'p2')!, quantity: 1 },
-  { product: mockProducts.find(p => p.id === 'p4') || mockProducts.find(p => p.type === 'direct' && p.seller.id !== mockProducts.find(x => x.id === 'p2')?.seller.id)!, quantity: 2 },
+  { product: mockProducts.find(p => p.id === 'p3')!, quantity: 2 },
 ].filter(item => item.product);
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
