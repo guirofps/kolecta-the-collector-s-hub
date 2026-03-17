@@ -18,6 +18,7 @@ import FeesPage from "./pages/Fees";
 import SecurityPage from "./pages/Security";
 import HowItWorksPage from "./pages/HowItWorks";
 import MyBidsPage from "./pages/account/MyBids";
+import OrdersPage from "./pages/account/Orders";
 import OrderDetailPage from "./pages/account/OrderDetail";
 import VerificationPage from "./pages/account/Verification";
 import AccountDashboard from "./pages/account/Dashboard";
