@@ -249,12 +249,21 @@ export default function ProductDetail() {
                     </div>
                   </div>
                   <div className="flex gap-3">
-                    <Button variant="kolecta" size="lg" className="flex-1 text-base" onClick={() => trackEvent('buy_now_click', { productId: product.id })}>
+                    <Button variant="kolecta" size="lg" className="flex-1 text-base" onClick={() => {
+                      trackEvent('buy_now_click', { productId: product.id });
+                      addItem(product, 1);
+                      navigate('/carrinho');
+                    }}>
                       <ShoppingCart className="h-5 w-5" />
                       Comprar Agora
                     </Button>
-                    <Button variant="ghost-light" size="lg" onClick={() => trackEvent('add_to_favorites', { productId: product.id })}>
-                      <Heart className="h-5 w-5" />
+                    {/* API: POST /api/favorites/:productId — adiciona favorito
+                        DELETE /api/favorites/:productId — remove favorito */}
+                    <Button variant="ghost-light" size="lg" onClick={() => {
+                      setIsFavorite((prev) => !prev);
+                      trackEvent(isFavorite ? 'remove_from_favorites' : 'add_to_favorites', { productId: product.id });
+                    }}>
+                      <Heart className={cn('h-5 w-5', isFavorite && 'fill-kolecta-red text-kolecta-red')} />
                     </Button>
                   </div>
                 </div>
