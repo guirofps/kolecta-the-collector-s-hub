@@ -1,11 +1,13 @@
 import { Link } from 'react-router-dom';
-import { Search, Heart, MessageSquare, Menu, X, Gavel, User } from 'lucide-react';
+import { Search, Heart, MessageSquare, Menu, X, Gavel, User, ShoppingCart } from 'lucide-react';
 import { SignedIn, SignedOut, UserButton } from '@clerk/clerk-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import kolectaLogo from '@/assets/kolecta-logo.png';
 import { CLERK_ENABLED } from '@/lib/clerk';
+import { useCart } from '@/contexts/CartContext';
 
 const Logo = () => (
   <Link to="/" className="flex items-center select-none">
