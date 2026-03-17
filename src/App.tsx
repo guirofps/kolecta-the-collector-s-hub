@@ -76,7 +76,7 @@ const App = () => (
           <Route path="/conta/pedidos/:id" element={<OrderDetailPage />} />
           <Route path="/conta/lances" element={<MyBidsPage />} />
           <Route path="/conta/favoritos" element={<PlaceholderPage title="Favoritos" description="Itens que você salvou." />} />
-          <Route path="/conta/enderecos" element={<PlaceholderPage title="Endereços" />} />
+          <Route path="/conta/enderecos" element={<AddressesPage />} />
           <Route path="/conta/pagamentos" element={<PaymentsPage />} />
           <Route path="/conta/verificacao" element={<VerificationPage />} />
           <Route path="/conta/mensagens" element={<PlaceholderPage title="Mensagens" />} />
