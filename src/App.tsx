@@ -18,6 +18,7 @@ import FeesPage from "./pages/Fees";
 import SecurityPage from "./pages/Security";
 import HowItWorksPage from "./pages/HowItWorks";
 import MyBidsPage from "./pages/account/MyBids";
+import OrdersPage from "./pages/account/Orders";
 import OrderDetailPage from "./pages/account/OrderDetail";
 import VerificationPage from "./pages/account/Verification";
 import AccountDashboard from "./pages/account/Dashboard";
@@ -70,7 +71,7 @@ const App = () => (
           <Route path="/privacidade" element={<PlaceholderPage title="Política de Privacidade" />} />
           {/* Comprador */}
           <Route path="/conta" element={<AccountDashboard />} />
-          <Route path="/conta/pedidos" element={<PlaceholderPage title="Meus Pedidos" />} />
+          <Route path="/conta/pedidos" element={<OrdersPage />} />
           <Route path="/conta/pedidos/:id" element={<OrderDetailPage />} />
           <Route path="/conta/lances" element={<MyBidsPage />} />
           <Route path="/conta/favoritos" element={<PlaceholderPage title="Favoritos" description="Itens que você salvou." />} />
