@@ -96,13 +96,6 @@ export default function CheckoutPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
 
-  const groups = groupBySeller(items);
-
-  // If cart is empty, redirect to cart
-  if (items.length === 0) {
-    return <Navigate to="/carrinho" replace />;
-  }
-
   // ── ViaCEP lookup ──────────────────────────────────────
 
   const fetchCep = useCallback(async (rawCep: string) => {
