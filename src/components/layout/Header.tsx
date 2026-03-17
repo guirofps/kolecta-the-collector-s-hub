@@ -1,11 +1,13 @@
 import { Link } from 'react-router-dom';
-import { Search, Heart, MessageSquare, Menu, X, Gavel, User } from 'lucide-react';
+import { Search, Heart, MessageSquare, Menu, X, Gavel, User, ShoppingCart } from 'lucide-react';
 import { SignedIn, SignedOut, UserButton } from '@clerk/clerk-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import kolectaLogo from '@/assets/kolecta-logo.png';
 import { CLERK_ENABLED } from '@/lib/clerk';
+import { useCart } from '@/contexts/CartContext';
 
 const Logo = () => (
   <Link to="/" className="flex items-center select-none">
@@ -24,6 +26,7 @@ const navLinks = [
 export default function Header() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const { totalItems, openCart } = useCart();
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -111,6 +114,15 @@ export default function Header() {
               <Heart className="h-5 w-5" />
             </Button>
           </Link>
+
+          <Button variant="ghost" size="icon" className="relative text-white/70 hover:text-primary" onClick={openCart}>
+            <ShoppingCart className="h-5 w-5" />
+            {totalItems > 0 && (
+              <Badge className="absolute -top-1 -right-1 h-4 min-w-4 px-1 flex items-center justify-center text-[10px] bg-kolecta-gold text-kolecta-gold-foreground rounded-full">
+                {totalItems}
+              </Badge>
+            )}
+          </Button>
 
           <Link to="/conta/mensagens" className="hidden sm:block">
             <Button variant="ghost" size="icon" className="text-white/70 hover:text-white">

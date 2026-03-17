@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { useCart } from '@/contexts/CartContext';
 import { Heart, ShieldCheck, Star, Gavel, ShoppingCart, Flag, ChevronRight, ArrowLeft, MessageSquare, AlertTriangle, CreditCard } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
@@ -20,8 +20,7 @@ import { trackEvent } from '@/lib/analytics';
 
 export default function ProductDetail() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  const { addItem } = useCart();
+  const { addItem, openCart } = useCart();
   const product = getProductById(id || '');
   const [bidAmount, setBidAmount] = useState('');
   const [bidDialogOpen, setBidDialogOpen] = useState(false);
@@ -253,7 +252,7 @@ export default function ProductDetail() {
                     <Button variant="kolecta" size="lg" className="flex-1 text-base" onClick={() => {
                       trackEvent('buy_now_click', { productId: product.id });
                       addItem(product, 1);
-                      navigate('/carrinho');
+                      openCart();
                     }}>
                       <ShoppingCart className="h-5 w-5" />
                       Comprar Agora

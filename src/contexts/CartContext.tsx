@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
-import { Product, mockProducts } from '@/lib/mock-data';
+import { Product } from '@/lib/mock-data';
 
 export interface CartItem {
   product: Product;
@@ -14,18 +14,19 @@ interface CartContextType {
   clearCart: () => void;
   totalItems: number;
   totalPrice: number;
+  isCartOpen: boolean;
+  openCart: () => void;
+  closeCart: () => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
-// Seed with 2 direct-sale items from different sellers for initial visualization
-const initialItems: CartItem[] = [
-  { product: mockProducts.find(p => p.id === 'p2')!, quantity: 1 },
-  { product: mockProducts.find(p => p.id === 'p3')!, quantity: 2 },
-].filter(item => item.product);
-
 export function CartProvider({ children }: { children: React.ReactNode }) {
-  const [items, setItems] = useState<CartItem[]>(initialItems);
+  const [items, setItems] = useState<CartItem[]>([]);
+  const [isCartOpen, setIsCartOpen] = useState(false);
+
+  const openCart = useCallback(() => setIsCartOpen(true), []);
+  const closeCart = useCallback(() => setIsCartOpen(false), []);
 
   const addItem = useCallback((product: Product, quantity = 1) => {
     setItems(prev => {
@@ -56,7 +57,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const totalPrice = items.reduce((sum, i) => sum + (i.product.price ?? 0) * i.quantity, 0);
 
   return (
-    <CartContext.Provider value={{ items, addItem, removeItem, updateQuantity, clearCart, totalItems, totalPrice }}>
+    <CartContext.Provider value={{ items, addItem, removeItem, updateQuantity, clearCart, totalItems, totalPrice, isCartOpen, openCart, closeCart }}>
       {children}
     </CartContext.Provider>
   );
