@@ -115,6 +115,15 @@ export default function Header() {
             </Button>
           </Link>
 
+          <Button variant="ghost" size="icon" className="relative text-white/70 hover:text-primary" onClick={openCart}>
+            <ShoppingCart className="h-5 w-5" />
+            {totalItems > 0 && (
+              <Badge className="absolute -top-1 -right-1 h-4 min-w-4 px-1 flex items-center justify-center text-[10px] bg-kolecta-gold text-kolecta-gold-foreground rounded-full">
+                {totalItems}
+              </Badge>
+            )}
+          </Button>
+
           <Link to="/conta/mensagens" className="hidden sm:block">
             <Button variant="ghost" size="icon" className="text-white/70 hover:text-white">
               <MessageSquare className="h-5 w-5" />
