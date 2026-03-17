@@ -252,7 +252,7 @@ export default function ProductDetail() {
                     <Button variant="kolecta" size="lg" className="flex-1 text-base" onClick={() => {
                       trackEvent('buy_now_click', { productId: product.id });
                       addItem(product, 1);
-                      navigate('/carrinho');
+                      openCart();
                     }}>
                       <ShoppingCart className="h-5 w-5" />
                       Comprar Agora
