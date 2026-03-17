@@ -30,18 +30,22 @@ import AdminListings from "./pages/admin/Listings";
 import AdminUsers from "./pages/admin/Users";
 import AdminReports from "./pages/admin/Reports";
 import AdminDisputes from "./pages/admin/Disputes";
+import CartPage from "./pages/Cart";
+import { CartProvider } from "./contexts/CartContext";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <ScrollToTop />
-        <Routes>
-          <Route path="/" element={<Index />} />
+    <CartProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <ScrollToTop />
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/carrinho" element={<CartPage />} />
           <Route path="/busca" element={<SearchPage />} />
           <Route path="/produto/:id" element={<ProductDetail />} />
           <Route path="/modo-lance" element={<AuctionsPage />} />
@@ -100,6 +104,7 @@ const App = () => (
         </Routes>
       </BrowserRouter>
     </TooltipProvider>
+    </CartProvider>
   </QueryClientProvider>
 );
 
