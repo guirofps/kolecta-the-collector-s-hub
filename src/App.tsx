@@ -23,6 +23,7 @@ import VerificationPage from "./pages/account/Verification";
 import AccountDashboard from "./pages/account/Dashboard";
 import PaymentsPage from "./pages/account/Payments";
 import SellerDashboard from "./pages/seller/Dashboard";
+import StripeOnboardingPage from "./pages/seller/StripeOnboarding";
 import SellerListings from "./pages/seller/Listings";
 import CreateListing from "./pages/seller/CreateListing";
 import AdminOverview from "./pages/admin/Overview";
@@ -88,6 +89,7 @@ const App = () => (
           <Route path="/painel-vendedor/pedidos/:id" element={<PlaceholderPage title="Detalhe do Pedido" />} />
           <Route path="/painel-vendedor/modo-lance" element={<PlaceholderPage title="Meu Modo Lance" />} />
           <Route path="/painel-vendedor/financeiro" element={<PlaceholderPage title="Financeiro" description="Saldo, comissões, repasses e saques." />} />
+          <Route path="/painel-vendedor/stripe-onboarding" element={<StripeOnboardingPage />} />
           <Route path="/painel-vendedor/mensagens" element={<PlaceholderPage title="Mensagens" />} />
           <Route path="/painel-vendedor/configuracoes" element={<PlaceholderPage title="Configurações do Vendedor" />} />
           <Route path="/painel-vendedor/midia" element={<PlaceholderPage title="Mídia & Destaque" description="Compre destaque para seus anúncios." />} />

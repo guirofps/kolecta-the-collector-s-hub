@@ -82,6 +82,22 @@ export default function SellerDashboard() {
           </Button>
         </div>
 
+        {/* Stripe Connect alert */}
+        <motion.div variants={fadeIn} custom={0} initial="hidden" animate="visible" className="mb-6">
+          <Card className="border-destructive/30 bg-destructive/5">
+            <CardContent className="p-4 flex items-center gap-4">
+              <AlertCircle className="h-8 w-8 text-destructive shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="font-heading text-sm font-bold uppercase">Configure seus recebimentos</p>
+                <p className="text-xs text-muted-foreground">Conecte sua conta bancária para começar a vender</p>
+              </div>
+              <Button variant="kolecta" size="sm" asChild>
+                <Link to="/painel-vendedor/stripe-onboarding">Conectar conta bancária</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </motion.div>
+
         {/* Metrics grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {[
