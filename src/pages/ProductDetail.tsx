@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useCart } from '@/contexts/CartContext';
 import { Heart, ShieldCheck, Star, Gavel, ShoppingCart, Flag, ChevronRight, ArrowLeft, MessageSquare, AlertTriangle, CreditCard } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
 import ProductCard from '@/components/ProductCard';
