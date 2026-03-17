@@ -4,6 +4,7 @@ type EventName =
   | 'filter_apply'
   | 'view_product'
   | 'add_to_favorites'
+  | 'remove_from_favorites'
   | 'start_sell_flow'
   | 'submit_listing'
   | 'bid_place'
