@@ -118,6 +118,13 @@ export default function CheckoutPage() {
     }
   }, []);
 
+  const groups = groupBySeller(items);
+
+  // If cart is empty, redirect to cart
+  if (items.length === 0) {
+    return <Navigate to="/carrinho" replace />;
+  }
+
   // ── Compute shipping total ─────────────────────────────
 
   let shippingTotal = 0;
