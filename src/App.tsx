@@ -26,6 +26,7 @@ import AccountDashboard from "./pages/account/Dashboard";
 import PaymentsPage from "./pages/account/Payments";
 import AddressesPage from "./pages/account/Addresses";
 import FavoritesPage from "./pages/account/Favorites";
+import MessagesPage from "./pages/account/Messages";
 import SellerDashboard from "./pages/seller/Dashboard";
 import StripeOnboardingPage from "./pages/seller/StripeOnboarding";
 import SellerListings from "./pages/seller/Listings";
