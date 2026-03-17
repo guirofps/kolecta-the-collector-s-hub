@@ -88,7 +88,7 @@ const App = () => (
           <Route path="/conta/verificacao" element={<VerificationPage />} />
           <Route path="/conta/mensagens" element={<MessagesPage />} />
           <Route path="/conta/avaliacoes" element={<ReviewsPage />} />
-          <Route path="/conta/disputas" element={<PlaceholderPage title="Disputas" />} />
+          <Route path="/conta/disputas" element={<AccountDisputesPage />} />
           {/* Vendedor */}
           <Route path="/painel-vendedor" element={<SellerDashboard />} />
           <Route path="/painel-vendedor/anuncios" element={<SellerListings />} />
