@@ -27,6 +27,7 @@ import PaymentsPage from "./pages/account/Payments";
 import AddressesPage from "./pages/account/Addresses";
 import FavoritesPage from "./pages/account/Favorites";
 import MessagesPage from "./pages/account/Messages";
+import ReviewsPage from "./pages/account/Reviews";
 import SellerDashboard from "./pages/seller/Dashboard";
 import StripeOnboardingPage from "./pages/seller/StripeOnboarding";
 import SellerListings from "./pages/seller/Listings";
