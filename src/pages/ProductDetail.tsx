@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useCart } from '@/contexts/CartContext';
 import { Heart, ShieldCheck, Star, Gavel, ShoppingCart, Flag, ChevronRight, ArrowLeft, MessageSquare, AlertTriangle, CreditCard } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
+import { cn } from '@/lib/utils';
 import ProductCard from '@/components/ProductCard';
 import AuctionCountdown from '@/components/AuctionCountdown';
 import BidHistory from '@/components/BidHistory';
@@ -18,11 +20,14 @@ import { trackEvent } from '@/lib/analytics';
 
 export default function ProductDetail() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { addItem } = useCart();
   const product = getProductById(id || '');
   const [bidAmount, setBidAmount] = useState('');
   const [bidDialogOpen, setBidDialogOpen] = useState(false);
   const [bidConfirmed, setBidConfirmed] = useState(false);
   const [bidAccepted, setBidAccepted] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(false);
 
   // Mock states for verification/payment blocks
   const [mockVerified] = useState(true);
@@ -245,12 +250,21 @@ export default function ProductDetail() {
                     </div>
                   </div>
                   <div className="flex gap-3">
-                    <Button variant="kolecta" size="lg" className="flex-1 text-base" onClick={() => trackEvent('buy_now_click', { productId: product.id })}>
+                    <Button variant="kolecta" size="lg" className="flex-1 text-base" onClick={() => {
+                      trackEvent('buy_now_click', { productId: product.id });
+                      addItem(product, 1);
+                      navigate('/carrinho');
+                    }}>
                       <ShoppingCart className="h-5 w-5" />
                       Comprar Agora
                     </Button>
-                    <Button variant="ghost-light" size="lg" onClick={() => trackEvent('add_to_favorites', { productId: product.id })}>
-                      <Heart className="h-5 w-5" />
+                    {/* API: POST /api/favorites/:productId — adiciona favorito
+                        DELETE /api/favorites/:productId — remove favorito */}
+                    <Button variant="ghost-light" size="lg" onClick={() => {
+                      setIsFavorite((prev) => !prev);
+                      trackEvent(isFavorite ? 'remove_from_favorites' : 'add_to_favorites', { productId: product.id });
+                    }}>
+                      <Heart className={cn('h-5 w-5', isFavorite && 'fill-kolecta-red text-kolecta-red')} />
                     </Button>
                   </div>
                 </div>
