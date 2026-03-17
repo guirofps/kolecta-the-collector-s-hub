@@ -27,6 +27,7 @@ import PaymentsPage from "./pages/account/Payments";
 import AddressesPage from "./pages/account/Addresses";
 import FavoritesPage from "./pages/account/Favorites";
 import MessagesPage from "./pages/account/Messages";
+import ReviewsPage from "./pages/account/Reviews";
 import SellerDashboard from "./pages/seller/Dashboard";
 import StripeOnboardingPage from "./pages/seller/StripeOnboarding";
 import SellerListings from "./pages/seller/Listings";
@@ -85,7 +86,7 @@ const App = () => (
           <Route path="/conta/pagamentos" element={<PaymentsPage />} />
           <Route path="/conta/verificacao" element={<VerificationPage />} />
           <Route path="/conta/mensagens" element={<MessagesPage />} />
-          <Route path="/conta/avaliacoes" element={<PlaceholderPage title="Avaliações" />} />
+          <Route path="/conta/avaliacoes" element={<ReviewsPage />} />
           <Route path="/conta/disputas" element={<PlaceholderPage title="Disputas" />} />
           {/* Vendedor */}
           <Route path="/painel-vendedor" element={<SellerDashboard />} />
