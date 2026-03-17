@@ -19,11 +19,14 @@ import { trackEvent } from '@/lib/analytics';
 
 export default function ProductDetail() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { addItem } = useCart();
   const product = getProductById(id || '');
   const [bidAmount, setBidAmount] = useState('');
   const [bidDialogOpen, setBidDialogOpen] = useState(false);
   const [bidConfirmed, setBidConfirmed] = useState(false);
   const [bidAccepted, setBidAccepted] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(false);
 
   // Mock states for verification/payment blocks
   const [mockVerified] = useState(true);
