@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useCart } from '@/contexts/CartContext';
 import { Heart, ShieldCheck, Star, Gavel, ShoppingCart, Flag, ChevronRight, ArrowLeft, MessageSquare, AlertTriangle, CreditCard } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
+import { cn } from '@/lib/utils';
 import ProductCard from '@/components/ProductCard';
 import AuctionCountdown from '@/components/AuctionCountdown';
 import BidHistory from '@/components/BidHistory';
