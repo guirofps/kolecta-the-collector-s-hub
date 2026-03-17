@@ -26,6 +26,7 @@ const navLinks = [
 export default function Header() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const { totalItems, openCart } = useCart();
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
