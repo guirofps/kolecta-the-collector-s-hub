@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+
 import ScrollToTop from "./components/ScrollToTop";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
@@ -24,6 +25,7 @@ import VerificationPage from "./pages/account/Verification";
 import AccountDashboard from "./pages/account/Dashboard";
 import PaymentsPage from "./pages/account/Payments";
 import AddressesPage from "./pages/account/Addresses";
+import FavoritesPage from "./pages/account/Favorites";
 import SellerDashboard from "./pages/seller/Dashboard";
 import StripeOnboardingPage from "./pages/seller/StripeOnboarding";
 import SellerListings from "./pages/seller/Listings";
@@ -75,7 +77,7 @@ const App = () => (
           <Route path="/conta/pedidos" element={<OrdersPage />} />
           <Route path="/conta/pedidos/:id" element={<OrderDetailPage />} />
           <Route path="/conta/lances" element={<MyBidsPage />} />
-          <Route path="/conta/favoritos" element={<PlaceholderPage title="Favoritos" description="Itens que você salvou." />} />
+          <Route path="/conta/favoritos" element={<FavoritesPage />} />
           <Route path="/conta/enderecos" element={<AddressesPage />} />
           <Route path="/conta/pagamentos" element={<PaymentsPage />} />
           <Route path="/conta/verificacao" element={<VerificationPage />} />
