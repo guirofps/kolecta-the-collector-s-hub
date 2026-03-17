@@ -32,6 +32,7 @@ import AdminReports from "./pages/admin/Reports";
 import AdminDisputes from "./pages/admin/Disputes";
 import CartPage from "./pages/Cart";
 import CheckoutPage from "./pages/Checkout";
+import OrderConfirmationPage from "./pages/OrderConfirmation";
 import { CartProvider } from "./contexts/CartContext";
 
 const queryClient = new QueryClient();
