@@ -37,6 +37,7 @@ import SellerListings from "./pages/seller/Listings";
 import CreateListing from "./pages/seller/CreateListing";
 import SellerOrdersPage from "./pages/seller/Orders";
 import SellerOrderDetailPage from "./pages/seller/OrderDetail";
+import SellerFinancialPage from "./pages/seller/Financial";
 import AdminOverview from "./pages/admin/Overview";
 import AdminListings from "./pages/admin/Listings";
 import AdminUsers from "./pages/admin/Users";
