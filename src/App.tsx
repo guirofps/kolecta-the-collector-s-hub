@@ -50,6 +50,7 @@ import AdminDisputes from "./pages/admin/Disputes";
 import AdminSellerVerification from "./pages/admin/SellerVerification";
 import AdminListingDetail from "./pages/admin/ListingDetail";
 import AdminAuctionMonitor from "./pages/admin/AuctionMonitor";
+import AdminFinancial from "./pages/admin/Financial";
 import CartPage from "./pages/Cart";
 import CheckoutPage from "./pages/Checkout";
 import OrderConfirmationPage from "./pages/OrderConfirmation";
