@@ -51,6 +51,8 @@ import AdminSellerVerification from "./pages/admin/SellerVerification";
 import AdminListingDetail from "./pages/admin/ListingDetail";
 import AdminAuctionMonitor from "./pages/admin/AuctionMonitor";
 import AdminFinancial from "./pages/admin/Financial";
+import AdminCommissionsAndFees from "./pages/admin/CommissionsAndFees";
+import AdminSettings from "./pages/admin/Settings";
 import CartPage from "./pages/Cart";
 import CheckoutPage from "./pages/Checkout";
 import OrderConfirmationPage from "./pages/OrderConfirmation";
@@ -123,11 +125,11 @@ const App = () => (
           <Route path="/admin/anuncios/:id" element={<AdminListingDetail />} />
           <Route path="/admin/modo-lance" element={<AdminAuctionMonitor />} />
           <Route path="/admin/disputas" element={<AdminDisputes />} />
-          <Route path="/admin/comissoes-e-taxas" element={<PlaceholderPage title="Admin – Comissões e Taxas" />} />
+          <Route path="/admin/comissoes-e-taxas" element={<AdminCommissionsAndFees />} />
           <Route path="/admin/financeiro" element={<AdminFinancial />} />
           <Route path="/admin/midia" element={<PlaceholderPage title="Admin – Mídia & Campanhas" />} />
           <Route path="/admin/relatorios" element={<AdminReports />} />
-          <Route path="/admin/configuracoes" element={<PlaceholderPage title="Admin – Configurações" />} />
+          <Route path="/admin/configuracoes" element={<AdminSettings />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
