@@ -35,6 +35,8 @@ import SellerDashboard from "./pages/seller/Dashboard";
 import StripeOnboardingPage from "./pages/seller/StripeOnboarding";
 import SellerListings from "./pages/seller/Listings";
 import CreateListing from "./pages/seller/CreateListing";
+import SellerOrdersPage from "./pages/seller/Orders";
+import SellerOrderDetailPage from "./pages/seller/OrderDetail";
 import AdminOverview from "./pages/admin/Overview";
 import AdminListings from "./pages/admin/Listings";
 import AdminUsers from "./pages/admin/Users";
@@ -96,8 +98,8 @@ const App = () => (
           <Route path="/painel-vendedor/anuncios" element={<SellerListings />} />
           <Route path="/painel-vendedor/anuncios/novo" element={<CreateListing />} />
           <Route path="/painel-vendedor/anuncios/:id/editar" element={<PlaceholderPage title="Editar Anúncio" />} />
-          <Route path="/painel-vendedor/pedidos" element={<PlaceholderPage title="Pedidos Recebidos" />} />
-          <Route path="/painel-vendedor/pedidos/:id" element={<PlaceholderPage title="Detalhe do Pedido" />} />
+          <Route path="/painel-vendedor/pedidos" element={<SellerOrdersPage />} />
+          <Route path="/painel-vendedor/pedidos/:id" element={<SellerOrderDetailPage />} />
           <Route path="/painel-vendedor/modo-lance" element={<PlaceholderPage title="Meu Modo Lance" />} />
           <Route path="/painel-vendedor/financeiro" element={<PlaceholderPage title="Financeiro" description="Saldo, comissões, repasses e saques." />} />
           <Route path="/painel-vendedor/stripe-onboarding" element={<StripeOnboardingPage />} />
