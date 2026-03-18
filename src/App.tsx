@@ -47,6 +47,7 @@ import AdminListings from "./pages/admin/Listings";
 import AdminUsers from "./pages/admin/Users";
 import AdminReports from "./pages/admin/Reports";
 import AdminDisputes from "./pages/admin/Disputes";
+import AdminSellerVerification from "./pages/admin/SellerVerification";
 import CartPage from "./pages/Cart";
 import CheckoutPage from "./pages/Checkout";
 import OrderConfirmationPage from "./pages/OrderConfirmation";
@@ -114,7 +115,7 @@ const App = () => (
           {/* Admin */}
           <Route path="/admin" element={<AdminOverview />} />
           <Route path="/admin/usuarios" element={<AdminUsers />} />
-          <Route path="/admin/vendedores/verificacao" element={<PlaceholderPage title="Admin – Verificação de Vendedores" />} />
+          <Route path="/admin/vendedores/verificacao" element={<AdminSellerVerification />} />
           <Route path="/admin/anuncios" element={<AdminListings />} />
           <Route path="/admin/anuncios/:id" element={<PlaceholderPage title="Admin – Detalhe do Anúncio" />} />
           <Route path="/admin/modo-lance" element={<PlaceholderPage title="Admin – Monitoramento Modo Lance" />} />
