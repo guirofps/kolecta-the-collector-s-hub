@@ -39,6 +39,9 @@ import SellerOrdersPage from "./pages/seller/Orders";
 import SellerOrderDetailPage from "./pages/seller/OrderDetail";
 import SellerFinancialPage from "./pages/seller/Financial";
 import AuctionManagerPage from "./pages/seller/AuctionManager";
+import SellerMessagesPage from "./pages/seller/Messages";
+import SellerSettingsPage from "./pages/seller/Settings";
+import SellerMediaPage from "./pages/seller/Media";
 import AdminOverview from "./pages/admin/Overview";
 import AdminListings from "./pages/admin/Listings";
 import AdminUsers from "./pages/admin/Users";
@@ -105,9 +108,9 @@ const App = () => (
           <Route path="/painel-vendedor/modo-lance" element={<AuctionManagerPage />} />
           <Route path="/painel-vendedor/financeiro" element={<SellerFinancialPage />} />
           <Route path="/painel-vendedor/stripe-onboarding" element={<StripeOnboardingPage />} />
-          <Route path="/painel-vendedor/mensagens" element={<PlaceholderPage title="Mensagens" />} />
-          <Route path="/painel-vendedor/configuracoes" element={<PlaceholderPage title="Configurações do Vendedor" />} />
-          <Route path="/painel-vendedor/midia" element={<PlaceholderPage title="Mídia & Destaque" description="Compre destaque para seus anúncios." />} />
+          <Route path="/painel-vendedor/mensagens" element={<SellerMessagesPage />} />
+          <Route path="/painel-vendedor/configuracoes" element={<SellerSettingsPage />} />
+          <Route path="/painel-vendedor/midia" element={<SellerMediaPage />} />
           {/* Admin */}
           <Route path="/admin" element={<AdminOverview />} />
           <Route path="/admin/usuarios" element={<AdminUsers />} />
