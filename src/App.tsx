@@ -93,10 +93,10 @@ const App = () => (
           <Route path="/como-funciona" element={<HowItWorksPage />} />
           <Route path="/taxas-e-comissoes" element={<FeesPage />} />
           <Route path="/seguranca" element={<SecurityPage />} />
-          <Route path="/ajuda" element={<PlaceholderPage title="Central de Ajuda" description="Perguntas frequentes e suporte." />} />
-          <Route path="/ajuda/:slug" element={<PlaceholderPage title="Artigo de Ajuda" />} />
-          <Route path="/termos" element={<PlaceholderPage title="Termos de Uso" />} />
-          <Route path="/privacidade" element={<PlaceholderPage title="Política de Privacidade" />} />
+          <Route path="/ajuda" element={<HelpPage />} />
+          <Route path="/ajuda/:slug" element={<HelpArticlePage />} />
+          <Route path="/termos" element={<TermsPage />} />
+          <Route path="/privacidade" element={<PrivacyPage />} />
           {/* Comprador */}
           <Route path="/conta" element={<AccountDashboard />} />
           <Route path="/conta/pedidos" element={<OrdersPage />} />
