@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 import ScrollToTop from "./components/ScrollToTop";
+import ProtectedRoute from "./components/ProtectedRoute";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import SearchPage from "./pages/Search";
@@ -15,7 +16,6 @@ import CategoryPage from "./pages/CategoryPage";
 import LoginPage from "./pages/auth/Login";
 import RegisterPage from "./pages/auth/Register";
 import ForgotPasswordPage from "./pages/auth/ForgotPassword";
-import PlaceholderPage from "./components/PlaceholderPage";
 import FeesPage from "./pages/Fees";
 import SellerProfilePage from "./pages/SellerProfile";
 import SecurityPage from "./pages/Security";
@@ -39,6 +39,7 @@ import SellerDashboard from "./pages/seller/Dashboard";
 import StripeOnboardingPage from "./pages/seller/StripeOnboarding";
 import SellerListings from "./pages/seller/Listings";
 import CreateListing from "./pages/seller/CreateListing";
+import EditListing from "./pages/seller/EditListing";
 import SellerOrdersPage from "./pages/seller/Orders";
 import SellerOrderDetailPage from "./pages/seller/OrderDetail";
 import SellerFinancialPage from "./pages/seller/Financial";
@@ -76,69 +77,74 @@ const App = () => (
           <CartDrawer />
           <ScrollToTop />
           <Routes>
+            {/* Public */}
             <Route path="/" element={<Index />} />
             <Route path="/carrinho" element={<CartPage />} />
             <Route path="/checkout" element={<CheckoutPage />} />
             <Route path="/pedido/confirmacao" element={<OrderConfirmationPage />} />
-          <Route path="/busca" element={<SearchPage />} />
-          <Route path="/produto/:id" element={<ProductDetail />} />
-          <Route path="/modo-lance" element={<AuctionsPage />} />
-          <Route path="/modo-lance/:id" element={<ProductDetail />} />
-          <Route path="/categorias" element={<CategoriesPage />} />
-          <Route path="/categoria/:slug" element={<CategoryPage />} />
-          <Route path="/entrar/*" element={<LoginPage />} />
-          <Route path="/criar-conta/*" element={<RegisterPage />} />
-          <Route path="/esqueci-senha" element={<ForgotPasswordPage />} />
-          <Route path="/vendedor/:slug" element={<SellerProfilePage />} />
-          <Route path="/como-funciona" element={<HowItWorksPage />} />
-          <Route path="/taxas-e-comissoes" element={<FeesPage />} />
-          <Route path="/seguranca" element={<SecurityPage />} />
-          <Route path="/ajuda" element={<HelpPage />} />
-          <Route path="/ajuda/:slug" element={<HelpArticlePage />} />
-          <Route path="/termos" element={<TermsPage />} />
-          <Route path="/privacidade" element={<PrivacyPage />} />
-          {/* Comprador */}
-          <Route path="/conta" element={<AccountDashboard />} />
-          <Route path="/conta/pedidos" element={<OrdersPage />} />
-          <Route path="/conta/pedidos/:id" element={<OrderDetailPage />} />
-          <Route path="/conta/lances" element={<MyBidsPage />} />
-          <Route path="/conta/favoritos" element={<FavoritesPage />} />
-          <Route path="/conta/enderecos" element={<AddressesPage />} />
-          <Route path="/conta/pagamentos" element={<PaymentsPage />} />
-          <Route path="/conta/verificacao" element={<VerificationPage />} />
-          <Route path="/conta/mensagens" element={<MessagesPage />} />
-          <Route path="/conta/avaliacoes" element={<ReviewsPage />} />
-          <Route path="/conta/disputas" element={<AccountDisputesPage />} />
-          {/* Vendedor */}
-          <Route path="/painel-vendedor" element={<SellerDashboard />} />
-          <Route path="/painel-vendedor/anuncios" element={<SellerListings />} />
-          <Route path="/painel-vendedor/anuncios/novo" element={<CreateListing />} />
-          <Route path="/painel-vendedor/anuncios/:id/editar" element={<PlaceholderPage title="Editar Anúncio" />} />
-          <Route path="/painel-vendedor/pedidos" element={<SellerOrdersPage />} />
-          <Route path="/painel-vendedor/pedidos/:id" element={<SellerOrderDetailPage />} />
-          <Route path="/painel-vendedor/modo-lance" element={<AuctionManagerPage />} />
-          <Route path="/painel-vendedor/financeiro" element={<SellerFinancialPage />} />
-          <Route path="/painel-vendedor/stripe-onboarding" element={<StripeOnboardingPage />} />
-          <Route path="/painel-vendedor/mensagens" element={<SellerMessagesPage />} />
-          <Route path="/painel-vendedor/configuracoes" element={<SellerSettingsPage />} />
-          <Route path="/painel-vendedor/midia" element={<SellerMediaPage />} />
-          {/* Admin */}
-          <Route path="/admin" element={<AdminOverview />} />
-          <Route path="/admin/usuarios" element={<AdminUsers />} />
-          <Route path="/admin/vendedores/verificacao" element={<AdminSellerVerification />} />
-          <Route path="/admin/anuncios" element={<AdminListings />} />
-          <Route path="/admin/anuncios/:id" element={<AdminListingDetail />} />
-          <Route path="/admin/modo-lance" element={<AdminAuctionMonitor />} />
-          <Route path="/admin/disputas" element={<AdminDisputes />} />
-          <Route path="/admin/comissoes-e-taxas" element={<AdminCommissionsAndFees />} />
-          <Route path="/admin/financeiro" element={<AdminFinancial />} />
-          <Route path="/admin/midia" element={<AdminMedia />} />
-          <Route path="/admin/relatorios" element={<AdminReports />} />
-          <Route path="/admin/configuracoes" element={<AdminSettings />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
+            <Route path="/busca" element={<SearchPage />} />
+            <Route path="/produto/:id" element={<ProductDetail />} />
+            <Route path="/modo-lance" element={<AuctionsPage />} />
+            <Route path="/modo-lance/:id" element={<ProductDetail />} />
+            <Route path="/categorias" element={<CategoriesPage />} />
+            <Route path="/categoria/:slug" element={<CategoryPage />} />
+            <Route path="/entrar/*" element={<LoginPage />} />
+            <Route path="/criar-conta/*" element={<RegisterPage />} />
+            <Route path="/esqueci-senha" element={<ForgotPasswordPage />} />
+            <Route path="/vendedor/:slug" element={<SellerProfilePage />} />
+            <Route path="/como-funciona" element={<HowItWorksPage />} />
+            <Route path="/taxas-e-comissoes" element={<FeesPage />} />
+            <Route path="/seguranca" element={<SecurityPage />} />
+            <Route path="/ajuda" element={<HelpPage />} />
+            <Route path="/ajuda/:slug" element={<HelpArticlePage />} />
+            <Route path="/termos" element={<TermsPage />} />
+            <Route path="/privacidade" element={<PrivacyPage />} />
+
+            {/* Comprador — requireAuth + role buyer */}
+            <Route path="/conta" element={<ProtectedRoute role="buyer"><AccountDashboard /></ProtectedRoute>} />
+            <Route path="/conta/pedidos" element={<ProtectedRoute role="buyer"><OrdersPage /></ProtectedRoute>} />
+            <Route path="/conta/pedidos/:id" element={<ProtectedRoute role="buyer"><OrderDetailPage /></ProtectedRoute>} />
+            <Route path="/conta/lances" element={<ProtectedRoute role="buyer"><MyBidsPage /></ProtectedRoute>} />
+            <Route path="/conta/favoritos" element={<ProtectedRoute role="buyer"><FavoritesPage /></ProtectedRoute>} />
+            <Route path="/conta/enderecos" element={<ProtectedRoute role="buyer"><AddressesPage /></ProtectedRoute>} />
+            <Route path="/conta/pagamentos" element={<ProtectedRoute role="buyer"><PaymentsPage /></ProtectedRoute>} />
+            <Route path="/conta/verificacao" element={<ProtectedRoute role="buyer"><VerificationPage /></ProtectedRoute>} />
+            <Route path="/conta/mensagens" element={<ProtectedRoute role="buyer"><MessagesPage /></ProtectedRoute>} />
+            <Route path="/conta/avaliacoes" element={<ProtectedRoute role="buyer"><ReviewsPage /></ProtectedRoute>} />
+            <Route path="/conta/disputas" element={<ProtectedRoute role="buyer"><AccountDisputesPage /></ProtectedRoute>} />
+
+            {/* Vendedor — requireAuth + role seller */}
+            <Route path="/painel-vendedor" element={<ProtectedRoute role="seller"><SellerDashboard /></ProtectedRoute>} />
+            <Route path="/painel-vendedor/anuncios" element={<ProtectedRoute role="seller"><SellerListings /></ProtectedRoute>} />
+            <Route path="/painel-vendedor/anuncios/novo" element={<ProtectedRoute role="seller"><CreateListing /></ProtectedRoute>} />
+            <Route path="/painel-vendedor/anuncios/:id/editar" element={<ProtectedRoute role="seller"><EditListing /></ProtectedRoute>} />
+            <Route path="/painel-vendedor/pedidos" element={<ProtectedRoute role="seller"><SellerOrdersPage /></ProtectedRoute>} />
+            <Route path="/painel-vendedor/pedidos/:id" element={<ProtectedRoute role="seller"><SellerOrderDetailPage /></ProtectedRoute>} />
+            <Route path="/painel-vendedor/modo-lance" element={<ProtectedRoute role="seller"><AuctionManagerPage /></ProtectedRoute>} />
+            <Route path="/painel-vendedor/financeiro" element={<ProtectedRoute role="seller"><SellerFinancialPage /></ProtectedRoute>} />
+            <Route path="/painel-vendedor/stripe-onboarding" element={<ProtectedRoute role="seller"><StripeOnboardingPage /></ProtectedRoute>} />
+            <Route path="/painel-vendedor/mensagens" element={<ProtectedRoute role="seller"><SellerMessagesPage /></ProtectedRoute>} />
+            <Route path="/painel-vendedor/configuracoes" element={<ProtectedRoute role="seller"><SellerSettingsPage /></ProtectedRoute>} />
+            <Route path="/painel-vendedor/midia" element={<ProtectedRoute role="seller"><SellerMediaPage /></ProtectedRoute>} />
+
+            {/* Admin — requireAuth + role admin */}
+            <Route path="/admin" element={<ProtectedRoute role="admin"><AdminOverview /></ProtectedRoute>} />
+            <Route path="/admin/usuarios" element={<ProtectedRoute role="admin"><AdminUsers /></ProtectedRoute>} />
+            <Route path="/admin/vendedores/verificacao" element={<ProtectedRoute role="admin"><AdminSellerVerification /></ProtectedRoute>} />
+            <Route path="/admin/anuncios" element={<ProtectedRoute role="admin"><AdminListings /></ProtectedRoute>} />
+            <Route path="/admin/anuncios/:id" element={<ProtectedRoute role="admin"><AdminListingDetail /></ProtectedRoute>} />
+            <Route path="/admin/modo-lance" element={<ProtectedRoute role="admin"><AdminAuctionMonitor /></ProtectedRoute>} />
+            <Route path="/admin/disputas" element={<ProtectedRoute role="admin"><AdminDisputes /></ProtectedRoute>} />
+            <Route path="/admin/comissoes-e-taxas" element={<ProtectedRoute role="admin"><AdminCommissionsAndFees /></ProtectedRoute>} />
+            <Route path="/admin/financeiro" element={<ProtectedRoute role="admin"><AdminFinancial /></ProtectedRoute>} />
+            <Route path="/admin/midia" element={<ProtectedRoute role="admin"><AdminMedia /></ProtectedRoute>} />
+            <Route path="/admin/relatorios" element={<ProtectedRoute role="admin"><AdminReports /></ProtectedRoute>} />
+            <Route path="/admin/configuracoes" element={<ProtectedRoute role="admin"><AdminSettings /></ProtectedRoute>} />
+
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
     </CartProvider>
   </QueryClientProvider>
 );
