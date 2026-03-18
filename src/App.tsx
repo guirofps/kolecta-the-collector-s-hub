@@ -50,6 +50,7 @@ import AdminDisputes from "./pages/admin/Disputes";
 import AdminSellerVerification from "./pages/admin/SellerVerification";
 import AdminListingDetail from "./pages/admin/ListingDetail";
 import AdminAuctionMonitor from "./pages/admin/AuctionMonitor";
+import AdminFinancial from "./pages/admin/Financial";
 import CartPage from "./pages/Cart";
 import CheckoutPage from "./pages/Checkout";
 import OrderConfirmationPage from "./pages/OrderConfirmation";
@@ -123,7 +124,7 @@ const App = () => (
           <Route path="/admin/modo-lance" element={<AdminAuctionMonitor />} />
           <Route path="/admin/disputas" element={<AdminDisputes />} />
           <Route path="/admin/comissoes-e-taxas" element={<PlaceholderPage title="Admin – Comissões e Taxas" />} />
-          <Route path="/admin/financeiro" element={<PlaceholderPage title="Admin – Financeiro" />} />
+          <Route path="/admin/financeiro" element={<AdminFinancial />} />
           <Route path="/admin/midia" element={<PlaceholderPage title="Admin – Mídia & Campanhas" />} />
           <Route path="/admin/relatorios" element={<AdminReports />} />
           <Route path="/admin/configuracoes" element={<PlaceholderPage title="Admin – Configurações" />} />
