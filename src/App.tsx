@@ -14,8 +14,10 @@ import CategoriesPage from "./pages/Categories";
 import CategoryPage from "./pages/CategoryPage";
 import LoginPage from "./pages/auth/Login";
 import RegisterPage from "./pages/auth/Register";
+import ForgotPasswordPage from "./pages/auth/ForgotPassword";
 import PlaceholderPage from "./components/PlaceholderPage";
 import FeesPage from "./pages/Fees";
+import SellerProfilePage from "./pages/SellerProfile";
 import SecurityPage from "./pages/Security";
 import HowItWorksPage from "./pages/HowItWorks";
 import MyBidsPage from "./pages/account/MyBids";
@@ -68,8 +70,8 @@ const App = () => (
           <Route path="/categoria/:slug" element={<CategoryPage />} />
           <Route path="/entrar/*" element={<LoginPage />} />
           <Route path="/criar-conta/*" element={<RegisterPage />} />
-          <Route path="/esqueci-senha" element={<PlaceholderPage title="Esqueci a Senha" description="Recuperação de senha por e-mail." />} />
-          <Route path="/vendedor/:slug" element={<PlaceholderPage title="Loja do Vendedor" description="Perfil público e anúncios do vendedor." />} />
+          <Route path="/esqueci-senha" element={<ForgotPasswordPage />} />
+          <Route path="/vendedor/:slug" element={<SellerProfilePage />} />
           <Route path="/como-funciona" element={<HowItWorksPage />} />
           <Route path="/taxas-e-comissoes" element={<FeesPage />} />
           <Route path="/seguranca" element={<SecurityPage />} />
