@@ -53,6 +53,7 @@ import AdminAuctionMonitor from "./pages/admin/AuctionMonitor";
 import AdminFinancial from "./pages/admin/Financial";
 import AdminCommissionsAndFees from "./pages/admin/CommissionsAndFees";
 import AdminSettings from "./pages/admin/Settings";
+import AdminMedia from "./pages/admin/Media";
 import CartPage from "./pages/Cart";
 import CheckoutPage from "./pages/Checkout";
 import OrderConfirmationPage from "./pages/OrderConfirmation";
