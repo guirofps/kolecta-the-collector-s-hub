@@ -53,6 +53,7 @@ import AdminAuctionMonitor from "./pages/admin/AuctionMonitor";
 import AdminFinancial from "./pages/admin/Financial";
 import AdminCommissionsAndFees from "./pages/admin/CommissionsAndFees";
 import AdminSettings from "./pages/admin/Settings";
+import AdminMedia from "./pages/admin/Media";
 import CartPage from "./pages/Cart";
 import CheckoutPage from "./pages/Checkout";
 import OrderConfirmationPage from "./pages/OrderConfirmation";
@@ -127,7 +128,7 @@ const App = () => (
           <Route path="/admin/disputas" element={<AdminDisputes />} />
           <Route path="/admin/comissoes-e-taxas" element={<AdminCommissionsAndFees />} />
           <Route path="/admin/financeiro" element={<AdminFinancial />} />
-          <Route path="/admin/midia" element={<PlaceholderPage title="Admin – Mídia & Campanhas" />} />
+          <Route path="/admin/midia" element={<AdminMedia />} />
           <Route path="/admin/relatorios" element={<AdminReports />} />
           <Route path="/admin/configuracoes" element={<AdminSettings />} />
           <Route path="*" element={<NotFound />} />
