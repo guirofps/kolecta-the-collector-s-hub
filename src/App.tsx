@@ -71,6 +71,7 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
+    <AuthProvider>
     <CartProvider>
       <TooltipProvider>
         <Toaster />
@@ -78,6 +79,7 @@ const App = () => (
         <BrowserRouter>
           <CartDrawer />
           <ScrollToTop />
+          {import.meta.env.DEV && <DevUserSwitcher />}
           <Routes>
             {/* Public */}
             <Route path="/" element={<Index />} />
