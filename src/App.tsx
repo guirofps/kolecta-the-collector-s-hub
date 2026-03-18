@@ -47,6 +47,7 @@ import AdminListings from "./pages/admin/Listings";
 import AdminUsers from "./pages/admin/Users";
 import AdminReports from "./pages/admin/Reports";
 import AdminDisputes from "./pages/admin/Disputes";
+import AdminSellerVerification from "./pages/admin/SellerVerification";
 import CartPage from "./pages/Cart";
 import CheckoutPage from "./pages/Checkout";
 import OrderConfirmationPage from "./pages/OrderConfirmation";
