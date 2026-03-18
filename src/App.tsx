@@ -48,6 +48,8 @@ import AdminUsers from "./pages/admin/Users";
 import AdminReports from "./pages/admin/Reports";
 import AdminDisputes from "./pages/admin/Disputes";
 import AdminSellerVerification from "./pages/admin/SellerVerification";
+import AdminListingDetail from "./pages/admin/ListingDetail";
+import AdminAuctionMonitor from "./pages/admin/AuctionMonitor";
 import CartPage from "./pages/Cart";
 import CheckoutPage from "./pages/Checkout";
 import OrderConfirmationPage from "./pages/OrderConfirmation";
