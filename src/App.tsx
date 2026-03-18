@@ -6,6 +6,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 import ScrollToTop from "./components/ScrollToTop";
 import ProtectedRoute from "./components/ProtectedRoute";
+import DevUserSwitcher from "./components/DevUserSwitcher";
+import { AuthProvider } from "./contexts/AuthContext";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import SearchPage from "./pages/Search";
@@ -69,6 +71,7 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
+    <AuthProvider>
     <CartProvider>
       <TooltipProvider>
         <Toaster />
@@ -76,6 +79,7 @@ const App = () => (
         <BrowserRouter>
           <CartDrawer />
           <ScrollToTop />
+          {import.meta.env.DEV && <DevUserSwitcher />}
           <Routes>
             {/* Public */}
             <Route path="/" element={<Index />} />
@@ -146,6 +150,7 @@ const App = () => (
         </BrowserRouter>
       </TooltipProvider>
     </CartProvider>
+    </AuthProvider>
   </QueryClientProvider>
 );
 
