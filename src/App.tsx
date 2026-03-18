@@ -102,7 +102,7 @@ const App = () => (
           <Route path="/painel-vendedor/pedidos" element={<SellerOrdersPage />} />
           <Route path="/painel-vendedor/pedidos/:id" element={<SellerOrderDetailPage />} />
           <Route path="/painel-vendedor/modo-lance" element={<PlaceholderPage title="Meu Modo Lance" />} />
-          <Route path="/painel-vendedor/financeiro" element={<PlaceholderPage title="Financeiro" description="Saldo, comissões, repasses e saques." />} />
+          <Route path="/painel-vendedor/financeiro" element={<SellerFinancialPage />} />
           <Route path="/painel-vendedor/stripe-onboarding" element={<StripeOnboardingPage />} />
           <Route path="/painel-vendedor/mensagens" element={<PlaceholderPage title="Mensagens" />} />
           <Route path="/painel-vendedor/configuracoes" element={<PlaceholderPage title="Configurações do Vendedor" />} />
