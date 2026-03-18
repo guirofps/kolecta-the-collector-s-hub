@@ -129,7 +129,7 @@ const App = () => (
           <Route path="/admin/financeiro" element={<AdminFinancial />} />
           <Route path="/admin/midia" element={<PlaceholderPage title="Admin – Mídia & Campanhas" />} />
           <Route path="/admin/relatorios" element={<AdminReports />} />
-          <Route path="/admin/configuracoes" element={<PlaceholderPage title="Admin – Configurações" />} />
+          <Route path="/admin/configuracoes" element={<AdminSettings />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
