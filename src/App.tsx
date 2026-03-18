@@ -70,8 +70,8 @@ const App = () => (
           <Route path="/categoria/:slug" element={<CategoryPage />} />
           <Route path="/entrar/*" element={<LoginPage />} />
           <Route path="/criar-conta/*" element={<RegisterPage />} />
-          <Route path="/esqueci-senha" element={<PlaceholderPage title="Esqueci a Senha" description="Recuperação de senha por e-mail." />} />
-          <Route path="/vendedor/:slug" element={<PlaceholderPage title="Loja do Vendedor" description="Perfil público e anúncios do vendedor." />} />
+          <Route path="/esqueci-senha" element={<ForgotPasswordPage />} />
+          <Route path="/vendedor/:slug" element={<SellerProfilePage />} />
           <Route path="/como-funciona" element={<HowItWorksPage />} />
           <Route path="/taxas-e-comissoes" element={<FeesPage />} />
           <Route path="/seguranca" element={<SecurityPage />} />
