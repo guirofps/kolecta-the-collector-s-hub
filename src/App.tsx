@@ -38,6 +38,7 @@ import CreateListing from "./pages/seller/CreateListing";
 import SellerOrdersPage from "./pages/seller/Orders";
 import SellerOrderDetailPage from "./pages/seller/OrderDetail";
 import SellerFinancialPage from "./pages/seller/Financial";
+import AuctionManagerPage from "./pages/seller/AuctionManager";
 import AdminOverview from "./pages/admin/Overview";
 import AdminListings from "./pages/admin/Listings";
 import AdminUsers from "./pages/admin/Users";
@@ -101,7 +102,7 @@ const App = () => (
           <Route path="/painel-vendedor/anuncios/:id/editar" element={<PlaceholderPage title="Editar Anúncio" />} />
           <Route path="/painel-vendedor/pedidos" element={<SellerOrdersPage />} />
           <Route path="/painel-vendedor/pedidos/:id" element={<SellerOrderDetailPage />} />
-          <Route path="/painel-vendedor/modo-lance" element={<PlaceholderPage title="Meu Modo Lance" />} />
+          <Route path="/painel-vendedor/modo-lance" element={<AuctionManagerPage />} />
           <Route path="/painel-vendedor/financeiro" element={<SellerFinancialPage />} />
           <Route path="/painel-vendedor/stripe-onboarding" element={<StripeOnboardingPage />} />
           <Route path="/painel-vendedor/mensagens" element={<PlaceholderPage title="Mensagens" />} />
