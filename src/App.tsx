@@ -125,7 +125,7 @@ const App = () => (
           <Route path="/admin/anuncios/:id" element={<AdminListingDetail />} />
           <Route path="/admin/modo-lance" element={<AdminAuctionMonitor />} />
           <Route path="/admin/disputas" element={<AdminDisputes />} />
-          <Route path="/admin/comissoes-e-taxas" element={<PlaceholderPage title="Admin – Comissões e Taxas" />} />
+          <Route path="/admin/comissoes-e-taxas" element={<AdminCommissionsAndFees />} />
           <Route path="/admin/financeiro" element={<AdminFinancial />} />
           <Route path="/admin/midia" element={<PlaceholderPage title="Admin – Mídia & Campanhas" />} />
           <Route path="/admin/relatorios" element={<AdminReports />} />
