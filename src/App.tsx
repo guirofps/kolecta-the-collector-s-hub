@@ -69,6 +69,14 @@ import CartDrawer from "./components/CartDrawer";
 
 const queryClient = new QueryClient();
 
+const isLovablePreview =
+  typeof window !== "undefined" && /(^|\.)[\w-]*--[\w-]+\.lovable\.app$/.test(window.location.hostname);
+
+const showDevUserSwitcher =
+  import.meta.env.DEV ||
+  import.meta.env.VITE_ENV === "development" ||
+  isLovablePreview;
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
@@ -79,7 +87,7 @@ const App = () => (
         <BrowserRouter>
           <CartDrawer />
           <ScrollToTop />
-          {import.meta.env.DEV && <DevUserSwitcher />}
+          {showDevUserSwitcher && <DevUserSwitcher />}
           <Routes>
             {/* Public */}
             <Route path="/" element={<Index />} />
