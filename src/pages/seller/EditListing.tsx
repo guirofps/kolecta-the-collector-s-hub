@@ -142,7 +142,7 @@ export default function EditListing() {
               </div>
             </div>
 
-            <Separator className="bg-white/10" />
+            <Separator className="bg-border" />
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
