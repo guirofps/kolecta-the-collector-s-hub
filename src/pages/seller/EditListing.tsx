@@ -106,7 +106,7 @@ export default function EditListing() {
         </div>
 
         {/* Basic info */}
-        <Card className="bg-gradient-card border-white/10">
+        <Card className="bg-gradient-card border-border">
           <CardHeader>
             <CardTitle className="font-heading text-xl">Informações básicas</CardTitle>
           </CardHeader>
