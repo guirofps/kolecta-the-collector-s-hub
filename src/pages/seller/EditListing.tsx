@@ -183,7 +183,7 @@ export default function EditListing() {
           <CardContent>
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
               {form.photos.map((photo, i) => (
-                <div key={i} className="aspect-square rounded-lg border border-white/10 bg-white/5 overflow-hidden">
+                <div key={i} className="aspect-square rounded-lg border border-border bg-secondary overflow-hidden">
                   <img src={photo} alt={`Foto ${i + 1}`} className="w-full h-full object-cover" />
                 </div>
               ))}
