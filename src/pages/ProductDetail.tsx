@@ -28,6 +28,11 @@ export default function ProductDetail() {
   const [bidConfirmed, setBidConfirmed] = useState(false);
   const [bidAccepted, setBidAccepted] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
+  const [reported, setReported] = useState(() => {
+    if (!id) return false;
+    return localStorage.getItem(`report_${id}`) === 'true';
+  });
 
   // Mock states for verification/payment blocks
   const [mockVerified] = useState(true);
