@@ -187,7 +187,7 @@ export default function EditListing() {
                   <img src={photo} alt={`Foto ${i + 1}`} className="w-full h-full object-cover" />
                 </div>
               ))}
-              <button className="aspect-square rounded-lg border-2 border-dashed border-white/20 flex flex-col items-center justify-center text-muted-foreground hover:border-primary hover:text-primary transition-colors">
+              <button className="aspect-square rounded-lg border-2 border-dashed border-border flex flex-col items-center justify-center text-muted-foreground hover:border-primary hover:text-primary transition-colors">
                 <span className="text-2xl">+</span>
                 <span className="text-xs">Adicionar</span>
               </button>
