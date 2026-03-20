@@ -197,7 +197,7 @@ export default function EditListing() {
         </Card>
 
         {/* Pricing */}
-        <Card className="bg-gradient-card border-white/10">
+        <Card className="bg-gradient-card border-border">
           <CardHeader>
             <CardTitle className="font-heading text-xl">Preço</CardTitle>
           </CardHeader>
