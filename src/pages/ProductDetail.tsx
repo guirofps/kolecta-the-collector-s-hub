@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useCart } from '@/contexts/CartContext';
 import { Heart, ShieldCheck, Star, Gavel, ShoppingCart, Flag, ChevronRight, ArrowLeft, MessageSquare, AlertTriangle, CreditCard } from 'lucide-react';
@@ -8,6 +8,7 @@ import ProductCard from '@/components/ProductCard';
 import AuctionCountdown from '@/components/AuctionCountdown';
 import BidHistory from '@/components/BidHistory';
 import VerificationBadge from '@/components/VerificationBadge';
+import ReportListingDialog from '@/components/ReportListingDialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -27,6 +28,11 @@ export default function ProductDetail() {
   const [bidConfirmed, setBidConfirmed] = useState(false);
   const [bidAccepted, setBidAccepted] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
+  const [reported, setReported] = useState(() => {
+    if (!id) return false;
+    return localStorage.getItem(`report_${id}`) === 'true';
+  });
 
   // Mock states for verification/payment blocks
   const [mockVerified] = useState(true);
@@ -298,10 +304,31 @@ export default function ProductDetail() {
 
             {/* Actions */}
             <div className="flex items-center gap-3 text-xs text-muted-foreground">
-              <button className="flex items-center gap-1 hover:text-foreground transition-colors" onClick={() => trackEvent('report_listing', { productId: product.id })}>
-                <Flag className="h-3 w-3" /> Denunciar
-              </button>
+              {reported ? (
+                <span className="flex items-center gap-1 text-muted-foreground cursor-not-allowed">
+                  <Flag className="h-3 w-3" /> Denunciado
+                </span>
+              ) : (
+                <button
+                  className="flex items-center gap-1 hover:text-foreground transition-colors"
+                  onClick={() => {
+                    trackEvent('report_listing', { productId: product.id });
+                    setReportDialogOpen(true);
+                  }}
+                >
+                  <Flag className="h-3 w-3" /> Denunciar
+                </button>
+              )}
             </div>
+
+            <ReportListingDialog
+              listingId={product.id}
+              listingTitle={product.title}
+              sellerId={product.seller.slug}
+              open={reportDialogOpen}
+              onOpenChange={setReportDialogOpen}
+              onReported={() => setReported(true)}
+            />
           </div>
         </div>
 
