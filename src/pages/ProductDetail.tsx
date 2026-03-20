@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useCart } from '@/contexts/CartContext';
 import { Heart, ShieldCheck, Star, Gavel, ShoppingCart, Flag, ChevronRight, ArrowLeft, MessageSquare, AlertTriangle, CreditCard } from 'lucide-react';
