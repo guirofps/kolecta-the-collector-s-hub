@@ -304,10 +304,31 @@ export default function ProductDetail() {
 
             {/* Actions */}
             <div className="flex items-center gap-3 text-xs text-muted-foreground">
-              <button className="flex items-center gap-1 hover:text-foreground transition-colors" onClick={() => trackEvent('report_listing', { productId: product.id })}>
-                <Flag className="h-3 w-3" /> Denunciar
-              </button>
+              {reported ? (
+                <span className="flex items-center gap-1 text-muted-foreground cursor-not-allowed">
+                  <Flag className="h-3 w-3" /> Denunciado
+                </span>
+              ) : (
+                <button
+                  className="flex items-center gap-1 hover:text-foreground transition-colors"
+                  onClick={() => {
+                    trackEvent('report_listing', { productId: product.id });
+                    setReportDialogOpen(true);
+                  }}
+                >
+                  <Flag className="h-3 w-3" /> Denunciar
+                </button>
+              )}
             </div>
+
+            <ReportListingDialog
+              listingId={product.id}
+              listingTitle={product.title}
+              sellerId={product.seller.slug}
+              open={reportDialogOpen}
+              onOpenChange={setReportDialogOpen}
+              onReported={() => setReported(true)}
+            />
           </div>
         </div>
 
