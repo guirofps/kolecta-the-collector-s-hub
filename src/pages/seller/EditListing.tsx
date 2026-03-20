@@ -106,7 +106,7 @@ export default function EditListing() {
         </div>
 
         {/* Basic info */}
-        <Card className="bg-gradient-card border-white/10">
+        <Card className="bg-gradient-card border-border">
           <CardHeader>
             <CardTitle className="font-heading text-xl">Informações básicas</CardTitle>
           </CardHeader>
@@ -142,7 +142,7 @@ export default function EditListing() {
               </div>
             </div>
 
-            <Separator className="bg-white/10" />
+            <Separator className="bg-border" />
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
@@ -176,18 +176,18 @@ export default function EditListing() {
         </Card>
 
         {/* Photos */}
-        <Card className="bg-gradient-card border-white/10">
+        <Card className="bg-gradient-card border-border">
           <CardHeader>
             <CardTitle className="font-heading text-xl">Fotos</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
               {form.photos.map((photo, i) => (
-                <div key={i} className="aspect-square rounded-lg border border-white/10 bg-white/5 overflow-hidden">
+                <div key={i} className="aspect-square rounded-lg border border-border bg-secondary overflow-hidden">
                   <img src={photo} alt={`Foto ${i + 1}`} className="w-full h-full object-cover" />
                 </div>
               ))}
-              <button className="aspect-square rounded-lg border-2 border-dashed border-white/20 flex flex-col items-center justify-center text-muted-foreground hover:border-primary hover:text-primary transition-colors">
+              <button className="aspect-square rounded-lg border-2 border-dashed border-border flex flex-col items-center justify-center text-muted-foreground hover:border-primary hover:text-primary transition-colors">
                 <span className="text-2xl">+</span>
                 <span className="text-xs">Adicionar</span>
               </button>
@@ -197,7 +197,7 @@ export default function EditListing() {
         </Card>
 
         {/* Pricing */}
-        <Card className="bg-gradient-card border-white/10">
+        <Card className="bg-gradient-card border-border">
           <CardHeader>
             <CardTitle className="font-heading text-xl">Preço</CardTitle>
           </CardHeader>
