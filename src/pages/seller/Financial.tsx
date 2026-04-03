@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Wallet, Clock, TrendingUp, ArrowDownToLine, AlertCircle,
@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { formatBRL } from '@/lib/mock-data';
+import { useWallet, useWithdrawals } from '@/hooks/use-api';
 
 // ── Mock data ────────────────────────────────────────────
 
@@ -122,20 +123,24 @@ const summaryCards = [
 
 export default function SellerFinancialPage() {
   const { toast } = useToast();
-  const [loading, setLoading] = useState(true);
   const [chartMetric, setChartMetric] = useState<ChartMetric>('gross');
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState('');
 
-  useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 600);
-    return () => clearTimeout(t);
-  }, []);
+  // ── API real ──────────────────────────────────────────
+  const { data: wallet, isLoading: walletLoading } = useWallet();
+  const { data: withdrawals = [], isLoading: withdrawalsLoading } = useWithdrawals().query;
+  const { requestMutation } = useWithdrawals();
 
-  /* API: GET /api/seller/financial/summary
-     Retorna: { available, pending, monthTotal, totalWithdrawn } */
+  const loading = walletLoading;
 
-  const summary = mockFinancialSummary;
+  const summary = {
+    available:      (wallet?.balanceInCents ?? 0) / 100,
+    pending:        (wallet?.pendingInCents ?? 0) / 100,
+    monthTotal:     mockFinancialSummary.monthTotal,     // ainda mock
+    totalWithdrawn: mockFinancialSummary.totalWithdrawn, // ainda mock
+    stripeConnected: true,
+  };
 
   // ── Withdraw dialog helpers ────────────────────────────
 
@@ -150,20 +155,22 @@ export default function SellerFinancialPage() {
 
   function handleConfirmWithdraw() {
     const amount = parseAmount(withdrawAmount);
-    if (amount < 20) {
-      toast({ title: 'Valor mínimo', description: 'O valor mínimo para saque é R$ 20,00.', variant: 'destructive' });
+    const minAmount = 50; // R$50,00 — igual ao backend
+    if (amount < minAmount) {
+      toast({ title: 'Valor mínimo', description: `O valor mínimo para saque é R$ ${minAmount},00.`, variant: 'destructive' });
       return;
     }
     if (amount > summary.available) {
       toast({ title: 'Saldo insuficiente', description: `O valor máximo disponível é ${formatBRL(summary.available)}.`, variant: 'destructive' });
       return;
     }
-    /* API: POST /api/seller/financial/withdraw
-       Body: { amount: number }
-       Stripe processa automaticamente via Connect payout */
-    toast({ title: 'Saque solicitado', description: `${formatBRL(amount)} será transferido em até 2 dias úteis.` });
-    setWithdrawOpen(false);
-    setWithdrawAmount('');
+    const amountInCents = Math.round(amount * 100);
+    requestMutation.mutate(amountInCents, {
+      onSuccess: () => {
+        setWithdrawOpen(false);
+        setWithdrawAmount('');
+      },
+    });
   }
 
   // ── Chart tooltip ──────────────────────────────────────
@@ -397,36 +404,45 @@ export default function SellerFinancialPage() {
               </Card>
             </TabsContent>
 
-            {/* TAB SAQUES */}
+            {/* TAB SAQUES — dados reais da API */}
             <TabsContent value="saques">
-              {/* API: GET /api/seller/financial/withdrawals */}
               <Card className="bg-gradient-card">
                 <CardContent className="p-0">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Data da solicitação</TableHead>
-                        <TableHead className="text-right">Valor</TableHead>
-                        <TableHead>Conta destino</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Data de liquidação</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {mockWithdrawals.map((w) => {
-                        const sc = withdrawalStatusConfig[w.status];
-                        return (
-                          <TableRow key={w.id}>
-                            <TableCell className="text-sm">{fmtDate(w.requestDate)}</TableCell>
-                            <TableCell className="text-right font-heading font-bold">{formatBRL(w.amount)}</TableCell>
-                            <TableCell className="text-sm">{w.account}</TableCell>
-                            <TableCell><Badge variant="outline" className={sc.cls}>{sc.label}</Badge></TableCell>
-                            <TableCell className="text-sm">{w.settleDate ? fmtDate(w.settleDate) : '—'}</TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
+                  {withdrawalsLoading ? (
+                    <div className="p-6 space-y-3">
+                      {[1,2,3].map(i => <Skeleton key={i} className="h-10 w-full" />)}
+                    </div>
+                  ) : withdrawals.length === 0 ? (
+                    <div className="p-8 text-center text-sm text-muted-foreground">
+                      Nenhum saque realizado ainda.
+                    </div>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Data da solicitação</TableHead>
+                          <TableHead className="text-right">Valor</TableHead>
+                          <TableHead>Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {withdrawals.map((w) => {
+                          const statusCfg = {
+                            processing: { label: 'Em processamento', cls: 'bg-amber-500/10 text-amber-500 border-amber-500/30' },
+                            paid:       { label: 'Concluído', cls: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30' },
+                            failed:     { label: 'Recusado', cls: 'bg-kolecta-red/10 text-kolecta-red border-kolecta-red/30' },
+                          }[w.status] ?? { label: w.status, cls: 'bg-muted' };
+                          return (
+                            <TableRow key={w.id}>
+                              <TableCell className="text-sm">{new Date(w.createdAt).toLocaleDateString('pt-BR')}</TableCell>
+                              <TableCell className="text-right font-heading font-bold">{(w.amountInCents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                              <TableCell><Badge variant="outline" className={statusCfg.cls}>{statusCfg.label}</Badge></TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -482,8 +498,13 @@ export default function SellerFinancialPage() {
 
           <DialogFooter>
             <Button variant="ghost" onClick={() => setWithdrawOpen(false)}>Cancelar</Button>
-            <Button variant="kolecta" className="glow-primary" onClick={handleConfirmWithdraw}>
-              Confirmar saque
+            <Button
+              variant="kolecta"
+              className="glow-primary"
+              onClick={handleConfirmWithdraw}
+              disabled={requestMutation.isPending}
+            >
+              {requestMutation.isPending ? 'Processando...' : 'Confirmar saque'}
             </Button>
           </DialogFooter>
         </DialogContent>
