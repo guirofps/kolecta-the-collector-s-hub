@@ -14,7 +14,19 @@ import {
   AlertTriangle,
   Store,
   ArrowRight,
+  Wallet,
+  TrendingUp,
+  Loader2,
 } from 'lucide-react';
+import { useWallet } from '@/hooks/use-api';
+
+// ── Helpers ───────────────────────────────────────────────
+
+function formatBRL(cents: number) {
+  return (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+// ── Menu items ────────────────────────────────────────────
 
 const menuItems = [
   { label: 'Meus Pedidos', href: '/conta/pedidos', icon: ShoppingBag, description: 'Acompanhe suas compras' },
@@ -28,6 +40,63 @@ const menuItems = [
   { label: 'Disputas', href: '/conta/disputas', icon: AlertTriangle, description: 'Acompanhar disputas' },
 ];
 
+// ── Wallet Summary Component ──────────────────────────────
+
+function WalletSummary() {
+  const { data, isLoading, isError } = useWallet();
+
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+        {[0, 1].map((i) => (
+          <Card key={i} className="bg-card border-border animate-pulse">
+            <CardContent className="flex items-center gap-4 p-5">
+              <div className="h-8 w-8 rounded-full bg-muted" />
+              <div className="space-y-2 flex-1">
+                <div className="h-3 w-24 rounded bg-muted" />
+                <div className="h-5 w-32 rounded bg-muted" />
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  }
+
+  if (isError || !data) return null;
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+      {/* Saldo disponível */}
+      <Link to="/conta/pagamentos">
+        <Card className="bg-primary/10 border-primary/30 hover:bg-primary/20 transition-colors cursor-pointer">
+          <CardContent className="flex items-center gap-4 p-5">
+            <Wallet className="h-8 w-8 text-primary shrink-0" />
+            <div className="min-w-0">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide font-body">Saldo disponível</p>
+              <p className="font-heading font-extrabold text-lg text-primary">{formatBRL(data.balanceInCents)}</p>
+            </div>
+            <ArrowRight className="h-4 w-4 ml-auto text-primary shrink-0" />
+          </CardContent>
+        </Card>
+      </Link>
+
+      {/* Saldo pendente */}
+      <Card className="bg-card border-border">
+        <CardContent className="flex items-center gap-4 p-5">
+          <TrendingUp className="h-8 w-8 text-kolecta-gold shrink-0" />
+          <div className="min-w-0">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide font-body">Saldo pendente</p>
+            <p className="font-heading font-extrabold text-lg">{formatBRL(data.pendingInCents)}</p>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ═════════════════════════════════════════════════════════
+
 export default function AccountDashboard() {
   const { isLoaded, isSignedIn, user } = useUser();
 
@@ -35,7 +104,7 @@ export default function AccountDashboard() {
     return (
       <Layout>
         <div className="container mx-auto px-4 py-16 flex items-center justify-center min-h-[70vh]">
-          <div className="animate-pulse text-muted-foreground">Carregando...</div>
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
       </Layout>
     );
@@ -58,8 +127,12 @@ export default function AccountDashboard() {
           </p>
         </div>
 
+        {/* Wallet Overview — dados reais da API */}
+        <h2 className="font-heading text-lg font-bold uppercase mb-4">Minha Carteira</h2>
+        <WalletSummary />
+
         {/* Quick actions */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
           <Link to="/painel-vendedor" className="block">
             <Card className="bg-primary/10 border-primary/30 hover:bg-primary/20 transition-colors cursor-pointer">
               <CardContent className="flex items-center gap-4 p-5">

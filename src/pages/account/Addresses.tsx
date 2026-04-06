@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { MapPin, Plus, Pencil, Trash2 } from 'lucide-react';
+import { MapPin, Plus, Pencil, Trash2, Loader2 } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,21 +12,8 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose,
 } from '@/components/ui/dialog';
 import EmptyState from '@/components/EmptyState';
-
-// ── Types ────────────────────────────────────────────────
-
-interface Address {
-  id: string;
-  name: string;
-  cep: string;
-  rua: string;
-  numero: string;
-  complemento: string;
-  bairro: string;
-  cidade: string;
-  estado: string;
-  isDefault: boolean;
-}
+import { useAddresses } from '@/hooks/use-api';
+import type { Address, CreateAddressPayload } from '@/lib/api';
 
 // ── CEP mask ─────────────────────────────────────────────
 
@@ -36,41 +23,40 @@ function maskCEP(v: string) {
   return `${d.slice(0, 5)}-${d.slice(5)}`;
 }
 
-// ── Mock data ────────────────────────────────────────────
-
-const seedAddresses: Address[] = [
-  {
-    id: 'a1', name: 'Lucas Mendes', cep: '01310-100',
-    rua: 'Av. Paulista', numero: '1578', complemento: 'Sala 42',
-    bairro: 'Bela Vista', cidade: 'São Paulo', estado: 'SP', isDefault: true,
-  },
-  {
-    id: 'a2', name: 'Lucas Mendes', cep: '80250-060',
-    rua: 'Rua Comendador Araújo', numero: '503', complemento: '',
-    bairro: 'Centro', cidade: 'Curitiba', estado: 'PR', isDefault: false,
-  },
-];
-
 // ── Blank form ───────────────────────────────────────────
 
-const blankForm = { name: '', cep: '', rua: '', numero: '', complemento: '', bairro: '', cidade: '', estado: '', isDefault: false };
+const blankForm: CreateAddressPayload = {
+  label: '',
+  recipientName: '',
+  zip: '',
+  street: '',
+  number: '',
+  complement: '',
+  neighborhood: '',
+  city: '',
+  state: '',
+  country: 'BR',
+  isDefault: false,
+};
 
 // ═════════════════════════════════════════════════════════
 
 export default function AddressesPage() {
-  const [addresses, setAddresses] = useState<Address[]>(seedAddresses);
+  const { query, createMutation, updateMutation, removeMutation } = useAddresses();
+
+  const addresses = query.data ?? [];
 
   // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState(blankForm);
+  const [form, setForm] = useState<CreateAddressPayload>(blankForm);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
   const [cepLoading, setCepLoading] = useState(false);
 
   // Delete confirm dialog
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const addressToDelete = addresses.find(a => a.id === deleteId);
+  const addressToDelete = addresses.find((a) => a.id === deleteId);
 
   // ── Open create dialog ─────────────────────────────────
   function openCreate() {
@@ -85,9 +71,16 @@ export default function AddressesPage() {
   function openEdit(addr: Address) {
     setEditingId(addr.id);
     setForm({
-      name: addr.name, cep: addr.cep, rua: addr.rua,
-      numero: addr.numero, complemento: addr.complemento,
-      bairro: addr.bairro, cidade: addr.cidade, estado: addr.estado,
+      label: addr.label ?? '',
+      recipientName: addr.recipientName,
+      zip: addr.zip,
+      street: addr.street,
+      number: addr.number,
+      complement: addr.complement ?? '',
+      neighborhood: addr.neighborhood,
+      city: addr.city,
+      state: addr.state,
+      country: addr.country,
       isDefault: addr.isDefault,
     });
     setErrors({});
@@ -104,12 +97,12 @@ export default function AddressesPage() {
       const res = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
       const data = await res.json();
       if (!data.erro) {
-        setForm(prev => ({
+        setForm((prev) => ({
           ...prev,
-          rua: data.logradouro || '',
-          bairro: data.bairro || '',
-          cidade: data.localidade || '',
-          estado: data.uf || '',
+          street: data.logradouro || '',
+          neighborhood: data.bairro || '',
+          city: data.localidade || '',
+          state: data.uf || '',
         }));
       }
     } catch { /* silently fail */ } finally {
@@ -120,64 +113,52 @@ export default function AddressesPage() {
   // ── Validate ───────────────────────────────────────────
   function validate() {
     const e: Record<string, string> = {};
-    if (!form.name.trim()) e.name = 'Obrigatório';
-    if (form.cep.replace(/\D/g, '').length !== 8) e.cep = 'CEP inválido';
-    if (!form.rua.trim()) e.rua = 'Obrigatório';
-    if (!form.numero.trim()) e.numero = 'Obrigatório';
-    if (!form.bairro.trim()) e.bairro = 'Obrigatório';
-    if (!form.cidade.trim()) e.cidade = 'Obrigatório';
-    if (!form.estado.trim()) e.estado = 'Obrigatório';
+    if (!form.recipientName.trim()) e.recipientName = 'Obrigatório';
+    if (form.zip.replace(/\D/g, '').length !== 8) e.zip = 'CEP inválido';
+    if (!form.street.trim()) e.street = 'Obrigatório';
+    if (!form.number.trim()) e.number = 'Obrigatório';
+    if (!form.neighborhood.trim()) e.neighborhood = 'Obrigatório';
+    if (!form.city.trim()) e.city = 'Obrigatório';
+    if (!form.state.trim()) e.state = 'Obrigatório';
     setErrors(e);
     return Object.keys(e).length === 0;
   }
 
   // ── Save ───────────────────────────────────────────────
-  function handleSave() {
+  async function handleSave() {
     setSubmitted(true);
     if (!validate()) return;
 
     if (editingId) {
-      setAddresses(prev => prev.map(a => {
-        if (a.id === editingId) return { ...a, ...form };
-        if (form.isDefault) return { ...a, isDefault: false };
-        return a;
-      }));
+      await updateMutation.mutateAsync({ id: editingId, body: form });
     } else {
-      const newAddr: Address = { id: `a${Date.now()}`, ...form };
-      setAddresses(prev => {
-        const list = form.isDefault ? prev.map(a => ({ ...a, isDefault: false })) : prev;
-        return [...list, newAddr];
-      });
+      await createMutation.mutateAsync(form);
     }
     setDialogOpen(false);
   }
 
   // ── Set default ────────────────────────────────────────
-  function setDefault(id: string) {
-    setAddresses(prev => prev.map(a => ({ ...a, isDefault: a.id === id })));
+  function setDefault(addr: Address) {
+    updateMutation.mutate({ id: addr.id, body: { isDefault: true } });
   }
 
   // ── Delete ─────────────────────────────────────────────
   function confirmDelete() {
     if (!deleteId) return;
-    setAddresses(prev => prev.filter(a => a.id !== deleteId));
+    removeMutation.mutate(deleteId);
     setDeleteId(null);
   }
 
   const inputCls = (field: string) =>
     `bg-background ${submitted && errors[field] ? 'border-destructive focus-visible:ring-destructive' : 'focus-visible:ring-primary'}`;
 
+  const isSaving = createMutation.isPending || updateMutation.isPending;
+
   // ═══════════════════════════════════════════════════════
 
   return (
     <Layout>
       <div className="container py-8 max-w-3xl">
-        {/* API: GET /api/addresses — lista endereços do usuário
-            POST /api/addresses — cria novo endereço
-            PUT /api/addresses/:id — atualiza endereço
-            DELETE /api/addresses/:id — remove endereço
-            PATCH /api/addresses/:id/default — define como padrão */}
-
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
@@ -189,8 +170,23 @@ export default function AddressesPage() {
           </Button>
         </div>
 
+        {/* Loading state */}
+        {query.isLoading && (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        )}
+
+        {/* Error state */}
+        {query.isError && (
+          <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-6 text-center">
+            <p className="text-sm text-destructive">Não foi possível carregar os endereços. Tente novamente.</p>
+            <Button variant="ghost" size="sm" className="mt-3" onClick={() => query.refetch()}>Tentar novamente</Button>
+          </div>
+        )}
+
         {/* Empty state */}
-        {addresses.length === 0 && (
+        {!query.isLoading && !query.isError && addresses.length === 0 && (
           <EmptyState
             icon={MapPin}
             title="Você ainda não tem endereços cadastrados"
@@ -205,7 +201,7 @@ export default function AddressesPage() {
         {/* Grid */}
         {addresses.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {addresses.map(addr => (
+            {addresses.map((addr) => (
               <Card key={addr.id} className="bg-gradient-card">
                 <CardContent className="p-5 space-y-3">
                   {addr.isDefault && (
@@ -213,17 +209,25 @@ export default function AddressesPage() {
                       Endereço padrão
                     </Badge>
                   )}
-                  <p className="font-heading text-base font-bold uppercase">{addr.name}</p>
+                  {addr.label && (
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide">{addr.label}</p>
+                  )}
+                  <p className="font-heading text-base font-bold uppercase">{addr.recipientName}</p>
                   <div className="text-sm font-body text-muted-foreground space-y-0.5">
-                    <p>{addr.rua}, {addr.numero}{addr.complemento ? ` — ${addr.complemento}` : ''}</p>
-                    <p>{addr.bairro}</p>
-                    <p>{addr.cidade}/{addr.estado}</p>
-                    <p>CEP {addr.cep}</p>
+                    <p>{addr.street}, {addr.number}{addr.complement ? ` — ${addr.complement}` : ''}</p>
+                    <p>{addr.neighborhood}</p>
+                    <p>{addr.city}/{addr.state}</p>
+                    <p>CEP {addr.zip}</p>
                   </div>
                   <Separator />
                   <div className="flex gap-2 flex-wrap">
                     {!addr.isDefault && (
-                      <Button variant="ghost" size="sm" onClick={() => setDefault(addr.id)}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setDefault(addr)}
+                        disabled={updateMutation.isPending}
+                      >
                         Definir como padrão
                       </Button>
                     )}
@@ -236,6 +240,7 @@ export default function AddressesPage() {
                       size="sm"
                       className="text-destructive hover:text-destructive"
                       onClick={() => setDeleteId(addr.id)}
+                      disabled={removeMutation.isPending}
                     >
                       <Trash2 className="h-3 w-3 mr-1" />
                       Remover
@@ -259,9 +264,25 @@ export default function AddressesPage() {
 
           <div className="space-y-4 py-2">
             <div>
+              <Label htmlFor="addr-label">Identificação (opcional)</Label>
+              <Input
+                id="addr-label"
+                value={form.label ?? ''}
+                onChange={(e) => setForm((p) => ({ ...p, label: e.target.value }))}
+                placeholder="Ex: Casa, Trabalho..."
+              />
+            </div>
+
+            <div>
               <Label htmlFor="addr-name">Nome do destinatário *</Label>
-              <Input id="addr-name" className={inputCls('name')} value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="Nome completo" />
-              {submitted && errors.name && <p className="text-xs text-destructive mt-1">{errors.name}</p>}
+              <Input
+                id="addr-name"
+                className={inputCls('recipientName')}
+                value={form.recipientName}
+                onChange={(e) => setForm((p) => ({ ...p, recipientName: e.target.value }))}
+                placeholder="Nome completo"
+              />
+              {submitted && errors.recipientName && <p className="text-xs text-destructive mt-1">{errors.recipientName}</p>}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -269,56 +290,92 @@ export default function AddressesPage() {
                 <Label htmlFor="addr-cep">CEP *</Label>
                 <Input
                   id="addr-cep"
-                  className={inputCls('cep')}
-                  value={form.cep}
-                  onChange={e => setForm(p => ({ ...p, cep: maskCEP(e.target.value) }))}
-                  onBlur={() => fetchCep(form.cep)}
+                  className={inputCls('zip')}
+                  value={form.zip}
+                  onChange={(e) => setForm((p) => ({ ...p, zip: maskCEP(e.target.value) }))}
+                  onBlur={() => fetchCep(form.zip)}
                   placeholder="00000-000"
                 />
                 {cepLoading && <p className="text-xs text-muted-foreground mt-1">Buscando…</p>}
-                {submitted && errors.cep && <p className="text-xs text-destructive mt-1">{errors.cep}</p>}
+                {submitted && errors.zip && <p className="text-xs text-destructive mt-1">{errors.zip}</p>}
               </div>
               <div>
                 <Label htmlFor="addr-numero">Número *</Label>
-                <Input id="addr-numero" className={inputCls('numero')} value={form.numero} onChange={e => setForm(p => ({ ...p, numero: e.target.value }))} placeholder="123" />
-                {submitted && errors.numero && <p className="text-xs text-destructive mt-1">{errors.numero}</p>}
+                <Input
+                  id="addr-numero"
+                  className={inputCls('number')}
+                  value={form.number}
+                  onChange={(e) => setForm((p) => ({ ...p, number: e.target.value }))}
+                  placeholder="123"
+                />
+                {submitted && errors.number && <p className="text-xs text-destructive mt-1">{errors.number}</p>}
               </div>
             </div>
 
             <div>
               <Label htmlFor="addr-rua">Rua *</Label>
-              <Input id="addr-rua" className={inputCls('rua')} value={form.rua} onChange={e => setForm(p => ({ ...p, rua: e.target.value }))} placeholder="Rua, Avenida..." />
-              {submitted && errors.rua && <p className="text-xs text-destructive mt-1">{errors.rua}</p>}
+              <Input
+                id="addr-rua"
+                className={inputCls('street')}
+                value={form.street}
+                onChange={(e) => setForm((p) => ({ ...p, street: e.target.value }))}
+                placeholder="Rua, Avenida..."
+              />
+              {submitted && errors.street && <p className="text-xs text-destructive mt-1">{errors.street}</p>}
             </div>
 
             <div>
               <Label htmlFor="addr-comp">Complemento</Label>
-              <Input id="addr-comp" value={form.complemento} onChange={e => setForm(p => ({ ...p, complemento: e.target.value }))} placeholder="Apto, Bloco..." />
+              <Input
+                id="addr-comp"
+                value={form.complement ?? ''}
+                onChange={(e) => setForm((p) => ({ ...p, complement: e.target.value }))}
+                placeholder="Apto, Bloco..."
+              />
             </div>
 
             <div className="grid grid-cols-3 gap-4">
               <div>
                 <Label htmlFor="addr-bairro">Bairro *</Label>
-                <Input id="addr-bairro" className={inputCls('bairro')} value={form.bairro} onChange={e => setForm(p => ({ ...p, bairro: e.target.value }))} placeholder="Bairro" />
-                {submitted && errors.bairro && <p className="text-xs text-destructive mt-1">{errors.bairro}</p>}
+                <Input
+                  id="addr-bairro"
+                  className={inputCls('neighborhood')}
+                  value={form.neighborhood}
+                  onChange={(e) => setForm((p) => ({ ...p, neighborhood: e.target.value }))}
+                  placeholder="Bairro"
+                />
+                {submitted && errors.neighborhood && <p className="text-xs text-destructive mt-1">{errors.neighborhood}</p>}
               </div>
               <div>
                 <Label htmlFor="addr-cidade">Cidade *</Label>
-                <Input id="addr-cidade" className={inputCls('cidade')} value={form.cidade} onChange={e => setForm(p => ({ ...p, cidade: e.target.value }))} placeholder="Cidade" />
-                {submitted && errors.cidade && <p className="text-xs text-destructive mt-1">{errors.cidade}</p>}
+                <Input
+                  id="addr-cidade"
+                  className={inputCls('city')}
+                  value={form.city}
+                  onChange={(e) => setForm((p) => ({ ...p, city: e.target.value }))}
+                  placeholder="Cidade"
+                />
+                {submitted && errors.city && <p className="text-xs text-destructive mt-1">{errors.city}</p>}
               </div>
               <div>
                 <Label htmlFor="addr-estado">UF *</Label>
-                <Input id="addr-estado" className={inputCls('estado')} value={form.estado} onChange={e => setForm(p => ({ ...p, estado: e.target.value }))} placeholder="UF" maxLength={2} />
-                {submitted && errors.estado && <p className="text-xs text-destructive mt-1">{errors.estado}</p>}
+                <Input
+                  id="addr-estado"
+                  className={inputCls('state')}
+                  value={form.state}
+                  onChange={(e) => setForm((p) => ({ ...p, state: e.target.value }))}
+                  placeholder="UF"
+                  maxLength={2}
+                />
+                {submitted && errors.state && <p className="text-xs text-destructive mt-1">{errors.state}</p>}
               </div>
             </div>
 
             <div className="flex items-center gap-2">
               <Checkbox
                 id="addr-default"
-                checked={form.isDefault}
-                onCheckedChange={v => setForm(p => ({ ...p, isDefault: !!v }))}
+                checked={form.isDefault ?? false}
+                onCheckedChange={(v) => setForm((p) => ({ ...p, isDefault: !!v }))}
               />
               <Label htmlFor="addr-default" className="text-sm font-body cursor-pointer">
                 Definir como endereço padrão
@@ -328,9 +385,10 @@ export default function AddressesPage() {
 
           <DialogFooter>
             <DialogClose asChild>
-              <Button variant="ghost">Cancelar</Button>
+              <Button variant="ghost" disabled={isSaving}>Cancelar</Button>
             </DialogClose>
-            <Button variant="kolecta" className="glow-primary" onClick={handleSave}>
+            <Button variant="kolecta" className="glow-primary" onClick={handleSave} disabled={isSaving}>
+              {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
               Salvar
             </Button>
           </DialogFooter>
@@ -338,7 +396,7 @@ export default function AddressesPage() {
       </Dialog>
 
       {/* ── Delete Confirmation Dialog ──────────────────── */}
-      <Dialog open={!!deleteId} onOpenChange={open => { if (!open) setDeleteId(null); }}>
+      <Dialog open={!!deleteId} onOpenChange={(open) => { if (!open) setDeleteId(null); }}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle className="font-heading text-xl font-bold uppercase">
@@ -347,12 +405,15 @@ export default function AddressesPage() {
           </DialogHeader>
           {addressToDelete && (
             <p className="text-sm text-muted-foreground">
-              O endereço <span className="text-foreground font-medium">{addressToDelete.rua}, {addressToDelete.numero} — {addressToDelete.cidade}/{addressToDelete.estado}</span> será removido permanentemente.
+              O endereço <span className="text-foreground font-medium">{addressToDelete.street}, {addressToDelete.number} — {addressToDelete.city}/{addressToDelete.state}</span> será removido permanentemente.
             </p>
           )}
           <DialogFooter>
             <Button variant="ghost" onClick={() => setDeleteId(null)}>Cancelar</Button>
-            <Button variant="destructive" onClick={confirmDelete}>Remover</Button>
+            <Button variant="destructive" onClick={confirmDelete} disabled={removeMutation.isPending}>
+              {removeMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+              Remover
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

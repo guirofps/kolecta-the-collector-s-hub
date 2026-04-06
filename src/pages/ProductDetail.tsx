@@ -1,32 +1,112 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useCart } from '@/contexts/CartContext';
-import { Heart, ShieldCheck, Star, Gavel, ShoppingCart, Flag, ChevronRight, ArrowLeft, MessageSquare, AlertTriangle, CreditCard } from 'lucide-react';
+import {
+  Heart, ShieldCheck, Star, Gavel, ShoppingCart, Flag,
+  ChevronRight, ArrowLeft, MessageSquare, CreditCard,
+  AlertTriangle, Loader2, Package,
+} from 'lucide-react';
 import Layout from '@/components/layout/Layout';
 import { cn } from '@/lib/utils';
 import ProductCard from '@/components/ProductCard';
-import AuctionCountdown from '@/components/AuctionCountdown';
-import BidHistory from '@/components/BidHistory';
 import VerificationBadge from '@/components/VerificationBadge';
 import ReportListingDialog from '@/components/ReportListingDialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Checkbox } from '@/components/ui/checkbox';
-import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
-} from '@/components/ui/dialog';
-import { getProductById, mockProducts, mockBids, formatBRL, conditionLabel } from '@/lib/mock-data';
+import { Skeleton } from '@/components/ui/skeleton';
+import { mockProducts, conditionLabel, formatBRL } from '@/lib/mock-data';
+import type { ProductCondition } from '@/lib/mock-data';
+import type { Listing } from '@/lib/api';
+import { useListing } from '@/hooks/use-api';
 import { trackEvent } from '@/lib/analytics';
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function parseImages(raw: string | null | undefined): string[] {
+  if (!raw) return ['/placeholder.svg'];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : ['/placeholder.svg'];
+  } catch {
+    // Se for uma URL direta (não JSON)
+    return raw.startsWith('http') ? [raw] : ['/placeholder.svg'];
+  }
+}
+
+function buildDetails(listing: Listing): Record<string, string> {
+  const details: Record<string, string> = {};
+  if (listing.brand) details['Marca'] = listing.brand;
+  if (listing.line) details['Linha'] = listing.line;
+  if (listing.scale) details['Escala'] = listing.scale;
+  if (listing.year) details['Ano'] = listing.year;
+  if (listing.edition) details['Edição'] = listing.edition;
+  return details;
+}
+
+// ── Adapter: Listing → CartItem Product shape ─────────────────────────────────
+// Converte o Listing real do backend para o shape que o CartContext espera
+
+function listingToCartProduct(listing: Listing) {
+  return {
+    id: listing.id,                               // ← ID real, UUID do Turso
+    title: listing.title,
+    slug: listing.id,                             // slug não existe no DB atual
+    images: parseImages(listing.images),
+    category: '',
+    categorySlug: listing.categoryId ?? '',
+    condition: (listing.condition as ProductCondition) ?? 'novo',
+    type: listing.type,
+    price: listing.priceInCents != null ? listing.priceInCents / 100 : undefined,
+    seller: {
+      id: listing.sellerId,
+      name: 'Vendedor Kolecta',                   // sem join de user no MVP
+      slug: listing.sellerId,
+      avatar: '/placeholder.svg',
+      verified: false,
+      rating: 0,
+      totalSales: 0,
+      location: '',
+      since: '',
+    },
+    description: listing.description ?? '',
+    details: buildDetails(listing),
+    featured: false,
+    tags: [],
+    status: listing.status as any,
+    createdAt: listing.createdAt,
+  };
+}
+
+// ── Skeleton ──────────────────────────────────────────────────────────────────
+
+function ProductDetailSkeleton() {
+  return (
+    <Layout>
+      <div className="container mx-auto px-4 py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <Skeleton className="aspect-square rounded-lg" />
+          <div className="space-y-4">
+            <Skeleton className="h-8 w-3/4" />
+            <Skeleton className="h-6 w-1/3" />
+            <Skeleton className="h-32 w-full" />
+            <Skeleton className="h-12 w-full" />
+          </div>
+        </div>
+      </div>
+    </Layout>
+  );
+}
+
+// ── Main Component ────────────────────────────────────────────────────────────
 
 export default function ProductDetail() {
   const { id } = useParams<{ id: string }>();
   const { addItem, openCart } = useCart();
-  const product = getProductById(id || '');
-  const [bidAmount, setBidAmount] = useState('');
-  const [bidDialogOpen, setBidDialogOpen] = useState(false);
-  const [bidConfirmed, setBidConfirmed] = useState(false);
-  const [bidAccepted, setBidAccepted] = useState(false);
+
+  // ── Dados reais do backend ───────────────────────────────────────────────
+  const { data: listing, isLoading, isError } = useListing(id);
+
   const [isFavorite, setIsFavorite] = useState(false);
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
   const [reported, setReported] = useState(() => {
@@ -34,61 +114,69 @@ export default function ProductDetail() {
     return localStorage.getItem(`report_${id}`) === 'true';
   });
 
-  // Mock states for verification/payment blocks
-  const [mockVerified] = useState(true);
-  const [mockHasPayment] = useState(true);
-
+  // Track view quando o listing carregar
   useEffect(() => {
-    if (product) trackEvent('view_product', { id: product.id, type: product.type });
-  }, [product]);
+    if (listing) trackEvent('view_product', { id: listing.id, type: listing.type });
+  }, [listing]);
 
-  if (!product) {
+  // ── Loading state ────────────────────────────────────────────────────────
+  if (isLoading) return <ProductDetailSkeleton />;
+
+  // ── Erro / Não encontrado ────────────────────────────────────────────────
+  if (isError || !listing) {
     return (
       <Layout>
         <div className="container mx-auto px-4 py-20 text-center">
-          <h1 className="font-heading text-2xl font-bold text-muted-foreground uppercase">Produto não encontrado</h1>
-          <Button variant="outline-gold" className="mt-4" asChild>
-            <Link to="/busca"><ArrowLeft className="h-4 w-4" /> Voltar à busca</Link>
+          <Package className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+          <h1 className="font-heading text-2xl font-bold text-muted-foreground uppercase">
+            Anúncio não encontrado
+          </h1>
+          <p className="text-sm text-muted-foreground mt-2">
+            Este anúncio pode ter sido removido ou não está mais disponível.
+          </p>
+          <Button variant="outline-gold" className="mt-6" asChild>
+            <Link to="/busca">
+              <ArrowLeft className="h-4 w-4 mr-2" /> Voltar à busca
+            </Link>
           </Button>
         </div>
       </Layout>
     );
   }
 
-  const isAuction = product.type === 'auction';
-  const bids = mockBids.filter((b) => b.auctionId === product.id).sort((a, b) => b.amount - a.amount);
-  const minBid = (product.currentBid || product.startingBid || 0) + (product.minIncrement || 10);
-  const similar = mockProducts.filter((p) => p.categorySlug === product.categorySlug && p.id !== product.id).slice(0, 4);
+  // ── Dados derivados ──────────────────────────────────────────────────────
+  const images = parseImages(listing.images);
+  const details = buildDetails(listing);
+  const cartProduct = listingToCartProduct(listing);
+  const priceInBRL = listing.priceInCents != null ? listing.priceInCents / 100 : null;
+  const isAvailable = listing.status === 'active';
 
-  const handleBid = () => {
-    const amount = parseFloat(bidAmount);
-    if (isNaN(amount) || amount < minBid || !bidAccepted) return;
-    trackEvent('bid_confirm', { productId: product.id, amount });
-    setBidConfirmed(true);
-    setTimeout(() => {
-      setBidDialogOpen(false);
-      setBidConfirmed(false);
-      setBidAmount('');
-      setBidAccepted(false);
-    }, 2000);
-  };
+  // Produtos similares: fallback para mock (sem listagem real por categoria ainda)
+  const similar = mockProducts.slice(0, 4);
 
   return (
     <Layout>
       <div className="container mx-auto px-4 py-6">
+
         {/* Breadcrumb */}
         <nav className="flex items-center gap-1.5 text-xs text-muted-foreground mb-6">
           <Link to="/" className="hover:text-foreground transition-colors">Home</Link>
           <ChevronRight className="h-3 w-3" />
-          <Link to={`/categoria/${product.categorySlug}`} className="hover:text-foreground transition-colors">{product.category}</Link>
+          <Link to="/busca" className="hover:text-foreground transition-colors">Busca</Link>
           <ChevronRight className="h-3 w-3" />
-          <span className="text-foreground truncate max-w-[200px]">{product.title}</span>
+          <span className="text-foreground truncate max-w-[200px]">{listing.title}</span>
         </nav>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Image */}
+
+          {/* Imagem principal */}
           <div className="aspect-square rounded-lg overflow-hidden bg-kolecta-dark border border-border">
-            <img src={product.images[0]} alt={product.title} className="w-full h-full object-cover" />
+            <img
+              src={images[0]}
+              alt={listing.title}
+              className="w-full h-full object-cover"
+              onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }}
+            />
           </div>
 
           {/* Info */}
@@ -96,223 +184,121 @@ export default function ProductDetail() {
             {/* Badges */}
             <div className="flex items-center gap-2 mb-3">
               <Badge className="bg-secondary text-secondary-foreground text-[10px] font-heading uppercase tracking-wider">
-                {conditionLabel(product.condition)}
+                {conditionLabel(listing.condition as ProductCondition)}
               </Badge>
-              {isAuction && (
+              {listing.type === 'auction' && (
                 <Badge className="bg-accent text-accent-foreground text-[10px] font-heading uppercase tracking-wider">
                   Modo Lance
                 </Badge>
               )}
-              {product.featured && (
-                <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px] font-heading uppercase tracking-wider">
-                  Destaque
+              {!isAvailable && (
+                <Badge variant="destructive" className="text-[10px] font-heading uppercase tracking-wider">
+                  {listing.status === 'sold' ? 'Vendido' : 'Indisponível'}
                 </Badge>
               )}
             </div>
 
             <h1 className="font-heading text-2xl sm:text-3xl font-extrabold italic uppercase leading-tight mb-4">
-              {product.title}
+              {listing.title}
             </h1>
 
-            {/* Price / Auction block */}
+            {/* Preço / Ação */}
             <div className="p-5 rounded-lg border border-border bg-card mb-6">
-              {isAuction ? (
-                <div className="space-y-4">
-                  <div>
-                    <span className="text-xs text-muted-foreground uppercase tracking-wider">Maior lance atual</span>
-                    <div className="font-heading text-4xl font-extrabold text-accent mt-1">
-                      {formatBRL(product.currentBid || product.startingBid || 0)}
-                    </div>
-                    <span className="text-xs text-muted-foreground">
-                      {product.bidsCount} lances · Incremento mín. {formatBRL(product.minIncrement || 0)}
-                    </span>
-                  </div>
-
-                  <div className="line-tech" />
-
-                  <div>
-                    <span className="text-xs text-muted-foreground uppercase tracking-wider">Encerra em</span>
-                    <div className="mt-2">
-                      <AuctionCountdown endsAt={product.auctionEndsAt!} />
-                    </div>
-                  </div>
-
-                  {/* Verification/Payment warnings */}
-                  {!mockVerified && (
-                    <div className="rounded-md bg-accent/5 border border-accent/20 p-3 text-xs text-accent flex items-start gap-2">
-                      <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-                      <div>
-                        <p className="font-medium">Conta não verificada</p>
-                        <p className="text-muted-foreground mt-0.5">Você precisa <Link to="/conta/verificacao" className="text-accent underline">verificar sua conta</Link> para dar lances.</p>
-                      </div>
-                    </div>
-                  )}
-                  {!mockHasPayment && (
-                    <div className="rounded-md bg-primary/5 border border-primary/20 p-3 text-xs text-primary flex items-start gap-2">
-                      <CreditCard className="h-4 w-4 shrink-0 mt-0.5" />
-                      <div>
-                        <p className="font-medium">Nenhum método de pagamento</p>
-                        <p className="text-muted-foreground mt-0.5">Adicione um <Link to="/conta/pagamentos" className="text-primary underline">método de pagamento</Link> para participar.</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Bid button */}
-                  <Dialog open={bidDialogOpen} onOpenChange={setBidDialogOpen}>
-                    <DialogTrigger asChild>
-                      <Button
-                        variant="accent"
-                        size="lg"
-                        className="w-full text-base"
-                        disabled={!mockVerified || !mockHasPayment}
-                        onClick={() => {
-                          trackEvent('bid_place', { productId: product.id });
-                          setBidDialogOpen(true);
-                        }}
-                      >
-                        <Gavel className="h-5 w-5" />
-                        Enviar Lance
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="bg-card border-border">
-                      <DialogHeader>
-                        <DialogTitle className="font-heading text-xl uppercase">Confirmar Lance</DialogTitle>
-                        <DialogDescription>
-                          {product.title}
-                        </DialogDescription>
-                      </DialogHeader>
-
-                      {bidConfirmed ? (
-                        <div className="py-8 text-center">
-                          <div className="text-4xl mb-3">✓</div>
-                          <p className="font-heading text-lg font-bold text-primary uppercase">Lance registrado!</p>
-                        </div>
-                      ) : (
-                        <>
-                          <div className="space-y-4">
-                            <div className="text-sm text-muted-foreground">
-                              Lance mínimo: <span className="text-foreground font-semibold">{formatBRL(minBid)}</span>
-                            </div>
-                            <div className="relative">
-                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">R$</span>
-                              <input
-                                type="number"
-                                value={bidAmount}
-                                onChange={(e) => setBidAmount(e.target.value)}
-                                placeholder={minBid.toFixed(2)}
-                                className="w-full h-12 rounded-md border border-border bg-input pl-10 pr-4 text-lg font-heading font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-accent"
-                              />
-                            </div>
-
-                            {/* Legal text */}
-                            <div className="rounded-md bg-secondary/50 p-3 space-y-2 text-xs text-muted-foreground">
-                              <p>• Ao vencer, o pagamento é <span className="text-foreground font-medium">obrigatório</span>.</p>
-                              <p>• Você terá <span className="text-foreground font-medium">7 dias após a entrega</span> para verificar o item.</p>
-                            </div>
-
-                            {/* Commitment checkbox */}
-                            <div className="flex items-start gap-2">
-                              <Checkbox
-                                id="bid-accept"
-                                checked={bidAccepted}
-                                onCheckedChange={(v) => setBidAccepted(!!v)}
-                                className="mt-0.5"
-                              />
-                              <label htmlFor="bid-accept" className="text-xs text-muted-foreground cursor-pointer">
-                                Entendo o compromisso de compra e concordo com os <Link to="/termos" className="text-primary underline">termos</Link>.
-                              </label>
-                            </div>
-                          </div>
-                          <DialogFooter>
-                            <Button
-                              variant="accent"
-                              className="w-full"
-                              onClick={handleBid}
-                              disabled={!bidAmount || parseFloat(bidAmount) < minBid || !bidAccepted}
-                            >
-                              Confirmar Lance
-                            </Button>
-                          </DialogFooter>
-                        </>
-                      )}
-                    </DialogContent>
-                  </Dialog>
-
-                  {/* Bid history */}
-                  {bids.length > 0 && (
-                    <div className="mt-4">
-                      <h3 className="font-heading text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">Histórico de Lances</h3>
-                      <BidHistory bids={bids} />
-                    </div>
-                  )}
-                </div>
-              ) : (
+              {listing.type === 'direct' ? (
                 <div className="space-y-4">
                   <div>
                     <span className="text-xs text-muted-foreground uppercase tracking-wider">Preço</span>
                     <div className="font-heading text-4xl font-extrabold text-foreground mt-1">
-                      {formatBRL(product.price || 0)}
+                      {priceInBRL != null ? formatBRL(priceInBRL) : 'A consultar'}
                     </div>
                   </div>
+
+                  {!isAvailable && (
+                    <div className="rounded-md bg-destructive/10 border border-destructive/30 p-3 text-xs text-destructive flex items-start gap-2">
+                      <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                      <p>Este anúncio não está mais disponível para compra.</p>
+                    </div>
+                  )}
+
                   <div className="flex gap-3">
-                    <Button variant="kolecta" size="lg" className="flex-1 text-base" onClick={() => {
-                      trackEvent('buy_now_click', { productId: product.id });
-                      addItem(product, 1);
-                      openCart();
-                    }}>
-                      <ShoppingCart className="h-5 w-5" />
+                    <Button
+                      variant="kolecta"
+                      size="lg"
+                      className="flex-1 text-base"
+                      disabled={!isAvailable}
+                      onClick={() => {
+                        trackEvent('buy_now_click', { productId: listing.id });
+                        addItem(cartProduct, 1);
+                        openCart();
+                      }}
+                    >
+                      <ShoppingCart className="h-5 w-5 mr-2" />
                       Comprar Agora
                     </Button>
-                    {/* API: POST /api/favorites/:productId — adiciona favorito
-                        DELETE /api/favorites/:productId — remove favorito */}
-                    <Button variant="ghost-light" size="lg" onClick={() => {
-                      setIsFavorite((prev) => !prev);
-                      trackEvent(isFavorite ? 'remove_from_favorites' : 'add_to_favorites', { productId: product.id });
-                    }}>
+
+                    <Button
+                      variant="ghost-light"
+                      size="lg"
+                      onClick={() => {
+                        setIsFavorite(prev => !prev);
+                        trackEvent(
+                          isFavorite ? 'remove_from_favorites' : 'add_to_favorites',
+                          { productId: listing.id },
+                        );
+                      }}
+                    >
                       <Heart className={cn('h-5 w-5', isFavorite && 'fill-kolecta-red text-kolecta-red')} />
                     </Button>
+                  </div>
+                </div>
+              ) : (
+                // Leilão — placeholder para MVP (leilões ainda não têm endpoint real)
+                <div className="space-y-4">
+                  <div>
+                    <span className="text-xs text-muted-foreground uppercase tracking-wider">Lance inicial</span>
+                    <div className="font-heading text-4xl font-extrabold text-accent mt-1">
+                      {priceInBRL != null ? formatBRL(priceInBRL) : 'A definir'}
+                    </div>
+                  </div>
+                  <div className="rounded-md bg-accent/5 border border-accent/20 p-3 text-xs text-accent flex items-start gap-2">
+                    <Gavel className="h-4 w-4 shrink-0 mt-0.5" />
+                    <p>Sistema de lances em desenvolvimento. Em breve.</p>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Seller */}
-            <Link
-              to={`/vendedor/${product.seller.slug}`}
-              className="flex items-center gap-3 p-4 rounded-lg border border-border bg-card hover:border-primary/30 transition-all mb-6"
-            >
+            {/* Seller (simplificado — sem join no MVP) */}
+            <div className="flex items-center gap-3 p-4 rounded-lg border border-border bg-card mb-6">
               <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center shrink-0">
-                <span className="font-heading font-bold">{product.seller.name[0]}</span>
+                <span className="font-heading font-bold">V</span>
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">
-                  <span className="text-sm font-medium text-foreground">{product.seller.name}</span>
-                  <VerificationBadge verified={product.seller.verified} />
+                  <span className="text-sm font-medium text-foreground">Vendedor Verificado</span>
+                  <VerificationBadge verified={true} />
                 </div>
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <Star className="h-3 w-3 text-primary fill-primary" /> {product.seller.rating}
-                  <span>·</span>
-                  {product.seller.totalSales} vendas
-                  <span>·</span>
-                  {product.seller.location}
+                  <ShieldCheck className="h-3 w-3 text-emerald-500" />
+                  Transação protegida pelo Kolecta
                 </div>
               </div>
               <Button variant="ghost" size="sm" className="shrink-0">
                 <MessageSquare className="h-4 w-4" />
               </Button>
-            </Link>
+            </div>
 
-            {/* Actions */}
+            {/* Denúncia */}
             <div className="flex items-center gap-3 text-xs text-muted-foreground">
               {reported ? (
-                <span className="flex items-center gap-1 text-muted-foreground cursor-not-allowed">
+                <span className="flex items-center gap-1 cursor-not-allowed">
                   <Flag className="h-3 w-3" /> Denunciado
                 </span>
               ) : (
                 <button
                   className="flex items-center gap-1 hover:text-foreground transition-colors"
                   onClick={() => {
-                    trackEvent('report_listing', { productId: product.id });
+                    trackEvent('report_listing', { productId: listing.id });
                     setReportDialogOpen(true);
                   }}
                 >
@@ -322,9 +308,9 @@ export default function ProductDetail() {
             </div>
 
             <ReportListingDialog
-              listingId={product.id}
-              listingTitle={product.title}
-              sellerId={product.seller.slug}
+              listingId={listing.id}
+              listingTitle={listing.title}
+              sellerId={listing.sellerId}
               open={reportDialogOpen}
               onOpenChange={setReportDialogOpen}
               onReported={() => setReported(true)}
@@ -332,39 +318,51 @@ export default function ProductDetail() {
           </div>
         </div>
 
-        {/* Tabs */}
+        {/* Tabs — Descrição + Detalhes */}
         <div className="mt-10">
           <Tabs defaultValue="description">
             <TabsList className="bg-card border border-border">
-              <TabsTrigger value="description" className="font-heading uppercase tracking-wider text-xs">Descrição</TabsTrigger>
-              <TabsTrigger value="details" className="font-heading uppercase tracking-wider text-xs">Detalhes</TabsTrigger>
+              <TabsTrigger value="description" className="font-heading uppercase tracking-wider text-xs">
+                Descrição
+              </TabsTrigger>
+              <TabsTrigger value="details" className="font-heading uppercase tracking-wider text-xs">
+                Detalhes
+              </TabsTrigger>
             </TabsList>
             <TabsContent value="description" className="mt-4">
               <div className="p-6 rounded-lg border border-border bg-card">
-                <p className="text-sm text-foreground/90 leading-relaxed">{product.description}</p>
+                <p className="text-sm text-foreground/90 leading-relaxed">
+                  {listing.description ?? 'Sem descrição disponível.'}
+                </p>
               </div>
             </TabsContent>
             <TabsContent value="details" className="mt-4">
               <div className="p-6 rounded-lg border border-border bg-card">
-                <dl className="grid grid-cols-2 gap-3">
-                  {Object.entries(product.details).map(([key, value]) => (
-                    <div key={key}>
-                      <dt className="text-[10px] font-heading uppercase tracking-widest text-muted-foreground">{key}</dt>
-                      <dd className="text-sm text-foreground mt-0.5">{value}</dd>
-                    </div>
-                  ))}
-                </dl>
+                {Object.keys(details).length > 0 ? (
+                  <dl className="grid grid-cols-2 gap-3">
+                    {Object.entries(details).map(([key, value]) => (
+                      <div key={key}>
+                        <dt className="text-[10px] font-heading uppercase tracking-widest text-muted-foreground">{key}</dt>
+                        <dd className="text-sm text-foreground mt-0.5">{value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Sem detalhes técnicos disponíveis.</p>
+                )}
               </div>
             </TabsContent>
           </Tabs>
         </div>
 
-        {/* Similar */}
+        {/* Similares — mock por enquanto */}
         {similar.length > 0 && (
           <div className="mt-12">
-            <h2 className="font-heading text-xl font-extrabold italic uppercase mb-6">Produtos Semelhantes</h2>
+            <h2 className="font-heading text-xl font-extrabold italic uppercase mb-6">
+              Explore Mais
+            </h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {similar.map((p) => (
+              {similar.map(p => (
                 <ProductCard key={p.id} product={p} />
               ))}
             </div>

@@ -46,6 +46,16 @@ async function request<T>(
 // ── API namespaces ────────────────────────────────────────────────────────────
 
 export const api = {
+  // ── Listings (público) ───────────────────────────────────────────────────
+
+  listings: {
+    getById: (id: string) =>
+      request<{ data: Listing }>(`/api/listings/${id}`).then(r => r.data),
+
+    getAll: (limit = 20, offset = 0) =>
+      request<{ data: Listing[] }>(`/api/listings?limit=${limit}&offset=${offset}`).then(r => r.data),
+  },
+
   // ── Wallet ─────────────────────────────────────────────────────────────────
 
   wallet: {
@@ -64,6 +74,12 @@ export const api = {
 
     getById: (token: string, id: string) =>
       request<{ data: Order }>(`/api/orders/${id}`, { token }).then(r => r.data),
+
+    createCheckout: (token: string, body: { items: { listingId: string }[]; addressId?: string }) =>
+      request<{ clientSecret: string; orderId: string; totalInCents: number }>(
+        '/api/orders/checkout',
+        { method: 'POST', body: JSON.stringify(body), token },
+      ),
   },
 
   // ── Favorites ──────────────────────────────────────────────────────────────
@@ -130,6 +146,25 @@ export const api = {
         body: JSON.stringify({ amountInCents }),
         token,
       }),
+  },
+
+  // ── Connect (Stripe Express) ────────────────────────────────────────────────
+
+  connect: {
+    onboard: (token: string) =>
+      request<{ url: string }>('/api/connect/onboard', {
+        method: 'POST',
+        token,
+      }),
+
+    loginLink: (token: string) =>
+      request<{ url: string }>('/api/connect/login', {
+        method: 'POST',
+        token,
+      }),
+
+    getStatus: (token: string) =>
+      request<{ data: ConnectStatus }>('/api/connect/status', { token }).then((r) => r.data),
   },
 };
 
@@ -225,4 +260,33 @@ export interface Withdrawal {
   failureReason?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export type ConnectAccountStatus = 'disconnected' | 'pending' | 'active';
+
+export interface Listing {
+  id: string;
+  sellerId: string;
+  categoryId: string | null;
+  title: string;
+  description: string | null;
+  brand: string | null;
+  line: string | null;
+  scale: string | null;
+  year: string | null;
+  edition: string | null;
+  condition: string;
+  type: 'direct' | 'auction';
+  priceInCents: number | null;
+  images: string | null; // JSON array stringificado: '["url1","url2"]'
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ConnectStatus {
+  stripeAccountId: string | null;
+  status: ConnectAccountStatus;
+  chargesEnabled: boolean;
+  payoutsEnabled: boolean;
 }

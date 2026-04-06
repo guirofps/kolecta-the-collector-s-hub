@@ -8,6 +8,18 @@ import { useAuth } from '@clerk/clerk-react';
 import { api } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 
+// ── useListing ─────────────────────────────────────────────────────────────
+
+export function useListing(id: string | undefined) {
+  return useQuery({
+    queryKey: ['listing', id],
+    queryFn: () => api.listings.getById(id!),
+    enabled: !!id,
+    staleTime: 60_000, // 60s — listings não mudam com frequência
+    retry: 1,
+  });
+}
+
 // ── useWallet ──────────────────────────────────────────────────────────────
 
 export function useWallet() {
@@ -221,4 +233,77 @@ export function useDeposit() {
   });
 
   return mutation;
+}
+
+// ── useConnect ─────────────────────────────────────────────────────────────
+
+export function useConnect() {
+  const { getToken } = useAuth();
+  const { toast } = useToast();
+
+  const statusQuery = useQuery({
+    queryKey: ['connect', 'status'],
+    queryFn: async () => {
+      const token = await getToken();
+      return api.connect.getStatus(token!);
+    },
+    staleTime: 60_000,
+  });
+
+  const onboardMutation = useMutation({
+    mutationFn: async () => {
+      const token = await getToken();
+      return api.connect.onboard(token!);
+    },
+    onSuccess: ({ url }) => {
+      window.location.href = url;
+    },
+    onError: (err: any) => {
+      toast({
+        title: 'Erro ao iniciar configuração',
+        description: err.message ?? 'Não foi possível iniciar o onboarding',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const loginLinkMutation = useMutation({
+    mutationFn: async () => {
+      const token = await getToken();
+      return api.connect.loginLink(token!);
+    },
+    onSuccess: ({ url }) => {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    },
+    onError: (err: any) => {
+      toast({
+        title: 'Erro ao abrir painel Stripe',
+        description: err.message ?? 'Não foi possível gerar o link',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  return { statusQuery, onboardMutation, loginLinkMutation };
+}
+
+// ── useCreateCheckout ──────────────────────────────────────────────────────
+
+export function useCreateCheckout() {
+  const { getToken } = useAuth();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (body: { items: { listingId: string }[]; addressId?: string }) => {
+      const token = await getToken();
+      return api.orders.createCheckout(token!, body);
+    },
+    onError: (err: any) => {
+      toast({
+        title: 'Erro ao iniciar pagamento',
+        description: err.message ?? 'Não foi possível iniciar o checkout. Tente novamente.',
+        variant: 'destructive',
+      });
+    },
+  });
 }
