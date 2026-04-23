@@ -26,9 +26,12 @@ async function request<T>(
 ): Promise<T> {
   const { token, ...init } = options;
 
+  const devUserId = localStorage.getItem('dev_user_id') || 'seller-001';
+
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    'x-dev-user-id': devUserId,
     ...(init.headers ?? {}),
   };
 
@@ -52,8 +55,47 @@ export const api = {
     getById: (id: string) =>
       request<{ data: Listing }>(`/api/listings/${id}`).then(r => r.data),
 
-    getAll: (limit = 20, offset = 0) =>
-      request<{ data: Listing[] }>(`/api/listings?limit=${limit}&offset=${offset}`).then(r => r.data),
+    getAll: (limit = 20, offset = 0, q?: string) => {
+      const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+      if (q) params.set('q', q);
+      return request<{ data: Listing[] }>(`/api/listings?${params}`).then(r => r.data);
+    },
+
+    getMine: (token: string) =>
+      request<{ data: Listing[] }>('/api/listings/my', { token }).then(r => r.data),
+
+    create: (data: CreateListingPayload) =>
+      request<{ data: Listing }>('/api/listings', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }).then(r => r.data),
+
+    update: (token: string, id: string, data: Partial<CreateListingPayload>) =>
+      request<{ data: Listing }>(`/api/listings/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+        token,
+      }).then(r => r.data),
+
+    remove: (token: string, id: string) =>
+      request<void>(`/api/listings/${id}`, { method: 'DELETE', token }),
+  },
+
+  // ── Admin ──────────────────────────────────────────────────────────────────
+
+  admin: {
+    getListings: (token: string, status?: string, limit = 50, offset = 0) => {
+      const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+      if (status) params.set('status', status);
+      return request<{ data: Listing[] }>(`/api/listings/admin?${params}`, { token }).then(r => r.data);
+    },
+
+    updateListingStatus: (token: string, id: string, status: string) =>
+      request<{ data: Listing }>(`/api/listings/${id}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status }),
+        token,
+      }).then(r => r.data),
   },
 
   // ── Wallet ─────────────────────────────────────────────────────────────────
@@ -61,6 +103,16 @@ export const api = {
   wallet: {
     getMe: (token: string) =>
       request<{ data: WalletData }>('/api/wallet/me', { token }).then(r => r.data),
+
+    getTransactions: (token: string) =>
+      request<{ data: WalletTransaction[] }>('/api/wallet/transactions', { token }).then(r => r.data),
+
+    deposit: (token: string, amountInCents: number) =>
+      request<{ data: { sessionId: string; url: string } }>('/api/wallet/deposit', {
+        method: 'POST',
+        body: JSON.stringify({ amountInCents }),
+        token,
+      }).then(r => r.data),
   },
 
   // ── Orders ─────────────────────────────────────────────────────────────────
@@ -69,14 +121,14 @@ export const api = {
     getMyOrders: (token: string, status?: string, page = 1, limit = 10) => {
       const params = new URLSearchParams({ page: String(page), limit: String(limit) });
       if (status && status !== 'todos') params.set('status', status);
-      return request<{ data: Order[] }>(`/api/orders/buyer/me?${params}`, { token }).then(r => r.data);
+      return request<{ data: Order[] }>(`/api/orders/my/purchases?${params}`, { token }).then(r => r.data);
     },
 
     getById: (token: string, id: string) =>
       request<{ data: Order }>(`/api/orders/${id}`, { token }).then(r => r.data),
 
-    createCheckout: (token: string, body: { items: { listingId: string }[]; addressId?: string }) =>
-      request<{ clientSecret: string; orderId: string; totalInCents: number }>(
+    createCheckout: (token: string, body: { items: { listingId: string }[]; addressId?: string; useWalletBalance?: boolean }) =>
+      request<{ clientSecret?: string; orderId: string; totalInCents: number; walletDeducted?: number; chargeAmount?: number; paidViaWallet?: boolean }>(
         '/api/orders/checkout',
         { method: 'POST', body: JSON.stringify(body), token },
       ),
@@ -177,6 +229,18 @@ export interface WalletData {
   pendingInCents: number;
 }
 
+export interface WalletTransaction {
+  id: string;
+  walletId: string;
+  type: 'credit' | 'debit' | 'hold';
+  amountInCents: number;
+  status: string;
+  orderId?: string;
+  stripeEventId?: string;
+  description?: string;
+  createdAt: string;
+}
+
 export type OrderStatus =
   | 'pending'
   | 'paid'
@@ -267,6 +331,7 @@ export type ConnectAccountStatus = 'disconnected' | 'pending' | 'active';
 export interface Listing {
   id: string;
   sellerId: string;
+  sellerName?: string | null;
   categoryId: string | null;
   title: string;
   description: string | null;
@@ -289,4 +354,19 @@ export interface ConnectStatus {
   status: ConnectAccountStatus;
   chargesEnabled: boolean;
   payoutsEnabled: boolean;
+}
+
+export interface CreateListingPayload {
+  title: string;
+  description?: string;
+  categoryId?: string;
+  brand?: string;
+  line?: string;
+  scale?: string;
+  year?: string;
+  edition?: string;
+  condition: string;
+  type: 'direct' | 'auction';
+  priceInCents?: number;
+  images?: string; // JSON array stringificado
 }

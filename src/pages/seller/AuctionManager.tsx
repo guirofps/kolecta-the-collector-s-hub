@@ -336,7 +336,7 @@ export default function AuctionManager() {
             <p className="text-muted-foreground">Gerencie seus leilões ativos e encerrados</p>
           </div>
           <Button variant="kolecta" asChild>
-            <Link to="/painel-vendedor/anuncios/novo?mode=lance">Criar leilão</Link>
+            <Link to="/painel/anuncios/novo?mode=lance">Criar leilão</Link>
           </Button>
         </div>
 
@@ -572,7 +572,7 @@ function AuctionCard({
               <X className="h-3.5 w-3.5 mr-1" /> Encerrar agora
             </Button>
             <Button size="sm" variant="ghost" asChild>
-              <Link to={`/painel-vendedor/anuncios/${a.id}/editar`}>Editar</Link>
+              <Link to={`/painel/anuncios/${a.id}/editar`}>Editar</Link>
             </Button>
           </div>
         </div>
@@ -641,7 +641,7 @@ function ClosedAuctionCard({ auction: a }: { auction: MockAuction }) {
             <div className="flex items-center gap-3 text-sm">
               <span className="font-heading font-bold text-[hsl(var(--kolecta-gold))]">{formatBRL(a.finalValue)}</span>
               {a.orderId && (
-                <Link to={`/painel-vendedor/pedidos/${a.orderId}`} className="text-[hsl(var(--kolecta-gold))] hover:underline text-xs">
+                <Link to={`/painel/pedidos/${a.orderId}`} className="text-[hsl(var(--kolecta-gold))] hover:underline text-xs">
                   Pedido #{a.orderId}
                 </Link>
               )}
@@ -662,7 +662,7 @@ function EmptyTab({ icon: Icon, message, cta }: { icon: React.ElementType; messa
       <p className="text-muted-foreground mb-4">{message}</p>
       {cta && (
         <Button variant="kolecta" asChild>
-          <Link to="/painel-vendedor/anuncios/novo?mode=lance">Criar leilão</Link>
+          <Link to="/painel/anuncios/novo?mode=lance">Criar leilão</Link>
         </Button>
       )}
     </div>

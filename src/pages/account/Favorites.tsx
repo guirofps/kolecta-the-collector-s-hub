@@ -52,7 +52,7 @@ export default function FavoritesPage() {
   }, [favorites]);
 
   const filtered = useMemo(() => {
-    let list = [...favorites];
+    const list = [...favorites];
 
     switch (sort) {
       case 'price_asc':
@@ -68,12 +68,22 @@ export default function FavoritesPage() {
         list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     }
     return list;
-  }, [favorites, categoryFilter, sort]);
+  }, [favorites, sort]);
 
   function handleRemove() {
     if (!removeTarget) return;
     removeMutation.mutate(removeTarget.listingId);
     setRemoveTarget(null);
+  }
+
+  function parseImages(raw: string | null | undefined): string[] {
+    if (!raw) return ['/placeholder.svg'];
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) && parsed.length > 0 ? parsed : ['/placeholder.svg'];
+    } catch {
+      return raw.startsWith('http') ? [raw] : ['/placeholder.svg'];
+    }
   }
 
   return (
@@ -128,8 +138,9 @@ export default function FavoritesPage() {
             {filtered.map(fav => {
               const listing = fav.listing;
               if (!listing) return null;
-              const available = listing.status === 'active';
+              const available = listing.status === 'aprovado';
               const isAuction = listing.type === 'auction';
+              const images = parseImages(listing.images);
 
               return (
                 <Card key={fav.id} className="relative overflow-hidden bg-gradient-card border-border group">
@@ -142,14 +153,12 @@ export default function FavoritesPage() {
 
                   {/* Image */}
                   <div className="relative aspect-square overflow-hidden bg-kolecta-dark">
-                    {listing.images?.[0] && (
-                      <img
-                        src={listing.images[0]}
-                        alt={listing.title}
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                      />
-                    )}
+                    <img
+                      src={images[0]}
+                      alt={listing.title}
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      loading="lazy"
+                    />
 
                     {/* Remove favorite button */}
                     <button

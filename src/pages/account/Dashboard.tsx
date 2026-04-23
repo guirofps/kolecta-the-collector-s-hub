@@ -133,7 +133,7 @@ export default function AccountDashboard() {
 
         {/* Quick actions */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-          <Link to="/painel-vendedor" className="block">
+          <Link to="/painel" className="block">
             <Card className="bg-primary/10 border-primary/30 hover:bg-primary/20 transition-colors cursor-pointer">
               <CardContent className="flex items-center gap-4 p-5">
                 <Store className="h-8 w-8 text-primary" />

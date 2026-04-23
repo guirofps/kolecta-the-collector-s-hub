@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import AuctionCountdown from '@/components/AuctionCountdown';
 import { Product, formatBRL, conditionLabel } from '@/lib/mock-data';
 import { trackEvent } from '@/lib/analytics';
+import { useFavorites } from '@/hooks/use-api';
+import { useAuth } from '@clerk/clerk-react';
 
 interface ProductCardProps {
   product: Product;
@@ -13,6 +15,18 @@ interface ProductCardProps {
 
 export default function ProductCard({ product, className = '' }: ProductCardProps) {
   const isAuction = product.type === 'auction';
+  const { isSignedIn } = useAuth();
+  const { query: favoritesQuery, toggleMutation } = useFavorites();
+  
+  const isFavorited = favoritesQuery.data?.some(f => f.listingId === product.id);
+
+  const handleFavorite = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isSignedIn) return; // Poderia abrir modal de login aqui
+    toggleMutation.mutate(product.id);
+    trackEvent('add_to_favorites', { id: product.id });
+  };
 
   return (
     <div className={`group relative rounded-lg border border-border bg-card overflow-hidden transition-all duration-300 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 ${className}`}>
@@ -45,13 +59,14 @@ export default function ProductCard({ product, className = '' }: ProductCardProp
 
         {/* Favorite button */}
         <button
-          onClick={(e) => {
-            e.preventDefault();
-            trackEvent('add_to_favorites', { id: product.id });
-          }}
-          className="absolute top-2 right-2 p-1.5 rounded-full bg-background/60 backdrop-blur-sm text-foreground/60 hover:text-primary hover:bg-background/80 transition-all opacity-0 group-hover:opacity-100"
+          onClick={handleFavorite}
+          className={`absolute top-2 right-2 p-1.5 rounded-full backdrop-blur-sm transition-all lg:opacity-0 lg:group-hover:opacity-100 ${
+            isFavorited 
+              ? 'bg-primary text-primary-foreground opacity-100' 
+              : 'bg-background/60 text-foreground/60 hover:text-primary hover:bg-background/80'
+          }`}
         >
-          <Heart className="h-4 w-4" />
+          <Heart className={`h-4 w-4 ${isFavorited ? 'fill-current' : ''}`} />
         </button>
       </Link>
 

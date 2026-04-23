@@ -1,13 +1,12 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth, mockUsers, Role } from '@/contexts/AuthContext';
-import { User, Store, Shield } from 'lucide-react';
+import { User, Shield } from 'lucide-react';
 
 /* DEV ONLY: remover ou manter oculto em produção.
    Este componente só aparece quando VITE_ENV=development */
 
 const profiles: { role: Role; label: string; icon: typeof User; redirect: string }[] = [
-  { role: 'buyer', label: 'Comprador', icon: User, redirect: '/conta' },
-  { role: 'seller', label: 'Vendedor', icon: Store, redirect: '/painel-vendedor' },
+  { role: 'user', label: 'Colecionador', icon: User, redirect: '/conta' },
   { role: 'admin', label: 'Admin', icon: Shield, redirect: '/admin' },
 ];
 

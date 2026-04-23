@@ -376,7 +376,7 @@ export default function SellerOrdersPage() {
                               </Badge>
                             )}
                             <Button size="sm" variant="ghost" asChild>
-                              <Link to={`/painel-vendedor/pedidos/${order.id}`}>Ver detalhes</Link>
+                              <Link to={`/painel/pedidos/${order.id}`}>Ver detalhes</Link>
                             </Button>
                           </div>
                         </div>

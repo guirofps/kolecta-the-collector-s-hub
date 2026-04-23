@@ -23,7 +23,7 @@ export default function StripeOnboardingPage() {
           {/* ── Header ────────────────────────────────── */}
           <div>
             <Button variant="ghost" size="sm" className="mb-4" asChild>
-              <Link to="/painel-vendedor/financeiro">
+              <Link to="/painel/financeiro">
                 <ArrowLeft className="h-4 w-4 mr-1" />
                 Voltar
               </Link>

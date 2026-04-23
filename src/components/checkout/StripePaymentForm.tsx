@@ -42,7 +42,7 @@ export default function StripePaymentForm({ orderId, totalInCents }: Props) {
     if (error) {
       setErrorMessage(
         error.type === 'card_error' || error.type === 'validation_error'
-          ? (error.message ?? 'Erro no cartão. Verifique os dados e tente novamente.')
+          ? (error.message ?? 'Erro no pagamento. Verifique os dados e tente novamente.')
           : 'Ocorreu um erro inesperado. Tente novamente.',
       );
       setIsProcessing(false);

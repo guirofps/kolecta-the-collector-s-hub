@@ -4,15 +4,15 @@ import Header from './Header';
 import { cn } from '@/lib/utils';
 
 const sidebarLinks = [
-  { label: 'Dashboard', href: '/painel-vendedor', icon: LayoutDashboard },
-  { label: 'Anúncios', href: '/painel-vendedor/anuncios', icon: Package },
-  { label: 'Novo Anúncio', href: '/painel-vendedor/anuncios/novo', icon: PlusCircle },
-  { label: 'Pedidos', href: '/painel-vendedor/pedidos', icon: ShoppingBag },
-  { label: 'Modo Lance', href: '/painel-vendedor/modo-lance', icon: Gavel },
-  { label: 'Financeiro', href: '/painel-vendedor/financeiro', icon: Wallet },
-  { label: 'Mensagens', href: '/painel-vendedor/mensagens', icon: MessageSquare },
-  { label: 'Mídia', href: '/painel-vendedor/midia', icon: Megaphone },
-  { label: 'Configurações', href: '/painel-vendedor/configuracoes', icon: Settings },
+  { label: 'Dashboard', href: '/painel', icon: LayoutDashboard },
+  { label: 'Anúncios', href: '/painel/anuncios', icon: Package },
+  { label: 'Novo Anúncio', href: '/painel/anuncios/novo', icon: PlusCircle },
+  { label: 'Pedidos', href: '/painel/pedidos', icon: ShoppingBag },
+  { label: 'Modo Lance', href: '/painel/modo-lance', icon: Gavel },
+  { label: 'Financeiro', href: '/painel/financeiro', icon: Wallet },
+  { label: 'Mensagens', href: '/painel/mensagens', icon: MessageSquare },
+  { label: 'Mídia', href: '/painel/midia', icon: Megaphone },
+  { label: 'Configurações', href: '/painel/configuracoes', icon: Settings },
 ];
 
 export default function SellerLayout({ children }: { children: React.ReactNode }) {
@@ -28,7 +28,7 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
             Painel do Vendedor
           </span>
           {sidebarLinks.map((link) => {
-            const active = pathname === link.href || (link.href !== '/painel-vendedor' && pathname.startsWith(link.href));
+            const active = pathname === link.href || (link.href !== '/painel' && pathname.startsWith(link.href));
             return (
               <Link
                 key={link.href}

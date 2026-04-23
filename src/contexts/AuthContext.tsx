@@ -1,6 +1,6 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
-export type Role = 'buyer' | 'seller' | 'admin';
+export type Role = 'user' | 'admin';
 
 export interface MockUser {
   id: string;
@@ -18,18 +18,11 @@ interface AuthContextType {
 }
 
 export const mockUsers: Record<Role, MockUser> = {
-  buyer: {
-    id: 'buyer-001',
+  user: {
+    id: 'seller-001', // Importante ser seller-001 para parear com o seed do backend
     name: 'João Silva',
     email: 'joao@email.com',
-    role: 'buyer',
-    avatar: null,
-  },
-  seller: {
-    id: 'seller-001',
-    name: 'Coleção Turbo',
-    email: 'vendedor@email.com',
-    role: 'seller',
+    role: 'user',
     avatar: null,
   },
   admin: {
@@ -44,17 +37,32 @@ export const mockUsers: Record<Role, MockUser> = {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<MockUser>(mockUsers.buyer);
+  const [user, setUser] = useState<MockUser>(() => {
+    const savedId = localStorage.getItem('dev_user_id');
+    if (savedId) {
+      if (savedId === mockUsers.admin.id) return mockUsers.admin;
+      if (savedId === 'seller-001') return mockUsers.user;
+    }
+    return mockUsers.user;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('dev_user_id', user.id);
+  }, [user.id]);
+
+  const handleSetUser = (newUser: MockUser) => {
+    localStorage.setItem('dev_user_id', newUser.id);
+    setUser(newUser);
+  };
 
   const hasRole = (role: Role) => {
-    // In dev mock: admin has all roles, seller has buyer+seller, buyer has buyer only
+    // admin tem acesso a tudo; user tem acesso a tudo exceto admin
     if (user.role === 'admin') return true;
-    if (user.role === 'seller') return role !== 'admin';
-    return role === 'buyer';
+    return role !== 'admin';
   };
 
   return (
-    <AuthContext.Provider value={{ user, setUser, isAuthenticated: true, hasRole }}>
+    <AuthContext.Provider value={{ user, setUser: handleSetUser, isAuthenticated: true, hasRole }}>
       {children}
     </AuthContext.Provider>
   );

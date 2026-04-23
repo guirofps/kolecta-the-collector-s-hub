@@ -313,7 +313,7 @@ export default function SellerMessagesPage() {
             </div>
           </div>
           {activeConversation.orderId && (
-            <Link to={`/painel-vendedor/pedidos/${activeConversation.orderId}`}>
+            <Link to={`/painel/pedidos/${activeConversation.orderId}`}>
               <Badge variant="outline" className="text-xs">Pedido #{activeConversation.orderId}</Badge>
             </Link>
           )}

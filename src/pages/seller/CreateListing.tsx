@@ -16,6 +16,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { mockCategories, formatBRL } from '@/lib/mock-data';
 import { trackEvent } from '@/lib/analytics';
+import { useCreateListing } from '@/hooks/use-api';
+import type { CreateListingPayload } from '@/lib/api';
 
 type ListingType = 'direct' | 'auction' | null;
 
@@ -78,13 +80,14 @@ export default function CreateListing() {
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<FormData>(initialForm);
   const navigate = useNavigate();
+  const createListing = useCreateListing();
 
   useEffect(() => {
     trackEvent('start_sell_flow');
   }, []);
 
   const update = (field: keyof FormData, value: any) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
+    setForm((prev) => ({ ...prev, [field]: value })); 
   };
 
   const canNext = () => {
@@ -99,7 +102,29 @@ export default function CreateListing() {
 
   const handleSubmit = () => {
     trackEvent('submit_listing', { type: form.type });
-    navigate('/painel-vendedor/anuncios');
+
+    const payload: CreateListingPayload = {
+      title: form.title,
+      description: form.description || undefined,
+      categoryId: form.category || undefined,
+      brand: form.brand || undefined,
+      line: form.line || undefined,
+      scale: form.scale || undefined,
+      year: form.year || undefined,
+      edition: form.edition || undefined,
+      condition: form.condition,
+      type: form.type as 'direct' | 'auction',
+      priceInCents: form.type === 'direct' && form.price
+        ? Math.round(Number(form.price.replace(/\./g, '').replace(',', '.')) * 100)
+        : form.type === 'auction' && form.startingBid
+        ? Math.round(Number(form.startingBid.replace(/\./g, '').replace(',', '.')) * 100)
+        : undefined,
+      images: form.photos.length > 0 ? JSON.stringify(form.photos) : undefined,
+    };
+
+    createListing.mutate(payload, {
+      onSuccess: () => navigate('/painel/anuncios'),
+    });
   };
 
   const addMockPhoto = () => {
@@ -118,7 +143,7 @@ export default function CreateListing() {
         {/* Header */}
         <div className="flex items-center gap-3 mb-8">
           <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
-            <Link to="/painel-vendedor/anuncios"><ArrowLeft className="h-4 w-4" /></Link>
+            <Link to="/painel/anuncios"><ArrowLeft className="h-4 w-4" /></Link>
           </Button>
           <div>
             <h1 className="font-heading text-xl font-extrabold italic uppercase">Criar Anúncio</h1>
@@ -279,7 +304,7 @@ function StepDetails({ form, update }: { form: FormData; update: (f: keyof FormD
             <SelectTrigger className="mt-1.5"><SelectValue placeholder="Selecione" /></SelectTrigger>
             <SelectContent>
               {mockCategories.map((c) => (
-                <SelectItem key={c.id} value={c.slug}>{c.icon} {c.name}</SelectItem>
+                <SelectItem key={c.id} value={c.id}>{c.icon} {c.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>

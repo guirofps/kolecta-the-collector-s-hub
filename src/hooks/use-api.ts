@@ -20,6 +20,117 @@ export function useListing(id: string | undefined) {
   });
 }
 
+export function useListings(limit = 20, offset = 0, q?: string) {
+  return useQuery({
+    queryKey: ['listings', limit, offset, q],
+    queryFn: () => api.listings.getAll(limit, offset, q),
+    staleTime: 60_000,
+  });
+}
+
+export function useMyListings() {
+  const { getToken } = useAuth();
+  return useQuery({
+    queryKey: ['my-listings'],
+    queryFn: async () => {
+      const token = await getToken();
+      return api.listings.getMine(token || '');
+    },
+    staleTime: 30_000,
+  });
+}
+
+// ── Admin Hooks ────────────────────────────────────────────────────────────
+
+export function useAdminListings(status?: string, limit = 50, offset = 0) {
+  const { getToken } = useAuth();
+  return useQuery({
+    queryKey: ['admin-listings', status, limit, offset],
+    queryFn: async () => {
+      const token = await getToken();
+      return api.admin.getListings(token || '', status, limit, offset);
+    },
+    staleTime: 10_000,
+  });
+}
+
+export function useUpdateListingStatus() {
+  const queryClient = useQueryClient();
+  const { getToken } = useAuth();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      const token = await getToken();
+      return api.admin.updateListingStatus(token || '', id, status);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-listings'] });
+      queryClient.invalidateQueries({ queryKey: ['listings'] });
+      queryClient.invalidateQueries({ queryKey: ['my-listings'] });
+      toast({ title: 'Status atualizado com sucesso!' });
+    },
+    onError: (err: Error) => {
+      toast({
+        title: 'Erro ao atualizar status',
+        description: err.message,
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
+// ── useCreateListing ───────────────────────────────────────────────────────
+
+export function useCreateListing() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: (data: import('@/lib/api').CreateListingPayload) =>
+      api.listings.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['listings'] });
+      toast({
+        title: 'Anúncio criado!',
+        description: 'Seu item foi enviado para análise da equipe Kolecta.',
+      });
+    },
+    onError: (err: Error) => {
+      toast({
+        title: 'Erro ao criar anúncio',
+        description: err.message,
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
+export function useDeleteListing() {
+  const queryClient = useQueryClient();
+  const { getToken } = useAuth();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const token = await getToken();
+      return api.listings.remove(token || '', id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['my-listings'] });
+      queryClient.invalidateQueries({ queryKey: ['listings'] });
+      toast({ title: 'Anúncio excluído!' });
+    },
+    onError: (err: Error) => {
+      toast({
+        title: 'Erro ao excluir anúncio',
+        description: err.message,
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
 // ── useWallet ──────────────────────────────────────────────────────────────
 
 export function useWallet() {
@@ -31,7 +142,46 @@ export function useWallet() {
       const token = await getToken();
       return api.wallet.getMe(token!);
     },
-    staleTime: 30_000, // 30s
+    staleTime: 30_000,
+  });
+}
+
+export function useWalletTransactions() {
+  const { getToken } = useAuth();
+
+  return useQuery({
+    queryKey: ['wallet', 'transactions'],
+    queryFn: async () => {
+      const token = await getToken();
+      return api.wallet.getTransactions(token!);
+    },
+    staleTime: 30_000,
+  });
+}
+
+export function useWalletDeposit() {
+  const { getToken } = useAuth();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (amountInCents: number) => {
+      const token = await getToken();
+      return api.wallet.deposit(token!, amountInCents);
+    },
+    onSuccess: (data) => {
+      // Redireciona para o checkout da Stripe
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    },
+    onError: (err: any) => {
+      toast({
+        title: 'Erro ao iniciar depósito',
+        description: err.message,
+        variant: 'destructive',
+      });
+    },
   });
 }
 
@@ -294,7 +444,7 @@ export function useCreateCheckout() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (body: { items: { listingId: string }[]; addressId?: string }) => {
+    mutationFn: async (body: { items: { listingId: string }[]; addressId?: string; useWalletBalance?: boolean }) => {
       const token = await getToken();
       return api.orders.createCheckout(token!, body);
     },

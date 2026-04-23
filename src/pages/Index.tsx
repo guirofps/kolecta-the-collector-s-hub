@@ -7,7 +7,10 @@ import ProductCard from '@/components/ProductCard';
 import AuctionCountdown from '@/components/AuctionCountdown';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { mockProducts, mockCategories, mockSellers, getAuctionProducts, getFeaturedProducts, formatBRL } from '@/lib/mock-data';
+import { mockCategories, mockSellers, getAuctionProducts, getFeaturedProducts, formatBRL } from '@/lib/mock-data';
+import type { ProductCondition, Product } from '@/lib/mock-data';
+import type { Listing } from '@/lib/api';
+import { useListings } from '@/hooks/use-api';
 import { trackEvent } from '@/lib/analytics';
 import heroBg from '@/assets/hero-bg.jpg';
 
@@ -25,7 +28,51 @@ export default function Index() {
     trackEvent('view_home');
   }, []);
 
+  const { data: listingsData } = useListings();
   const featured = getFeaturedProducts();
+  
+  // Converte a API Listing para o formato esperado pelo ProductCard
+  const parseImages = (raw: string | null | undefined): string[] => {
+    if (!raw) return ['/placeholder.svg'];
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) && parsed.length > 0 ? parsed : ['/placeholder.svg'];
+    } catch {
+      return raw.startsWith('http') ? [raw] : ['/placeholder.svg'];
+    }
+  };
+
+  const apiFeatured: Product[] = (listingsData || []).map((l: Listing) => ({
+    id: l.id,
+    title: l.title,
+    slug: l.id,
+    images: parseImages(l.images),
+    category: '',
+    categorySlug: l.categoryId ?? '',
+    condition: (l.condition as ProductCondition) ?? 'novo',
+    type: l.type,
+    price: l.priceInCents != null ? l.priceInCents / 100 : undefined,
+    seller: {
+      id: l.sellerId,
+      name: l.sellerName ?? 'Vendedor Kolecta',
+      slug: l.sellerId,
+      avatar: '/placeholder.svg',
+      verified: true,
+      rating: 5,
+      totalSales: 10,
+      location: '',
+      since: '',
+    },
+    description: l.description ?? '',
+    details: {},
+    featured: true,
+    tags: [],
+    status: l.status,
+    createdAt: l.createdAt,
+  }));
+
+  const displayFeatured = apiFeatured.length > 0 ? apiFeatured : featured;
+
   const auctions = getAuctionProducts().sort(
     (a, b) => new Date(a.auctionEndsAt!).getTime() - new Date(b.auctionEndsAt!).getTime()
   );
@@ -80,7 +127,7 @@ export default function Index() {
                 </Link>
               </Button>
               <Button variant="ghost-light" size="lg" className="text-base px-8 text-white border-white/20 hover:bg-white/10" asChild>
-                <Link to="/painel-vendedor/anuncios/novo">
+                <Link to="/painel/anuncios/novo">
                   Anunciar Item
                   <ArrowRight className="h-5 w-5" />
                 </Link>
@@ -150,7 +197,7 @@ export default function Index() {
           />
 
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            {featured.slice(0, 5).map((product, i) => (
+            {displayFeatured.slice(0, 5).map((product, i) => (
               <motion.div
                 key={product.id}
                 initial={{ opacity: 0, y: 20 }}
@@ -313,7 +360,7 @@ export default function Index() {
               Anuncie seus itens colecionáveis e alcance milhares de compradores. Comece em minutos.
             </p>
             <Button variant="kolecta" size="lg" className="text-base px-8" asChild>
-              <Link to="/painel-vendedor/anuncios/novo">
+              <Link to="/painel/anuncios/novo">
                 Criar Anúncio Grátis
                 <ArrowRight className="h-5 w-5" />
               </Link>

@@ -13,7 +13,7 @@ import { Separator } from '@/components/ui/separator';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
 import StripePaymentForm from '@/components/checkout/StripePaymentForm';
-import { useCreateCheckout } from '@/hooks/use-api';
+import { useCreateCheckout, useWallet } from '@/hooks/use-api';
 import { useAddresses } from '@/hooks/use-api';
 
 // ── Stripe singleton — inicializa uma vez ─────────────────────────────────
@@ -79,9 +79,11 @@ function FieldError({ msg }: { msg?: string }) {
 type Stage = 'address-shipping' | 'payment';
 
 interface CheckoutSession {
-  clientSecret: string;
+  clientSecret?: string;
   orderId: string;
   totalInCents: number;
+  walletDeducted?: number;
+  paidViaWallet?: boolean;
   sellerGroup: ReturnType<typeof groupBySeller>[0];
 }
 
@@ -120,6 +122,10 @@ export default function CheckoutPage() {
   // ── Validation ────────────────────────────────────────────────────────
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
+
+  // ── Wallet balance toggle ─────────────────────────────────────────────
+  const [useWalletBalance, setUseWalletBalance] = useState(false);
+  const { data: wallet } = useWallet();
 
   // ── ViaCEP ────────────────────────────────────────────────────────────
   const fetchCep = useCallback(async (rawCep: string) => {
@@ -202,7 +208,13 @@ export default function CheckoutPage() {
     const listingItems = group.items.map(i => ({ listingId: i.product.id }));
     const addressId = selectedAddressId !== 'custom' ? selectedAddressId : undefined;
 
-    const result = await createCheckout.mutateAsync({ items: listingItems, addressId });
+    const result = await createCheckout.mutateAsync({ items: listingItems, addressId, useWalletBalance });
+
+    // Se pagou integralmente via wallet, redireciona direto para confirmação
+    if (result.paidViaWallet) {
+      window.location.href = `/pedido/confirmacao?order_id=${result.orderId}&redirect_status=succeeded`;
+      return;
+    }
 
     setSessions(prev => [...prev, { ...result, sellerGroup: group }]);
     setStage('payment');
@@ -508,6 +520,37 @@ export default function CheckoutPage() {
                       {formatBRL(grandTotal)}
                     </span>
                   </div>
+
+                  {/* Wallet toggle */}
+                  {wallet && wallet.balanceInCents > 0 && stage === 'address-shipping' && (
+                    <>
+                      <div className="flex items-center justify-between p-3 rounded-lg border border-primary/20 bg-primary/5">
+                        <div className="flex-1">
+                          <p className="text-sm font-medium">Usar saldo da carteira</p>
+                          <p className="text-xs text-muted-foreground">
+                            Disponível: <span className="text-primary font-bold">{formatBRL(wallet.balanceInCents / 100)}</span>
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={useWalletBalance}
+                          onClick={() => setUseWalletBalance(!useWalletBalance)}
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${useWalletBalance ? 'bg-primary' : 'bg-muted'}`}
+                        >
+                          <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${useWalletBalance ? 'translate-x-6' : 'translate-x-1'}`} />
+                        </button>
+                      </div>
+                      {useWalletBalance && (
+                        <div className="text-xs text-muted-foreground">
+                          {wallet.balanceInCents >= grandTotal * 100
+                            ? '✅ Seu saldo cobre o valor total. Nenhum cartão será necessário.'
+                            : `Será abatido ${formatBRL(wallet.balanceInCents / 100)} do saldo. O restante será cobrado no cartão.`
+                          }
+                        </div>
+                      )}
+                    </>
+                  )}
 
                   {/* CTA Stage 1 */}
                   {stage === 'address-shipping' && (

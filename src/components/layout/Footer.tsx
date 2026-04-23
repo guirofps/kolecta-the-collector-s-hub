@@ -10,10 +10,10 @@ const footerLinks = {
     { label: 'Taxas e Comissões', href: '/taxas-e-comissoes' },
   ],
   vendedores: [
-    { label: 'Vender na Kolecta', href: '/painel-vendedor' },
-    { label: 'Painel do Vendedor', href: '/painel-vendedor' },
-    { label: 'Verificação', href: '/painel-vendedor/configuracoes' },
-    { label: 'Mídia & Destaque', href: '/painel-vendedor/midia' },
+    { label: 'Vender na Kolecta', href: '/painel' },
+    { label: 'Painel do Vendedor', href: '/painel' },
+    { label: 'Verificação', href: '/painel/configuracoes' },
+    { label: 'Mídia & Destaque', href: '/painel/midia' },
   ],
   suporte: [
     { label: 'Central de Ajuda', href: '/ajuda' },

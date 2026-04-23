@@ -26,7 +26,7 @@ import {
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { formatBRL } from '@/lib/mock-data';
-import { useWallet, useWithdrawals } from '@/hooks/use-api';
+import { useWallet, useWithdrawals, useWalletDeposit, useWalletTransactions } from '@/hooks/use-api';
 
 // ── Mock data ────────────────────────────────────────────
 
@@ -126,11 +126,14 @@ export default function SellerFinancialPage() {
   const [chartMetric, setChartMetric] = useState<ChartMetric>('gross');
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [depositOpen, setDepositOpen] = useState(false);
+  const [depositAmount, setDepositAmount] = useState('');
 
   // ── API real ──────────────────────────────────────────
   const { data: wallet, isLoading: walletLoading } = useWallet();
   const { data: withdrawals = [], isLoading: withdrawalsLoading } = useWithdrawals().query;
   const { requestMutation } = useWithdrawals();
+  const depositMutation = useWalletDeposit();
 
   const loading = walletLoading;
 
@@ -188,6 +191,16 @@ export default function SellerFinancialPage() {
     );
   }
 
+  function handleConfirmDeposit() {
+    const amount = parseAmount(depositAmount);
+    if (amount < 5) {
+      toast({ title: 'Valor mínimo', description: 'O valor mínimo para depósito é R$ 5,00.', variant: 'destructive' });
+      return;
+    }
+    const amountInCents = Math.round(amount * 100);
+    depositMutation.mutate(amountInCents);
+  }
+
   return (
     <SellerLayout>
       <div className="p-6 max-w-6xl mx-auto space-y-6">
@@ -198,9 +211,14 @@ export default function SellerFinancialPage() {
             <p className="text-sm text-muted-foreground mt-1">Saldo, repasses e histórico financeiro</p>
           </div>
           {summary.stripeConnected ? (
-            <Button variant="kolecta" className="glow-primary" onClick={() => setWithdrawOpen(true)}>
-              <Wallet className="h-4 w-4 mr-2" /> Solicitar saque
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline-gold" onClick={() => setDepositOpen(true)}>
+                <TrendingUp className="h-4 w-4 mr-2" /> Adicionar Saldo
+              </Button>
+              <Button variant="kolecta" className="glow-primary" onClick={() => setWithdrawOpen(true)}>
+                <Wallet className="h-4 w-4 mr-2" /> Solicitar saque
+              </Button>
+            </div>
           ) : (
             <div className="flex items-center gap-3 rounded-lg border border-kolecta-red/30 bg-kolecta-red/5 px-4 py-3">
               <AlertCircle className="h-5 w-5 text-kolecta-red shrink-0" />
@@ -209,7 +227,7 @@ export default function SellerFinancialPage() {
                 <p className="text-xs text-muted-foreground">Conecte sua conta bancária para receber pagamentos</p>
               </div>
               <Button size="sm" variant="kolecta" asChild>
-                <Link to="/painel-vendedor/stripe-onboarding">Configurar</Link>
+                <Link to="/painel/stripe-onboarding">Configurar</Link>
               </Button>
             </div>
           )}
@@ -488,7 +506,7 @@ export default function SellerFinancialPage() {
               <div className="flex items-center justify-between rounded-lg border border-border bg-muted/50 px-4 py-3">
                 <span className="text-sm">Nubank •••• 4521</span>
                 <Button size="sm" variant="ghost" asChild>
-                  <Link to="/painel-vendedor/stripe-onboarding">Alterar conta</Link>
+                  <Link to="/painel/stripe-onboarding">Alterar conta</Link>
                 </Button>
               </div>
             </div>
@@ -505,6 +523,61 @@ export default function SellerFinancialPage() {
               disabled={requestMutation.isPending}
             >
               {requestMutation.isPending ? 'Processando...' : 'Confirmar saque'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Deposit Dialog ──────────────────────────────────── */}
+      <Dialog open={depositOpen} onOpenChange={setDepositOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-heading text-xl uppercase tracking-wider">Adicionar Saldo</DialogTitle>
+            <DialogDescription>
+              Recarregue sua carteira Kolecta via cartão de crédito ou Pix. O valor será creditado automaticamente.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="deposit-amount" className="text-sm">Valor do depósito (R$)</Label>
+              <Input
+                id="deposit-amount"
+                placeholder="Ex: 50,00"
+                className="font-mono text-lg"
+                value={depositAmount}
+                onChange={(e) => setDepositAmount(e.target.value.replace(/[^\d,]/g, ''))}
+              />
+            </div>
+
+            <div className="flex gap-2">
+              {[25, 50, 100, 250].map((val) => (
+                <Button
+                  key={val}
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 text-xs"
+                  onClick={() => setDepositAmount(String(val).replace('.', ','))}
+                >
+                  R$ {val}
+                </Button>
+              ))}
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              Mínimo R$ 5,00 · Você será redirecionado para a página de pagamento seguro.
+            </p>
+          </div>
+
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDepositOpen(false)}>Cancelar</Button>
+            <Button
+              variant="kolecta"
+              className="glow-primary"
+              onClick={handleConfirmDeposit}
+              disabled={depositMutation.isPending}
+            >
+              {depositMutation.isPending ? 'Redirecionando...' : 'Pagar e depositar'}
             </Button>
           </DialogFooter>
         </DialogContent>

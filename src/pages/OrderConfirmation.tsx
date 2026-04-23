@@ -1,133 +1,133 @@
 import { useEffect } from 'react';
-import { useLocation, useNavigate, Link } from 'react-router-dom';
-import { CheckCircle2, Package, MessageCircle, Search } from 'lucide-react';
+import { useSearchParams, Link } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
-import { useCart } from '@/contexts/CartContext';
-import { formatBRL } from '@/lib/mock-data';
-import { Card, CardContent } from '@/components/ui/card';
+import { useOrderById } from '@/hooks/use-api';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { CheckCircle, Package, ArrowRight, Loader2 } from 'lucide-react';
+import { formatBRL } from '@/lib/mock-data';
+import { trackEvent } from '@/lib/analytics';
 
-// ── Mock fallback data ───────────────────────────────────
+export default function OrderConfirmation() {
+  const [searchParams] = useSearchParams();
+  const orderId = searchParams.get('order_id');
+  
+  // Pegando infos de status de pagamento do Stripe caso redirecione via web form (payment_intent_status)
+  const paymentStatus = searchParams.get('redirect_status'); 
 
-const mockOrder = {
-  number: '#KL-000123',
-  items: [
-    { name: 'Tomica Limited Vintage Neo – Toyota AE86 Sprinter Trueno', image: '/placeholder.svg', quantity: 1, price: 289 },
-    { name: 'Majorette Porsche 911 GT3 RS – Racing Edition', image: '/placeholder.svg', quantity: 2, price: 45 },
-  ],
-  address: 'Rua Augusta, 1234 — São Paulo/SP',
-  deliveryEstimate: '5 a 8 dias úteis',
-  total: 379,
-};
+  const { data: order, isLoading } = useOrderById(orderId ?? '');
 
-// ═════════════════════════════════════════════════════════
-
-export default function OrderConfirmationPage() {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const { clearCart } = useCart();
-
-  // Merge location state with mock fallback
-  const order = (location.state as typeof mockOrder) || mockOrder;
-
-  // Clear cart + replace history so back button won't return to checkout
   useEffect(() => {
-    clearCart();
-    navigate(location.pathname, { replace: true, state: order });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (orderId && paymentStatus === 'succeeded') {
+      trackEvent('purchase_complete', { orderId });
+    }
+  }, [orderId, paymentStatus]);
+
+  if (!orderId) {
+    return (
+      <Layout>
+        <div className="container mx-auto px-4 py-20 text-center">
+          <h1 className="text-2xl font-bold">Nenhum pedido encontrado!</h1>
+          <Button className="mt-4" asChild>
+            <Link to="/">Voltar ao Início</Link>
+          </Button>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
-      <div className="container py-12 flex justify-center">
-        <div className="w-full max-w-[640px] space-y-8">
-
-          {/* ── Hero ──────────────────────────────────── */}
-          <div className="text-center space-y-3 animate-slide-up">
-            <div className="inline-flex items-center justify-center glow-primary-strong rounded-full p-3 mb-2">
-              <CheckCircle2 className="h-16 w-16 text-primary" />
-            </div>
-            <h1 className="font-heading text-4xl font-bold uppercase tracking-tight">
-              Pedido Confirmado!
+      <div className="container mx-auto px-4 py-16 flex flex-col items-center">
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center space-y-4">
+            <Loader2 className="h-10 w-10 animate-spin text-kolecta-green" />
+            <p className="text-muted-foreground text-sm uppercase tracking-wider">Confirmando seu pagamento...</p>
+          </div>
+        ) : !order ? (
+          <div className="text-center">
+            <Package className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+            <h1 className="text-2xl font-bold uppercase italic text-foreground tracking-wider mb-2">
+              Pedido não encontrado
             </h1>
-            <p className="text-muted-foreground animate-fade-in">{order.number}</p>
-            <Badge className="bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-600/90">
-              Pagamento aprovado
-            </Badge>
+            <p className="text-muted-foreground">Não conseguimos localizar os detalhes deste pedido.</p>
           </div>
+        ) : (
+          <div className="max-w-2xl w-full">
+            <div className="text-center mb-10">
+              <div className="mx-auto w-20 h-20 bg-kolecta-green/10 text-kolecta-green rounded-full flex items-center justify-center mb-6">
+                <CheckCircle className="w-10 h-10" />
+              </div>
+              
+              <h1 className="font-heading text-4xl sm:text-5xl font-extrabold italic uppercase text-foreground mb-4">
+                Pagamento Aprovado!
+              </h1>
+              
+              <p className="text-muted-foreground text-lg">
+                Seu pedido foi processado com sucesso. O vendedor será notificado para preparar o envio.
+              </p>
+            </div>
 
-          {/* ── Order summary card ────────────────────── */}
-          <Card className="bg-gradient-card animate-fade-in">
-            <CardContent className="p-6 space-y-4">
-              <h2 className="font-heading text-lg font-bold uppercase tracking-wide">Resumo</h2>
+            <div className="rounded-xl border border-border bg-card p-6 sm:p-8 space-y-6">
+              {/* Header do resumo */}
+              <div className="border-b border-border pb-6 flex flex-col md:flex-row justify-between md:items-center gap-4">
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-widest font-heading mb-1">
+                    Número do Pedido
+                  </p>
+                  <p className="font-mono text-sm sm:text-base font-semibold text-foreground">
+                    #{order.id.slice(0,8).toUpperCase()}
+                  </p>
+                </div>
+                
+                <div className="md:text-right">
+                  <p className="text-xs text-muted-foreground uppercase tracking-widest font-heading mb-1">
+                    Total
+                  </p>
+                  <p className="font-heading text-2xl font-bold text-kolecta-green">
+                    {formatBRL(order.totalInCents / 100)}
+                  </p>
+                </div>
+              </div>
 
-              {/* Items */}
-              <div className="space-y-3">
-                {order.items.map((item, i) => (
-                  <div key={i} className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded overflow-hidden bg-muted shrink-0">
-                      <img src={item.image} alt={item.name} className="w-full h-full object-cover" loading="lazy" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-heading text-xs font-bold uppercase truncate">{item.name}</p>
-                      <p className="text-[10px] text-muted-foreground">Qtd: {item.quantity}</p>
-                    </div>
-                    <span className="font-heading text-sm font-bold text-primary shrink-0">
-                      {formatBRL(item.price * item.quantity)}
-                    </span>
+              {/* Detalhes do item */}
+              <div className="pt-2">
+                <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider mb-4">
+                  Detalhes da Compra
+                </h3>
+                
+                <div className="flex gap-4">
+                  <div className="w-20 h-20 bg-secondary rounded-lg overflow-hidden shrink-0 border border-border">
+                    <img 
+                      src={order.listing?.images?.[0] || '/placeholder.svg'} 
+                      alt="Produto" 
+                      className="w-full h-full object-cover" 
+                    />
                   </div>
-                ))}
+                  <div>
+                    <h4 className="font-medium text-foreground">{order.listing?.title || 'Produto Indisponível'}</h4>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Status da operação: <span className="font-semibold text-primary">{order.status}</span>
+                    </p>
+                  </div>
+                </div>
               </div>
+            </div>
 
-              <div className="line-tech" />
-
-              {/* Address + delivery */}
-              <div className="space-y-1 text-sm font-body">
-                <p><span className="text-muted-foreground">Entregar em:</span> {order.address}</p>
-                <p><span className="text-muted-foreground">Prazo estimado:</span> {order.deliveryEstimate}</p>
-              </div>
-
-              <div className="line-tech" />
-
-              {/* Total */}
-              <div className="flex justify-between items-center">
-                <span className="font-heading text-base font-bold uppercase">Total pago</span>
-                <span className="font-heading text-xl font-bold text-primary">{formatBRL(order.total)}</span>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* ── Next steps ────────────────────────────── */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 animate-fade-in">
-            {[
-              { icon: Package, label: 'Acompanhe seu pedido', to: '/conta/pedidos' },
-              { icon: MessageCircle, label: 'Fale com o vendedor', to: '/conta/mensagens' },
-              { icon: Search, label: 'Continue explorando', to: '/' },
-            ].map(step => (
-              <Card key={step.to} className="text-center">
-                <CardContent className="p-4 flex flex-col items-center gap-2">
-                  <step.icon className="h-6 w-6 text-primary" />
-                  <p className="font-heading text-xs font-bold uppercase tracking-wide">{step.label}</p>
-                  <Button variant="ghost" size="sm" asChild>
-                    <Link to={step.to}>Ir →</Link>
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
+            <div className="mt-8 flex flex-col sm:flex-row justify-center gap-4">
+              <Button asChild variant="kolecta" size="lg" className="px-8">
+                <Link to="/painel/pedidos">
+                  Rastrear Meus Pedidos
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Link>
+              </Button>
+              <Button asChild variant="outline" size="lg" className="px-8">
+                <Link to="/busca">
+                  Continuar Colecionando
+                </Link>
+              </Button>
+            </div>
           </div>
-
-          {/* ── CTAs ──────────────────────────────────── */}
-          <div className="space-y-3 animate-fade-in">
-            <Button variant="kolecta" size="lg" className="w-full glow-primary" asChild>
-              <Link to="/conta/pedidos">Ver meus pedidos</Link>
-            </Button>
-            <Button variant="ghost" className="w-full" asChild>
-              <Link to="/">Voltar ao início</Link>
-            </Button>
-          </div>
-
-        </div>
+        )}
       </div>
     </Layout>
   );

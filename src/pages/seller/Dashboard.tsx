@@ -75,7 +75,7 @@ export default function SellerDashboard() {
             <p className="text-sm text-muted-foreground mt-1">Visão geral do seu desempenho</p>
           </div>
           <Button variant="kolecta" asChild>
-            <Link to="/painel-vendedor/anuncios/novo">
+            <Link to="/painel/anuncios/novo">
               <PlusCircle className="h-4 w-4" />
               Novo Anúncio
             </Link>
@@ -92,7 +92,7 @@ export default function SellerDashboard() {
                 <p className="text-xs text-muted-foreground">Conecte sua conta bancária para começar a vender</p>
               </div>
               <Button variant="kolecta" size="sm" asChild>
-                <Link to="/painel-vendedor/stripe-onboarding">Conectar conta bancária</Link>
+                <Link to="/painel/stripe-onboarding">Conectar conta bancária</Link>
               </Button>
             </CardContent>
           </Card>
@@ -170,7 +170,7 @@ export default function SellerDashboard() {
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <CardTitle className="font-heading text-sm font-semibold uppercase tracking-wider">Pedidos Recentes</CardTitle>
-                  <Link to="/painel-vendedor/pedidos" className="text-xs text-primary hover:underline">Ver todos</Link>
+                  <Link to="/painel/pedidos" className="text-xs text-primary hover:underline">Ver todos</Link>
                 </div>
               </CardHeader>
               <CardContent className="p-0">
@@ -203,7 +203,7 @@ export default function SellerDashboard() {
                     <Gavel className="h-4 w-4 text-accent" />
                     Modo Lance Ativos
                   </CardTitle>
-                  <Link to="/painel-vendedor/modo-lance" className="text-xs text-primary hover:underline">Ver todos</Link>
+                  <Link to="/painel/modo-lance" className="text-xs text-primary hover:underline">Ver todos</Link>
                 </div>
               </CardHeader>
               <CardContent className="p-0">

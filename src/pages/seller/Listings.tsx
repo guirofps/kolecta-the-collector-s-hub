@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { PlusCircle, Search, MoreHorizontal, Eye, Pencil, Pause, Trash2 } from 'lucide-react';
+import { PlusCircle, Search, MoreHorizontal, Eye, Pencil, Pause, Trash2, Loader2 } from 'lucide-react';
 import SellerLayout from '@/components/layout/SellerLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { mockProducts, formatBRL, conditionLabel } from '@/lib/mock-data';
-import type { ListingStatus } from '@/lib/mock-data';
+import { formatBRL, conditionLabel } from '@/lib/mock-data';
+import { useMyListings, useDeleteListing } from '@/hooks/use-api';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,44 +14,41 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
-const statusTabs: { label: string; value: ListingStatus | 'todos' }[] = [
+const statusTabs = [
   { label: 'Todos', value: 'todos' },
-  { label: 'Aprovados', value: 'aprovado' },
-  { label: 'Em Análise', value: 'em_analise' },
-  { label: 'Rascunho', value: 'rascunho' },
-  { label: 'Reprovados', value: 'reprovado' },
-  { label: 'Pausados', value: 'pausado' },
-  { label: 'Vendidos', value: 'vendido' },
+  { label: 'Aprovados', value: 'active' },
+  { label: 'Em Análise', value: 'draft' },
+  { label: 'Reprovados', value: 'rejected' },
+  { label: 'Pausados', value: 'paused' },
+  { label: 'Vendidos', value: 'sold' },
 ];
 
 const statusColors: Record<string, string> = {
-  aprovado: 'bg-green-500/10 text-green-400',
-  em_analise: 'bg-primary/10 text-primary',
-  rascunho: 'bg-secondary text-muted-foreground',
-  reprovado: 'bg-accent/10 text-accent',
-  pausado: 'bg-secondary text-muted-foreground',
-  vendido: 'bg-blue-500/10 text-blue-400',
-  expirado: 'bg-secondary text-muted-foreground',
+  active: 'bg-green-500/10 text-green-400',
+  draft: 'bg-primary/10 text-primary',
+  rejected: 'bg-accent/10 text-accent',
+  paused: 'bg-secondary text-muted-foreground',
+  sold: 'bg-blue-500/10 text-blue-400',
+  expired: 'bg-secondary text-muted-foreground',
 };
 
 const statusLabels: Record<string, string> = {
-  aprovado: 'Aprovado',
-  em_analise: 'Em Análise',
-  rascunho: 'Rascunho',
-  reprovado: 'Reprovado',
-  pausado: 'Pausado',
-  vendido: 'Vendido',
-  expirado: 'Expirado',
+  active: 'Aprovado',
+  draft: 'Em Análise',
+  rejected: 'Reprovado',
+  paused: 'Pausado',
+  sold: 'Vendido',
+  expired: 'Expirado',
 };
-
-// Use first 3 sellers' products as "mine"
-const sellerProducts = mockProducts.filter((p) => p.seller.id === 's1');
 
 export default function SellerListings() {
   const [activeTab, setActiveTab] = useState<string>('todos');
   const [search, setSearch] = useState('');
 
-  const filtered = sellerProducts.filter((p) => {
+  const { data: myProducts, isLoading } = useMyListings();
+  const deleteMutation = useDeleteListing();
+
+  const filtered = (myProducts || []).filter((p) => {
     if (activeTab !== 'todos' && p.status !== activeTab) return false;
     if (search && !p.title.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
@@ -63,10 +60,10 @@ export default function SellerListings() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="font-heading text-2xl font-extrabold italic uppercase">Meus Anúncios</h1>
-            <p className="text-sm text-muted-foreground mt-1">{sellerProducts.length} anúncios no total</p>
+            <p className="text-sm text-muted-foreground mt-1">{(myProducts || []).length} anúncios no total</p>
           </div>
           <Button variant="kolecta" asChild>
-            <Link to="/painel-vendedor/anuncios/novo">
+            <Link to="/painel/anuncios/novo">
               <PlusCircle className="h-4 w-4" />
               Novo Anúncio
             </Link>
@@ -103,45 +100,62 @@ export default function SellerListings() {
         </div>
 
         {/* Listings */}
-        {filtered.length === 0 ? (
+        {isLoading ? (
+          <div className="text-center py-16">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary mb-4" />
+            <p className="font-heading text-lg font-bold text-muted-foreground uppercase">Buscando seus anúncios...</p>
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="text-center py-16">
             <p className="text-muted-foreground mb-4">Nenhum anúncio encontrado.</p>
             <Button variant="kolecta" asChild>
-              <Link to="/painel-vendedor/anuncios/novo">Criar primeiro anúncio</Link>
+              <Link to="/painel/anuncios/novo">Criar primeiro anúncio</Link>
             </Button>
           </div>
         ) : (
           <div className="space-y-3">
-            {filtered.map((product) => (
+            {filtered.map((product) => {
+              let imgs: string[] = [];
+              try {
+                if (product.images) imgs = JSON.parse(product.images);
+              } catch (e) {
+                console.error('Failed to parse images', e);
+              }
+
+              return (
               <Card key={product.id} className="bg-card border-border hover:border-primary/20 transition-colors">
                 <CardContent className="p-0">
                   <div className="flex items-center gap-4 p-4">
-                    <div className="w-16 h-16 rounded-md overflow-hidden bg-secondary shrink-0">
-                      <img src={product.images[0]} alt={product.title} className="w-full h-full object-cover" />
+                    <div className="w-16 h-16 rounded-md overflow-hidden bg-secondary shrink-0 flex justify-center items-center">
+                      {imgs[0] ? (
+                         <img src={imgs[0]} alt={product.title} className="w-full h-full object-cover" />
+                      ) : (
+                         <span className="text-[10px] text-muted-foreground">Sem Foto</span>
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <Link to={`/produto/${product.id}`} className="text-sm font-medium truncate hover:text-primary transition-colors">
                           {product.title}
                         </Link>
-                        <Badge className={`text-[10px] shrink-0 ${statusColors[product.status]}`}>
-                          {statusLabels[product.status]}
+                        <Badge className={`text-[10px] shrink-0 ${statusColors[product.status] || ''}`}>
+                          {statusLabels[product.status] || product.status}
                         </Badge>
                       </div>
                       <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                        <span>{product.category}</span>
+                        <span>{product.brand || 'Sem marca'}</span>
                         <span>·</span>
-                        <span>{conditionLabel(product.condition)}</span>
+                        <span>{conditionLabel(product.condition) || product.condition}</span>
                         <span>·</span>
                         <span>{product.type === 'auction' ? 'Modo Lance' : 'Venda Direta'}</span>
                       </div>
                     </div>
                     <div className="text-right shrink-0 hidden sm:block">
                       <div className="font-heading text-sm font-bold">
-                        {product.type === 'auction' ? formatBRL(product.currentBid || product.startingBid || 0) : formatBRL(product.price || 0)}
+                        {formatBRL(product.priceInCents || 0)}
                       </div>
                       <div className="text-[10px] text-muted-foreground">
-                        {product.type === 'auction' ? `${product.bidsCount || 0} lances` : 'Preço fixo'}
+                        {product.type === 'auction' ? 'Lances abertos' : 'Preço fixo'}
                       </div>
                     </div>
                     <DropdownMenu>
@@ -160,7 +174,11 @@ export default function SellerListings() {
                         <DropdownMenuItem className="gap-2 text-sm">
                           <Pause className="h-3.5 w-3.5" /> Pausar
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="gap-2 text-sm text-accent">
+                        <DropdownMenuItem className="gap-2 text-sm text-accent" onClick={() => {
+                          if (confirm('Tem certeza que deseja excluir esse anúncio?')) {
+                            deleteMutation.mutate(product.id || '');
+                          }
+                        }}>
                           <Trash2 className="h-3.5 w-3.5" /> Excluir
                         </DropdownMenuItem>
                       </DropdownMenuContent>
@@ -168,7 +186,8 @@ export default function SellerListings() {
                   </div>
                 </CardContent>
               </Card>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

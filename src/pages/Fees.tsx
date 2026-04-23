@@ -362,7 +362,7 @@ export default function FeesPage() {
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
               <Button variant="kolecta" size="lg" asChild>
-                <Link to="/painel-vendedor/anuncios/novo">
+                <Link to="/painel/anuncios/novo">
                   Começar a vender
                   <ArrowRight className="h-4 w-4 ml-1" />
                 </Link>

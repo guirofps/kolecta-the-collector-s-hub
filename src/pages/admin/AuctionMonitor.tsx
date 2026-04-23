@@ -191,7 +191,7 @@ export default function AuctionMonitorPage() {
   }, []);
 
   const active = useMemo(() => {
-    let list = auctions.filter(a => a.status === 'active');
+    const list = auctions.filter(a => a.status === 'active');
     list.sort((a, b) => {
       const av = sortCol === 'currentBid' ? (a.currentBid ?? 0) : sortCol === 'totalBids' ? a.totalBids : new Date(a.endsAt).getTime();
       const bv = sortCol === 'currentBid' ? (b.currentBid ?? 0) : sortCol === 'totalBids' ? b.totalBids : new Date(b.endsAt).getTime();

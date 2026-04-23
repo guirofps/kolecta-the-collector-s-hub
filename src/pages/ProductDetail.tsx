@@ -60,7 +60,7 @@ function listingToCartProduct(listing: Listing) {
     price: listing.priceInCents != null ? listing.priceInCents / 100 : undefined,
     seller: {
       id: listing.sellerId,
-      name: 'Vendedor Kolecta',                   // sem join de user no MVP
+      name: listing.sellerName ?? 'Vendedor Kolecta',
       slug: listing.sellerId,
       avatar: '/placeholder.svg',
       verified: false,
@@ -268,14 +268,14 @@ export default function ProductDetail() {
               )}
             </div>
 
-            {/* Seller (simplificado — sem join no MVP) */}
+            {/* Seller (com fallback para MVP) */}
             <div className="flex items-center gap-3 p-4 rounded-lg border border-border bg-card mb-6">
-              <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center shrink-0">
-                <span className="font-heading font-bold">V</span>
+              <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center shrink-0 text-secondary-foreground font-heading font-bold uppercase">
+                {(listing.sellerName || 'V')[0]}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-sm font-medium text-foreground">Vendedor Verificado</span>
+                <div className="flex items-center gap-1.5 p-1">
+                  <span className="text-sm font-medium text-foreground truncate">{listing.sellerName ?? 'Vendedor Kolecta'}</span>
                   <VerificationBadge verified={true} />
                 </div>
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground">

@@ -3,7 +3,10 @@ import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import EmptyState from '@/components/EmptyState';
-import { CreditCard, Plus, Star, Trash2, AlertTriangle } from 'lucide-react';
+import { CreditCard, Plus, Star, Trash2, AlertTriangle, Loader2, Wallet } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { useWalletDeposit, useWallet } from '@/hooks/use-api';
 
 interface PaymentMethod {
   id: string;
@@ -27,6 +30,39 @@ export default function PaymentsPage() {
     setMethods((prev) => prev.filter((m) => m.id !== id));
   };
 
+  // Wallet Deposit Logic
+  const { data: wallet } = useWallet();
+  const depositMutation = useWalletDeposit();
+  const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
+  const [depositAmount, setDepositAmount] = useState('');
+
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value.replace(/\D/g, '');
+    if (value === '') {
+      setDepositAmount('');
+      return;
+    }
+    const numberValue = parseInt(value, 10) / 100;
+    setDepositAmount(
+      numberValue.toLocaleString('pt-BR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })
+    );
+  };
+
+  const parseCurrency = (value: string) => {
+    const clean = value.replace(/\./g, '').replace(',', '.');
+    return Math.round(parseFloat(clean) * 100);
+  };
+
+  const handleDepositSubmit = () => {
+    const amountInCents = parseCurrency(depositAmount);
+    if (amountInCents >= 500) {
+      depositMutation.mutate(amountInCents);
+    }
+  };
+
   return (
     <Layout>
       <div className="container mx-auto px-4 py-8 max-w-2xl">
@@ -38,10 +74,16 @@ export default function PaymentsPage() {
               <p className="text-sm text-muted-foreground">Gerencie seus métodos de pagamento</p>
             </div>
           </div>
-          <Button variant="kolecta" size="sm" onClick={() => setShowAdd(!showAdd)}>
-            <Plus className="h-4 w-4" />
-            Adicionar
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => setIsDepositModalOpen(true)}>
+              <Wallet className="h-4 w-4 mr-2" />
+              Adicionar Saldo
+            </Button>
+            <Button variant="kolecta" size="sm" onClick={() => setShowAdd(!showAdd)}>
+              <Plus className="h-4 w-4" />
+              Adicionar
+            </Button>
+          </div>
         </div>
 
         {/* Warning */}
@@ -109,6 +151,59 @@ export default function PaymentsPage() {
             ))}
           </div>
         )}
+
+        {/* Add Balance Dialog */}
+        <Dialog open={isDepositModalOpen} onOpenChange={setIsDepositModalOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="font-heading text-xl uppercase tracking-wider">Adicionar Saldo</DialogTitle>
+              <DialogDescription>
+                Recarregue sua carteira Kolecta via cartão de crédito ou Pix. O valor será creditado automaticamente.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                  Valor do depósito (R$)
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-2.5 text-muted-foreground">R$</span>
+                  <Input
+                    type="text"
+                    className="pl-9 font-heading text-lg"
+                    placeholder="0,00"
+                    value={depositAmount}
+                    onChange={handleAmountChange}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">Valor mínimo: R$ 5,00</p>
+              </div>
+            </div>
+
+            <DialogFooter className="sm:justify-between flex-row items-center">
+              <Button type="button" variant="ghost" onClick={() => setIsDepositModalOpen(false)}>
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                variant="kolecta"
+                className="glow-primary"
+                onClick={handleDepositSubmit}
+                disabled={depositMutation.isPending || !depositAmount || parseCurrency(depositAmount) < 500}
+              >
+                {depositMutation.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Processando...
+                  </>
+                ) : (
+                  'Pagar e depositar'
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   );

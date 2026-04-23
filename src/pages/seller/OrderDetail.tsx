@@ -157,7 +157,7 @@ export default function SellerOrderDetailPage() {
         {/* Header */}
         <div>
           <Button variant="ghost" size="sm" asChild className="mb-3">
-            <Link to="/painel-vendedor/pedidos"><ArrowLeft className="h-4 w-4 mr-1" /> Voltar aos pedidos</Link>
+            <Link to="/painel/pedidos"><ArrowLeft className="h-4 w-4 mr-1" /> Voltar aos pedidos</Link>
           </Button>
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="font-heading text-3xl font-bold tracking-tight">Pedido #{order.number}</h1>
@@ -241,7 +241,7 @@ export default function SellerOrderDetailPage() {
                   </div>
                 ))}
                 <Button variant="ghost" size="sm" asChild>
-                  <Link to="/painel-vendedor/mensagens">Ver conversa completa</Link>
+                  <Link to="/painel/mensagens">Ver conversa completa</Link>
                 </Button>
               </CardContent>
             </Card>

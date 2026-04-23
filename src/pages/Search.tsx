@@ -5,8 +5,10 @@ import Layout from '@/components/layout/Layout';
 import ProductCard from '@/components/ProductCard';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { mockProducts, mockCategories, type ProductCondition, type ProductType } from '@/lib/mock-data';
+import { useListings } from '@/hooks/use-api';
+import { mockCategories, type ProductCondition, type ProductType } from '@/lib/mock-data';
 import { trackEvent } from '@/lib/analytics';
+import { Loader2 } from 'lucide-react';
 
 const conditionOptions: { value: ProductCondition; label: string }[] = [
   { value: 'novo', label: 'Novo' },
@@ -29,21 +31,59 @@ export default function SearchPage() {
   const query = searchParams.get('q') || '';
   const categorySlug = searchParams.get('category') || '';
 
+  const { data: listingsData, isLoading } = useListings(50, 0, query);
+
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [selectedCategories, setSelectedCategories] = useState<string[]>(categorySlug ? [categorySlug] : []);
   const [selectedConditions, setSelectedConditions] = useState<ProductCondition[]>([]);
   const [selectedType, setSelectedType] = useState<ProductType | ''>('');
   const [sortBy, setSortBy] = useState('relevance');
 
-  const filtered = useMemo(() => {
-    let results = [...mockProducts].filter((p) => p.status === 'aprovado');
-
-    if (query) {
-      const q = query.toLowerCase();
-      results = results.filter(
-        (p) => p.title.toLowerCase().includes(q) || p.tags.some((t) => t.toLowerCase().includes(q))
-      );
+  const parseImages = (raw: string | null | undefined): string[] => {
+    if (!raw) return ['/placeholder.svg'];
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) && parsed.length > 0 ? parsed : ['/placeholder.svg'];
+    } catch {
+      return raw.startsWith('http') ? [raw] : ['/placeholder.svg'];
     }
+  };
+
+  const filtered = useMemo(() => {
+    const rawListings = listingsData || [];
+    
+    // Converte de Listing para Product (frontend mock format)
+    let results = rawListings.map(l => ({
+      id: l.id,
+      title: l.title,
+      slug: l.id,
+      images: parseImages(l.images),
+      category: '',
+      categorySlug: l.categoryId ?? '',
+      condition: (l.condition as ProductCondition) ?? 'novo',
+      type: l.type,
+      price: l.priceInCents != null ? l.priceInCents / 100 : undefined,
+      seller: {
+        id: l.sellerId,
+        name: l.sellerName ?? 'Vendedor Kolecta',
+        slug: l.sellerId,
+        avatar: '/placeholder.svg',
+        verified: true,
+        rating: 5,
+        totalSales: 10,
+        location: '',
+        since: '',
+      },
+      description: l.description ?? '',
+      details: {},
+      featured: false,
+      tags: [],
+      status: l.status,
+      createdAt: l.createdAt,
+    }));
+
+    // Filtros de Categoria, Condição e Tipo continuam client-side por enquanto
+    // pois o backend findAllAdmin/findAll ainda não suporta todos eles combinados complexamente.
 
     if (selectedCategories.length > 0) {
       results = results.filter((p) => selectedCategories.includes(p.categorySlug));
@@ -78,7 +118,7 @@ export default function SearchPage() {
     }
 
     return results;
-  }, [query, selectedCategories, selectedConditions, selectedType, sortBy]);
+  }, [listingsData, selectedCategories, selectedConditions, selectedType, sortBy]);
 
   const toggleCategory = (slug: string) => {
     setSelectedCategories((prev) =>
@@ -205,7 +245,12 @@ export default function SearchPage() {
 
           {/* Results grid */}
           <div className="flex-1">
-            {filtered.length === 0 ? (
+            {isLoading ? (
+              <div className="text-center py-20">
+                <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary mb-4" />
+                <p className="font-heading text-xl font-bold text-muted-foreground uppercase">Buscando itens...</p>
+              </div>
+            ) : filtered.length === 0 ? (
               <div className="text-center py-20">
                 <p className="font-heading text-xl font-bold text-muted-foreground uppercase">Nenhum item encontrado</p>
                 <p className="text-sm text-muted-foreground mt-2">Tente ajustar seus filtros ou buscar por outro termo.</p>

@@ -112,32 +112,32 @@ const App = () => (
             <Route path="/termos" element={<TermsPage />} />
             <Route path="/privacidade" element={<PrivacyPage />} />
 
-            {/* Comprador — requireAuth + role buyer */}
-            <Route path="/conta" element={<ProtectedRoute role="buyer"><AccountDashboard /></ProtectedRoute>} />
-            <Route path="/conta/pedidos" element={<ProtectedRoute role="buyer"><OrdersPage /></ProtectedRoute>} />
-            <Route path="/conta/pedidos/:id" element={<ProtectedRoute role="buyer"><OrderDetailPage /></ProtectedRoute>} />
-            <Route path="/conta/lances" element={<ProtectedRoute role="buyer"><MyBidsPage /></ProtectedRoute>} />
-            <Route path="/conta/favoritos" element={<ProtectedRoute role="buyer"><FavoritesPage /></ProtectedRoute>} />
-            <Route path="/conta/enderecos" element={<ProtectedRoute role="buyer"><AddressesPage /></ProtectedRoute>} />
-            <Route path="/conta/pagamentos" element={<ProtectedRoute role="buyer"><PaymentsPage /></ProtectedRoute>} />
-            <Route path="/conta/verificacao" element={<ProtectedRoute role="buyer"><VerificationPage /></ProtectedRoute>} />
-            <Route path="/conta/mensagens" element={<ProtectedRoute role="buyer"><MessagesPage /></ProtectedRoute>} />
-            <Route path="/conta/avaliacoes" element={<ProtectedRoute role="buyer"><ReviewsPage /></ProtectedRoute>} />
-            <Route path="/conta/disputas" element={<ProtectedRoute role="buyer"><AccountDisputesPage /></ProtectedRoute>} />
+            {/* Conta — requireAuth (todo user autenticado) */}
+            <Route path="/conta" element={<ProtectedRoute><AccountDashboard /></ProtectedRoute>} />
+            <Route path="/conta/pedidos" element={<ProtectedRoute><OrdersPage /></ProtectedRoute>} />
+            <Route path="/conta/pedidos/:id" element={<ProtectedRoute><OrderDetailPage /></ProtectedRoute>} />
+            <Route path="/conta/lances" element={<ProtectedRoute><MyBidsPage /></ProtectedRoute>} />
+            <Route path="/conta/favoritos" element={<ProtectedRoute><FavoritesPage /></ProtectedRoute>} />
+            <Route path="/conta/enderecos" element={<ProtectedRoute><AddressesPage /></ProtectedRoute>} />
+            <Route path="/conta/pagamentos" element={<ProtectedRoute><PaymentsPage /></ProtectedRoute>} />
+            <Route path="/conta/verificacao" element={<ProtectedRoute><VerificationPage /></ProtectedRoute>} />
+            <Route path="/conta/mensagens" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
+            <Route path="/conta/avaliacoes" element={<ProtectedRoute><ReviewsPage /></ProtectedRoute>} />
+            <Route path="/conta/disputas" element={<ProtectedRoute><AccountDisputesPage /></ProtectedRoute>} />
 
-            {/* Vendedor — requireAuth + role seller */}
-            <Route path="/painel-vendedor" element={<ProtectedRoute role="seller"><SellerDashboard /></ProtectedRoute>} />
-            <Route path="/painel-vendedor/anuncios" element={<ProtectedRoute role="seller"><SellerListings /></ProtectedRoute>} />
-            <Route path="/painel-vendedor/anuncios/novo" element={<ProtectedRoute role="seller"><CreateListing /></ProtectedRoute>} />
-            <Route path="/painel-vendedor/anuncios/:id/editar" element={<ProtectedRoute role="seller"><EditListing /></ProtectedRoute>} />
-            <Route path="/painel-vendedor/pedidos" element={<ProtectedRoute role="seller"><SellerOrdersPage /></ProtectedRoute>} />
-            <Route path="/painel-vendedor/pedidos/:id" element={<ProtectedRoute role="seller"><SellerOrderDetailPage /></ProtectedRoute>} />
-            <Route path="/painel-vendedor/modo-lance" element={<ProtectedRoute role="seller"><AuctionManagerPage /></ProtectedRoute>} />
-            <Route path="/painel-vendedor/financeiro" element={<ProtectedRoute role="seller"><SellerFinancialPage /></ProtectedRoute>} />
-            <Route path="/painel-vendedor/stripe-onboarding" element={<ProtectedRoute role="seller"><StripeOnboardingPage /></ProtectedRoute>} />
-            <Route path="/painel-vendedor/mensagens" element={<ProtectedRoute role="seller"><SellerMessagesPage /></ProtectedRoute>} />
-            <Route path="/painel-vendedor/configuracoes" element={<ProtectedRoute role="seller"><SellerSettingsPage /></ProtectedRoute>} />
-            <Route path="/painel-vendedor/midia" element={<ProtectedRoute role="seller"><SellerMediaPage /></ProtectedRoute>} />
+            {/* Painel — requireAuth (todo user pode comprar e vender) */}
+            <Route path="/painel" element={<ProtectedRoute><SellerDashboard /></ProtectedRoute>} />
+            <Route path="/painel/anuncios" element={<ProtectedRoute><SellerListings /></ProtectedRoute>} />
+            <Route path="/painel/anuncios/novo" element={<ProtectedRoute><CreateListing /></ProtectedRoute>} />
+            <Route path="/painel/anuncios/:id/editar" element={<ProtectedRoute><EditListing /></ProtectedRoute>} />
+            <Route path="/painel/pedidos" element={<ProtectedRoute><SellerOrdersPage /></ProtectedRoute>} />
+            <Route path="/painel/pedidos/:id" element={<ProtectedRoute><SellerOrderDetailPage /></ProtectedRoute>} />
+            <Route path="/painel/modo-lance" element={<ProtectedRoute><AuctionManagerPage /></ProtectedRoute>} />
+            <Route path="/painel/financeiro" element={<ProtectedRoute><SellerFinancialPage /></ProtectedRoute>} />
+            <Route path="/painel/stripe-onboarding" element={<ProtectedRoute><StripeOnboardingPage /></ProtectedRoute>} />
+            <Route path="/painel/mensagens" element={<ProtectedRoute><SellerMessagesPage /></ProtectedRoute>} />
+            <Route path="/painel/configuracoes" element={<ProtectedRoute><SellerSettingsPage /></ProtectedRoute>} />
+            <Route path="/painel/midia" element={<ProtectedRoute><SellerMediaPage /></ProtectedRoute>} />
 
             {/* Admin — requireAuth + role admin */}
             <Route path="/admin" element={<ProtectedRoute role="admin"><AdminOverview /></ProtectedRoute>} />
