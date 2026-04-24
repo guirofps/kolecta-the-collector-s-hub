@@ -17,8 +17,9 @@ import {
   Wallet,
   TrendingUp,
   Loader2,
+  Shield,
 } from 'lucide-react';
-import { useWallet } from '@/hooks/use-api';
+import { useWallet, useMyProfile } from '@/hooks/use-api';
 
 // ── Helpers ───────────────────────────────────────────────
 
@@ -99,6 +100,8 @@ function WalletSummary() {
 
 export default function AccountDashboard() {
   const { isLoaded, isSignedIn, user } = useUser();
+  const { data: profile } = useMyProfile();
+  const isAdmin = profile?.role === 'admin';
 
   if (!isLoaded) {
     return (
@@ -130,6 +133,24 @@ export default function AccountDashboard() {
         {/* Wallet Overview — dados reais da API */}
         <h2 className="font-heading text-lg font-bold uppercase mb-4">Minha Carteira</h2>
         <WalletSummary />
+
+        {/* Admin Panel Link — apenas para admins */}
+        {isAdmin && (
+          <div className="mb-6">
+            <Link to="/admin" className="block">
+              <Card className="bg-red-500/10 border-red-500/30 hover:bg-red-500/20 transition-colors cursor-pointer">
+                <CardContent className="flex items-center gap-4 p-5">
+                  <Shield className="h-8 w-8 text-red-500" />
+                  <div>
+                    <p className="font-heading font-bold uppercase text-sm">Painel Admin</p>
+                    <p className="text-xs text-muted-foreground">Gerenciar plataforma, anúncios e usuários</p>
+                  </div>
+                  <ArrowRight className="h-4 w-4 ml-auto text-red-500" />
+                </CardContent>
+              </Card>
+            </Link>
+          </div>
+        )}
 
         {/* Quick actions */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">

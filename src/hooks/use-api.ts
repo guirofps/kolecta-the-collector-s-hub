@@ -8,6 +8,21 @@ import { useAuth } from '@clerk/clerk-react';
 import { api } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 
+// ── useMyProfile ───────────────────────────────────────────────────────────
+
+export function useMyProfile() {
+  const { getToken } = useAuth();
+  return useQuery({
+    queryKey: ['my-profile'],
+    queryFn: async () => {
+      const token = await getToken();
+      return api.users.getMe(token || '');
+    },
+    staleTime: 5 * 60_000, // 5 min — role não muda com frequência
+    retry: 1,
+  });
+}
+
 // ── useListing ─────────────────────────────────────────────────────────────
 
 export function useListing(id: string | undefined) {

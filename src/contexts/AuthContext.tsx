@@ -1,8 +1,10 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, ReactNode } from 'react';
+import { useUser, useAuth as useClerkAuth } from '@clerk/clerk-react';
+import { useMyProfile } from '@/hooks/use-api';
 
 export type Role = 'user' | 'admin';
 
-export interface MockUser {
+export interface AuthUser {
   id: string;
   name: string;
   email: string;
@@ -11,15 +13,54 @@ export interface MockUser {
 }
 
 interface AuthContextType {
-  user: MockUser;
-  setUser: (user: MockUser) => void;
+  user: AuthUser;
   isAuthenticated: boolean;
   hasRole: (role: Role) => boolean;
+  isLoading: boolean;
 }
 
-export const mockUsers: Record<Role, MockUser> = {
+const AuthContext = createContext<AuthContextType | null>(null);
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const { isSignedIn, user: clerkUser, isLoaded: clerkLoaded } = useUser();
+  const { data: profile, isLoading: profileLoading } = useMyProfile();
+
+  // Construir o user a partir do Clerk + backend
+  const user: AuthUser = {
+    id: clerkUser?.id ?? '',
+    name: clerkUser?.firstName ?? profile?.name ?? 'Usuário',
+    email: clerkUser?.primaryEmailAddress?.emailAddress ?? profile?.email ?? '',
+    // Role vem do backend (Turso) — fonte de verdade
+    role: profile?.role ?? 'user',
+    avatar: clerkUser?.imageUrl ?? null,
+  };
+
+  const isAuthenticated = !!isSignedIn;
+  const isLoading = !clerkLoaded || (isAuthenticated && profileLoading);
+
+  const hasRole = (role: Role) => {
+    // admin tem acesso a tudo; user tem acesso a tudo exceto admin
+    if (user.role === 'admin') return true;
+    return role !== 'admin';
+  };
+
+  return (
+    <AuthContext.Provider value={{ user, isAuthenticated, hasRole, isLoading }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+export function useAuth() {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
+  return ctx;
+}
+
+// Re-exportar os mock users para compatibilidade (usado pelo DevToolbar, etc.)
+export const mockUsers: Record<Role, AuthUser> = {
   user: {
-    id: 'seller-001', // Importante ser seller-001 para parear com o seed do backend
+    id: 'seller-001',
     name: 'João Silva',
     email: 'joao@email.com',
     role: 'user',
@@ -33,43 +74,3 @@ export const mockUsers: Record<Role, MockUser> = {
     avatar: null,
   },
 };
-
-const AuthContext = createContext<AuthContextType | null>(null);
-
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<MockUser>(() => {
-    const savedId = localStorage.getItem('dev_user_id');
-    if (savedId) {
-      if (savedId === mockUsers.admin.id) return mockUsers.admin;
-      if (savedId === 'seller-001') return mockUsers.user;
-    }
-    return mockUsers.user;
-  });
-
-  useEffect(() => {
-    localStorage.setItem('dev_user_id', user.id);
-  }, [user.id]);
-
-  const handleSetUser = (newUser: MockUser) => {
-    localStorage.setItem('dev_user_id', newUser.id);
-    setUser(newUser);
-  };
-
-  const hasRole = (role: Role) => {
-    // admin tem acesso a tudo; user tem acesso a tudo exceto admin
-    if (user.role === 'admin') return true;
-    return role !== 'admin';
-  };
-
-  return (
-    <AuthContext.Provider value={{ user, setUser: handleSetUser, isAuthenticated: true, hasRole }}>
-      {children}
-    </AuthContext.Provider>
-  );
-}
-
-export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
-  return ctx;
-}

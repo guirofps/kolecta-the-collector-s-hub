@@ -49,6 +49,13 @@ async function request<T>(
 // ── API namespaces ────────────────────────────────────────────────────────────
 
 export const api = {
+  // ── Users ──────────────────────────────────────────────────────────────────
+
+  users: {
+    getMe: (token: string) =>
+      request<{ data: UserProfile }>('/api/users/me', { token }).then(r => r.data),
+  },
+
   // ── Listings (público) ───────────────────────────────────────────────────
 
   listings: {
@@ -355,6 +362,15 @@ export interface ConnectStatus {
   status: ConnectAccountStatus;
   chargesEnabled: boolean;
   payoutsEnabled: boolean;
+}
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  name: string | null;
+  role: 'user' | 'admin';
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface CreateListingPayload {
