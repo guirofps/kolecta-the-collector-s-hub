@@ -87,6 +87,12 @@ export const api = {
 
     remove: (token: string, id: string) =>
       request<void>(`/api/listings/${id}`, { method: 'DELETE', token }),
+
+    togglePause: (token: string, id: string) =>
+      request<{ data: Listing }>(`/api/listings/${id}/toggle-pause`, {
+        method: 'PATCH',
+        token,
+      }).then(r => r.data),
   },
 
   // ── Admin ──────────────────────────────────────────────────────────────────

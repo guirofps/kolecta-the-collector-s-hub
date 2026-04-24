@@ -123,6 +123,32 @@ export function useCreateListing() {
     },
   });
 }
+// ── useUpdateListing ───────────────────────────────────────────────────────
+
+export function useUpdateListing() {
+  const queryClient = useQueryClient();
+  const { getToken } = useAuth();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<import('@/lib/api').CreateListingPayload> }) => {
+      const token = await getToken();
+      return api.listings.update(token || '', id, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['my-listings'] });
+      queryClient.invalidateQueries({ queryKey: ['listings'] });
+      toast({ title: 'Anúncio atualizado!' });
+    },
+    onError: (err: Error) => {
+      toast({
+        title: 'Erro ao atualizar anúncio',
+        description: err.message,
+        variant: 'destructive',
+      });
+    },
+  });
+}
 
 export function useDeleteListing() {
   const queryClient = useQueryClient();
@@ -142,6 +168,38 @@ export function useDeleteListing() {
     onError: (err: Error) => {
       toast({
         title: 'Erro ao excluir anúncio',
+        description: err.message,
+        variant: 'destructive',
+      });
+    },
+  });
+}
+// ── useTogglePauseListing ──────────────────────────────────────────────────
+
+export function useTogglePauseListing() {
+  const queryClient = useQueryClient();
+  const { getToken } = useAuth();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const token = await getToken();
+      return api.listings.togglePause(token || '', id);
+    },
+    onSuccess: (listing) => {
+      queryClient.invalidateQueries({ queryKey: ['my-listings'] });
+      queryClient.invalidateQueries({ queryKey: ['listings'] });
+      const isPaused = listing.status === 'paused';
+      toast({
+        title: isPaused ? 'Anúncio pausado' : 'Anúncio reativado',
+        description: isPaused
+          ? 'Seu anúncio não aparece mais no marketplace.'
+          : 'Seu anúncio está visível novamente.',
+      });
+    },
+    onError: (err: Error) => {
+      toast({
+        title: 'Erro ao alterar status',
         description: err.message,
         variant: 'destructive',
       });

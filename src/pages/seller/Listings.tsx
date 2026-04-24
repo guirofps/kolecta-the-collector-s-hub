@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { PlusCircle, Search, MoreHorizontal, Eye, Pencil, Pause, Trash2, Loader2 } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { PlusCircle, Search, MoreHorizontal, Eye, Pencil, Pause, Play, Trash2, Loader2 } from 'lucide-react';
 import SellerLayout from '@/components/layout/SellerLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { formatBRL, conditionLabel } from '@/lib/mock-data';
-import { useMyListings, useDeleteListing } from '@/hooks/use-api';
+import { useMyListings, useDeleteListing, useTogglePauseListing } from '@/hooks/use-api';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -44,9 +44,11 @@ const statusLabels: Record<string, string> = {
 export default function SellerListings() {
   const [activeTab, setActiveTab] = useState<string>('todos');
   const [search, setSearch] = useState('');
+  const navigate = useNavigate();
 
   const { data: myProducts, isLoading } = useMyListings();
   const deleteMutation = useDeleteListing();
+  const togglePauseMutation = useTogglePauseListing();
 
   const filtered = (myProducts || []).filter((p) => {
     if (activeTab !== 'todos' && p.status !== activeTab) return false;
@@ -165,14 +167,22 @@ export default function SellerListings() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="bg-popover border-border">
-                        <DropdownMenuItem className="gap-2 text-sm">
+                        <DropdownMenuItem className="gap-2 text-sm" onClick={() => navigate(`/produto/${product.id}`)}>
                           <Eye className="h-3.5 w-3.5" /> Ver anúncio
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="gap-2 text-sm">
+                        <DropdownMenuItem className="gap-2 text-sm" onClick={() => navigate(`/painel/anuncios/${product.id}/editar`)}>
                           <Pencil className="h-3.5 w-3.5" /> Editar
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="gap-2 text-sm">
-                          <Pause className="h-3.5 w-3.5" /> Pausar
+                        <DropdownMenuItem
+                          className="gap-2 text-sm"
+                          disabled={togglePauseMutation.isPending}
+                          onClick={() => togglePauseMutation.mutate(product.id)}
+                        >
+                          {product.status === 'paused' ? (
+                            <><Play className="h-3.5 w-3.5" /> Reativar</>
+                          ) : (
+                            <><Pause className="h-3.5 w-3.5" /> Pausar</>
+                          )}
                         </DropdownMenuItem>
                         <DropdownMenuItem className="gap-2 text-sm text-accent" onClick={() => {
                           if (confirm('Tem certeza que deseja excluir esse anúncio?')) {
