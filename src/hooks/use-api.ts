@@ -84,11 +84,14 @@ export function useUpdateListingStatus() {
 
 export function useCreateListing() {
   const queryClient = useQueryClient();
+  const { getToken } = useAuth();
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: (data: import('@/lib/api').CreateListingPayload) =>
-      api.listings.create(data),
+    mutationFn: async (data: import('@/lib/api').CreateListingPayload) => {
+      const token = await getToken();
+      return api.listings.create(token || '', data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['listings'] });
       toast({

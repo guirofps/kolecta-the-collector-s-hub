@@ -64,10 +64,11 @@ export const api = {
     getMine: (token: string) =>
       request<{ data: Listing[] }>('/api/listings/my', { token }).then(r => r.data),
 
-    create: (data: CreateListingPayload) =>
+    create: (token: string, data: CreateListingPayload) =>
       request<{ data: Listing }>('/api/listings', {
         method: 'POST',
         body: JSON.stringify(data),
+        token,
       }).then(r => r.data),
 
     update: (token: string, id: string, data: Partial<CreateListingPayload>) =>
