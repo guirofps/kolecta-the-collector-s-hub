@@ -147,7 +147,7 @@ export default function SellerListings() {
                       <div className="flex items-center gap-3 text-xs text-muted-foreground">
                         <span>{product.brand || 'Sem marca'}</span>
                         <span>·</span>
-                        <span>{conditionLabel(product.condition) || product.condition}</span>
+                        <span>{conditionLabel(product.condition as any) || product.condition}</span>
                         <span>·</span>
                         <span>{product.type === 'auction' ? 'Modo Lance' : 'Venda Direta'}</span>
                       </div>
