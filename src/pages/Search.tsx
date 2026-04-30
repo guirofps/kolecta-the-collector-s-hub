@@ -60,6 +60,7 @@ export default function SearchPage() {
       images: parseImages(l.images),
       category: '',
       categorySlug: l.categoryId ?? '',
+      subcategorySlug: '',
       condition: (l.condition as ProductCondition) ?? 'novo',
       type: l.type,
       price: l.priceInCents != null ? l.priceInCents / 100 : undefined,

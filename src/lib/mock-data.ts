@@ -1,12 +1,18 @@
 // ─── Types ───────────────────────────────────────────────
 
+export interface Subcategory {
+  id: string
+  name: string
+  slug: string
+}
+
 export interface Category {
-  id: string;
-  name: string;
-  slug: string;
-  icon: string;
-  count: number;
-  description: string;
+  id: string
+  name: string
+  slug: string
+  icon: string
+  description: string
+  subcategories: Subcategory[]
 }
 
 export interface Seller {
@@ -34,6 +40,7 @@ export interface Product {
   images: string[];
   category: string;
   categorySlug: string;
+  subcategorySlug: string;
   condition: ProductCondition;
   type: ProductType;
   price?: number;
@@ -124,13 +131,72 @@ export const mockSellers: Seller[] = [
 // ─── Mock Categories ─────────────────────────────────────
 
 export const mockCategories: Category[] = [
-  { id: 'c1', name: 'Carrinhos & Miniaturas', slug: 'carrinhos-miniaturas', icon: '🏎️', count: 1247, description: 'Hot Wheels, Tomica, Majorette e mais' },
-  { id: 'c2', name: 'Funko Pop', slug: 'funko-pop', icon: '🎭', count: 834, description: 'Colecionáveis de cultura pop' },
-  { id: 'c3', name: 'Cards Colecionáveis', slug: 'cards-colecionaveis', icon: '🃏', count: 562, description: 'Pokémon, Yu-Gi-Oh!, Magic e mais' },
-  { id: 'c4', name: 'Action Figures', slug: 'action-figures', icon: '🦸', count: 423, description: 'Figuras articuladas e estátuas' },
-  { id: 'c5', name: 'Modelismo', slug: 'modelismo', icon: '✈️', count: 198, description: 'Kits de montagem e escala' },
-  { id: 'c6', name: 'Vintage & Retrô', slug: 'vintage-retro', icon: '📻', count: 315, description: 'Itens raros e clássicos' },
-];
+  {
+    id: 'c1',
+    name: 'Miniaturas & Diecast',
+    slug: 'miniaturas-diecast',
+    icon: '🏎️',
+    description: 'Die-cast, miniaturas escala, réplicas e customizados',
+    subcategories: [
+      { id: 'c1s1', name: 'Die-cast', slug: 'die-cast' },
+      { id: 'c1s2', name: 'Model Kits', slug: 'model-kits' },
+      { id: 'c1s3', name: 'Réplicas', slug: 'replicas' },
+      { id: 'c1s4', name: 'Customizados', slug: 'customizados' },
+    ]
+  },
+  {
+    id: 'c2',
+    name: 'Cards Colecionáveis',
+    slug: 'cards-colecionaveis',
+    icon: '🃏',
+    description: 'Pokémon, Magic, Dragon Ball, Sport Cards e outros',
+    subcategories: [
+      { id: 'c2s1', name: 'Pokémon', slug: 'pokemon' },
+      { id: 'c2s2', name: 'Magic: The Gathering', slug: 'magic' },
+      { id: 'c2s3', name: 'Dragon Ball', slug: 'dragon-ball' },
+      { id: 'c2s4', name: 'Sport Cards', slug: 'sport-cards' },
+      { id: 'c2s5', name: 'Outros', slug: 'outros-cards' },
+    ]
+  },
+  {
+    id: 'c3',
+    name: 'Action Figures & Statues',
+    slug: 'action-figures',
+    icon: '🦸',
+    description: 'Action figures articulados, statues e resin',
+    subcategories: [
+      { id: 'c3s1', name: 'Action Figures', slug: 'action-figures-articulados' },
+      { id: 'c3s2', name: 'Statues & Resin', slug: 'statues-resin' },
+      { id: 'c3s3', name: 'Outros', slug: 'outros-figures' },
+    ]
+  },
+  {
+    id: 'c4',
+    name: 'Funko Pop',
+    slug: 'funko-pop',
+    icon: '🎭',
+    description: 'Figuras vinil, edições especiais e exclusivos',
+    subcategories: [
+      { id: 'c4s1', name: 'Originais', slug: 'funko-originais' },
+      { id: 'c4s2', name: 'Edições Especiais', slug: 'funko-especiais' },
+      { id: 'c4s3', name: 'Chase', slug: 'funko-chase' },
+      { id: 'c4s4', name: 'Exclusivos', slug: 'funko-exclusivos' },
+    ]
+  },
+  {
+    id: 'c5',
+    name: 'Mangás & HQs',
+    slug: 'mangas-hqs',
+    icon: '📚',
+    description: 'Mangá, HQs nacionais e importadas, edições especiais',
+    subcategories: [
+      { id: 'c5s1', name: 'Mangá', slug: 'manga' },
+      { id: 'c5s2', name: 'HQ Nacional', slug: 'hq-nacional' },
+      { id: 'c5s3', name: 'HQ Importada', slug: 'hq-importada' },
+      { id: 'c5s4', name: 'Edições Especiais', slug: 'edicoes-especiais-hq' },
+    ]
+  },
+]
 
 // ─── Helper ──────────────────────────────────────────────
 
@@ -147,7 +213,8 @@ export const mockProducts: Product[] = [
     slug: 'hw-rlc-skyline-r34',
     images: ['/placeholder.svg'],
     category: 'Carrinhos & Miniaturas',
-    categorySlug: 'carrinhos-miniaturas',
+    categorySlug: 'miniaturas-diecast',
+    subcategorySlug: 'die-cast',
     condition: 'lacrado',
     type: 'auction',
     startingBid: 350,
@@ -170,7 +237,8 @@ export const mockProducts: Product[] = [
     slug: 'tlv-ae86-trueno',
     images: ['/placeholder.svg'],
     category: 'Carrinhos & Miniaturas',
-    categorySlug: 'carrinhos-miniaturas',
+    categorySlug: 'miniaturas-diecast',
+    subcategorySlug: 'die-cast',
     condition: 'novo',
     type: 'direct',
     price: 289,
@@ -188,7 +256,8 @@ export const mockProducts: Product[] = [
     slug: 'majorette-911-gt3-rs',
     images: ['/placeholder.svg'],
     category: 'Carrinhos & Miniaturas',
-    categorySlug: 'carrinhos-miniaturas',
+    categorySlug: 'miniaturas-diecast',
+    subcategorySlug: 'die-cast',
     condition: 'novo',
     type: 'direct',
     price: 45,
@@ -206,7 +275,8 @@ export const mockProducts: Product[] = [
     slug: 'minigt-lb-huracan-chase',
     images: ['/placeholder.svg'],
     category: 'Carrinhos & Miniaturas',
-    categorySlug: 'carrinhos-miniaturas',
+    categorySlug: 'miniaturas-diecast',
+    subcategorySlug: 'die-cast',
     condition: 'lacrado',
     type: 'auction',
     startingBid: 200,
@@ -229,7 +299,8 @@ export const mockProducts: Product[] = [
     slug: 'kyosho-silvia-s15',
     images: ['/placeholder.svg'],
     category: 'Carrinhos & Miniaturas',
-    categorySlug: 'carrinhos-miniaturas',
+    categorySlug: 'miniaturas-diecast',
+    subcategorySlug: 'die-cast',
     condition: 'mint',
     type: 'direct',
     price: 175,
@@ -247,7 +318,8 @@ export const mockProducts: Product[] = [
     slug: 'hw-premium-rx7-fd',
     images: ['/placeholder.svg'],
     category: 'Carrinhos & Miniaturas',
-    categorySlug: 'carrinhos-miniaturas',
+    categorySlug: 'miniaturas-diecast',
+    subcategorySlug: 'die-cast',
     condition: 'novo',
     type: 'auction',
     startingBid: 80,
@@ -271,6 +343,7 @@ export const mockProducts: Product[] = [
     images: ['/placeholder.svg'],
     category: 'Funko Pop',
     categorySlug: 'funko-pop',
+    subcategorySlug: 'funko-originais',
     condition: 'lacrado',
     type: 'direct',
     price: 199,
@@ -288,7 +361,8 @@ export const mockProducts: Product[] = [
     slug: 'greenlight-datsun-510',
     images: ['/placeholder.svg'],
     category: 'Carrinhos & Miniaturas',
-    categorySlug: 'carrinhos-miniaturas',
+    categorySlug: 'miniaturas-diecast',
+    subcategorySlug: 'die-cast',
     condition: 'usado',
     type: 'direct',
     price: 65,
@@ -306,7 +380,8 @@ export const mockProducts: Product[] = [
     slug: 'hw-sth-300zx',
     images: ['/placeholder.svg'],
     category: 'Carrinhos & Miniaturas',
-    categorySlug: 'carrinhos-miniaturas',
+    categorySlug: 'miniaturas-diecast',
+    subcategorySlug: 'die-cast',
     condition: 'lacrado',
     type: 'auction',
     startingBid: 500,
@@ -329,7 +404,8 @@ export const mockProducts: Product[] = [
     slug: 'aw-ultra-red-mustang',
     images: ['/placeholder.svg'],
     category: 'Carrinhos & Miniaturas',
-    categorySlug: 'carrinhos-miniaturas',
+    categorySlug: 'miniaturas-diecast',
+    subcategorySlug: 'die-cast',
     condition: 'lacrado',
     type: 'direct',
     price: 320,
@@ -347,7 +423,8 @@ export const mockProducts: Product[] = [
     slug: 'inno64-civic-ef9-kanjo',
     images: ['/placeholder.svg'],
     category: 'Carrinhos & Miniaturas',
-    categorySlug: 'carrinhos-miniaturas',
+    categorySlug: 'miniaturas-diecast',
+    subcategorySlug: 'die-cast',
     condition: 'novo',
     type: 'auction',
     startingBid: 120,
@@ -370,7 +447,8 @@ export const mockProducts: Product[] = [
     slug: 'kaidohouse-fairlady-z',
     images: ['/placeholder.svg'],
     category: 'Carrinhos & Miniaturas',
-    categorySlug: 'carrinhos-miniaturas',
+    categorySlug: 'miniaturas-diecast',
+    subcategorySlug: 'die-cast',
     condition: 'novo',
     type: 'direct',
     price: 135,
@@ -395,7 +473,7 @@ export const mockBids: Bid[] = [
   { id: 'b6', auctionId: 'p4', userId: 'u2', userName: 'JDM***an', amount: 380, createdAt: '2026-02-23T09:00:00Z' },
   { id: 'b7', auctionId: 'p4', userId: 'u5', userName: 'Cha***se', amount: 350, createdAt: '2026-02-23T08:30:00Z' },
   { id: 'b8', auctionId: 'p9', userId: 'u3', userName: 'Rac***er', amount: 780, createdAt: '2026-02-23T07:00:00Z' },
-  { id: 'b9', auctionId: 'p9', userId: 'u1', userName: 'Col***or', amount: 750, createdAt: '2026-02-23T05:30:00Z' },
+  { id: 'b9', auctionId: 'p9', userId: 'u1', userName: 'Col***or', amount: 750, createdAt: '2026-02-22T05:30:00Z' },
 ];
 
 // ─── Helpers ─────────────────────────────────────────────
