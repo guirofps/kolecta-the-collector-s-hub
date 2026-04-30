@@ -1,9 +1,20 @@
-import { useParams, Navigate } from 'react-router-dom';
+import { useParams, Navigate, Link } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
 import ProductCard from '@/components/ProductCard';
-import { mockCategories, getProductsByCategory } from '@/lib/mock-data';
+import { useListings } from '@/hooks/use-api';
+import { Button } from '@/components/ui/button';
+import type { ProductCondition, Product } from '@/lib/mock-data';
+import type { Listing } from '@/lib/api';
 
 const REMOVED_CATEGORY_SLUGS = ['modelismo', 'vintage-retro'];
+
+const CATEGORIES = [
+  { id: '1', name: 'Miniaturas Diecast', slug: 'miniaturas-diecast', icon: '🚗', description: 'Hot Wheels, Mini GT, Tomica e mais' },
+  { id: '2', name: 'Cards Colecionáveis', slug: 'cards-colecionaveis', icon: '🃏', description: 'Pokémon, One Piece, Magic e mais' },
+  { id: '3', name: 'Action Figures', slug: 'action-figures', icon: '🦸', description: 'Marvel, DC, Anime e mais' },
+  { id: '4', name: 'Funko Pop', slug: 'funko-pop', icon: '👾', description: 'Todas as linhas e edições' },
+  { id: '5', name: 'Mangás & HQs', slug: 'mangas-hqs', icon: '📚', description: 'Volumes nacionais e importados' },
+];
 
 function CategoryIcon({ slug, size = 32 }: { slug: string; size?: number }) {
   const fill = '#FFD700';
@@ -72,8 +83,9 @@ export default function CategoryPage() {
     return <Navigate to="/categorias" replace />;
   }
 
-  const category = mockCategories.find((c) => c.slug === slug);
-  const products = getProductsByCategory(slug || '');
+  const category = CATEGORIES.find((c) => c.slug === slug);
+  const { data: listingsData, isLoading } = useListings(40, 0, slug);
+  const products = listingsData ?? [];
 
   if (!category) {
     return (
@@ -84,6 +96,47 @@ export default function CategoryPage() {
       </Layout>
     );
   }
+
+  // Converte a API Listing para o formato esperado pelo ProductCard
+  const parseImages = (raw: string | null | undefined): string[] => {
+    if (!raw) return ['/placeholder.svg'];
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) && parsed.length > 0 ? parsed : ['/placeholder.svg'];
+    } catch {
+      return raw.startsWith('http') ? [raw] : ['/placeholder.svg'];
+    }
+  };
+
+  const apiProducts: Product[] = products.map((l: Listing) => ({
+    id: l.id,
+    title: l.title,
+    slug: l.id,
+    images: parseImages(l.images),
+    category: '',
+    categorySlug: l.categoryId ?? '',
+    subcategorySlug: '',
+    condition: (l.condition as ProductCondition) ?? 'novo',
+    type: l.type,
+    price: l.priceInCents != null ? l.priceInCents / 100 : undefined,
+    seller: {
+      id: l.sellerId,
+      name: l.sellerName ?? 'Vendedor Kolecta',
+      slug: l.sellerId,
+      avatar: '/placeholder.svg',
+      verified: true,
+      rating: 5,
+      totalSales: 10,
+      location: '',
+      since: '',
+    },
+    description: l.description ?? '',
+    details: {},
+    featured: false,
+    tags: [],
+    status: l.status,
+    createdAt: l.createdAt,
+  }));
 
   return (
     <Layout>
@@ -96,13 +149,32 @@ export default function CategoryPage() {
           </div>
         </div>
 
-        {products.length === 0 ? (
-          <div className="text-center py-20">
-            <p className="text-muted-foreground">Nenhum item nesta categoria ainda.</p>
+        {isLoading ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="animate-pulse bg-card rounded-lg h-[340px] border border-border" />
+            ))}
+          </div>
+        ) : products.length === 0 ? (
+          <div className="text-center py-20 flex flex-col items-center max-w-md mx-auto">
+            <div className="mb-6 opacity-60">
+              <CategoryIcon slug={category.slug} size={64} />
+            </div>
+            <h2 className="font-heading text-2xl font-bold uppercase italic text-foreground mb-3">Seja o primeiro a vender aqui</h2>
+            <p className="text-muted-foreground mb-8">Nenhum item em {category.name} ainda. Que tal abrir caminho?</p>
+            
+            <div className="flex flex-col gap-3 w-full sm:w-auto">
+              <Button variant="kolecta" size="lg" asChild>
+                <Link to="/painel/anuncios/novo">Criar anúncio grátis</Link>
+              </Button>
+              <Button variant="ghost" size="lg" asChild>
+                <Link to="/categorias">Explorar outras categorias</Link>
+              </Button>
+            </div>
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {products.map((p) => (
+            {apiProducts.map((p) => (
               <ProductCard key={p.id} product={p} />
             ))}
           </div>
