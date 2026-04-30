@@ -109,6 +109,9 @@ export default {
           from: { opacity: "0" },
           to: { opacity: "1" },
         },
+        shimmer: {
+          "100%": { transform: "translateX(100%)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -118,6 +121,7 @@ export default {
         "slide-in-right": "slide-in-right 0.6s ease-out",
         "countdown-tick": "countdown-tick 1s ease-in-out infinite",
         "fade-in": "fade-in 0.4s ease-out",
+        shimmer: "shimmer 2s infinite",
       },
     },
   },
