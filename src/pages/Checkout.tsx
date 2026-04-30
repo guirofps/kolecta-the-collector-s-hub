@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { Navigate } from 'react-router-dom';
-import { Shield, MapPin, Truck, CreditCard, ChevronRight, Loader2 } from 'lucide-react';
+import { Shield, MapPin, Truck, CreditCard, ChevronRight, Loader2, AlertTriangle } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
 import { useCart, CartItem } from '@/contexts/CartContext';
 import { Card, CardContent } from '@/components/ui/card';
@@ -44,12 +44,17 @@ function formatBRL(val: number) {
 
 interface ShippingOption { id: string; label: string; price: number; days: string; }
 
+const MOCK_SHIPPING_OPTIONS: ShippingOption[] = [
+  { id: 'pac', label: 'PAC', price: 1890, days: '8-12 dias úteis' },
+  { id: 'sedex', label: 'SEDEX', price: 3450, days: '3-5 dias úteis' },
+  { id: 'jadlog', label: 'Jadlog (.com)', price: 2200, days: '5-8 dias úteis' },
+];
+
 function getShippingOptions(sellerSlug: string): ShippingOption[] {
-  return [
-    { id: `${sellerSlug}-pac`, label: 'PAC', price: 1890, days: '8–12 dias úteis' },
-    { id: `${sellerSlug}-sedex`, label: 'SEDEX', price: 3450, days: '3–5 dias úteis' },
-    { id: `${sellerSlug}-retirada`, label: 'Retirada', price: 0, days: 'Combinar com vendedor' },
-  ];
+  return MOCK_SHIPPING_OPTIONS.map(opt => ({
+    ...opt,
+    id: `${sellerSlug}-${opt.id}`
+  }));
 }
 
 function groupBySeller(items: CartItem[]) {
@@ -93,6 +98,7 @@ interface CheckoutSession {
 
 export default function CheckoutPage() {
   const { items, totalPrice } = useCart();
+  const groups = groupBySeller(items);
   const createCheckout = useCreateCheckout();
   const { query: addressQuery } = useAddresses();
   const savedAddresses = addressQuery.data ?? [];
@@ -115,6 +121,9 @@ export default function CheckoutPage() {
   const [cidade, setCidade] = useState('');
   const [estado, setEstado] = useState('');
   const [cepLoading, setCepLoading] = useState(false);
+  const [cepError, setCepError] = useState(false);
+  const [isCepFilled, setIsCepFilled] = useState(false);
+  const [cepInlineError, setCepInlineError] = useState('');
 
   // ── Shipping state ────────────────────────────────────────────────────
   const [selectedShipping, setSelectedShipping] = useState<Record<string, string>>({});
@@ -131,7 +140,9 @@ export default function CheckoutPage() {
   const fetchCep = useCallback(async (rawCep: string) => {
     const digits = rawCep.replace(/\D/g, '');
     if (digits.length !== 8) return;
+    setCepInlineError('');
     setCepLoading(true);
+    setCepError(false);
     try {
       const res = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
       const data = await res.json();
@@ -140,11 +151,27 @@ export default function CheckoutPage() {
         setBairro(data.bairro || '');
         setCidade(data.localidade || '');
         setEstado(data.uf || '');
+        setIsCepFilled(true);
+        
+        // Auto-select cheapest shipping per group
+        const newSelected: Record<string, string> = {};
+        groups.forEach(g => {
+          const options = getShippingOptions(g.sellerSlug);
+          const cheapest = options.reduce((prev, curr) => (prev.price < curr.price ? prev : curr));
+          newSelected[g.sellerSlug] = cheapest.id;
+        });
+        setSelectedShipping(prev => ({ ...prev, ...newSelected }));
+      } else {
+        setCepError(true);
+        setIsCepFilled(false);
       }
-    } catch { /* silently fail */ } finally {
+    } catch { 
+      setCepError(true);
+      setIsCepFilled(false);
+    } finally {
       setCepLoading(false);
     }
-  }, []);
+  }, [groups]);
 
   // ── Pre-fill from saved address ───────────────────────────────────────
   function applySavedAddress(addrId: string) {
@@ -160,9 +187,6 @@ export default function CheckoutPage() {
     setCidade(addr.city);
     setEstado(addr.state);
   }
-
-  // Cart groups
-  const groups = groupBySeller(items);
 
   if (items.length === 0) return <Navigate to="/carrinho" replace />;
 
@@ -220,8 +244,14 @@ export default function CheckoutPage() {
     setStage('payment');
   }
 
-  const inputCls = (field: string) =>
-    `bg-background ${submitted && errors[field] ? 'border-destructive focus-visible:ring-destructive' : 'focus-visible:ring-primary'}`;
+  const inputCls = (field: string) => {
+    const base = `bg-background ${submitted && errors[field] ? 'border-destructive focus-visible:ring-destructive' : 'focus-visible:ring-primary'}`;
+    const autoFilledFields = ['rua', 'bairro', 'cidade', 'estado'];
+    if (isCepFilled && autoFilledFields.includes(field)) {
+      return `${base} border-[#F5C300]/40 transition-colors`;
+    }
+    return base;
+  };
 
   const activeSession = sessions[sessions.length - 1];
 
@@ -326,10 +356,21 @@ export default function CheckoutPage() {
                         <div>
                           <Label htmlFor="cep">CEP *</Label>
                           <Input id="cep" className={inputCls('cep')} value={cep}
-                            onChange={e => setCep(maskCEP(e.target.value))}
-                            onBlur={() => fetchCep(cep)} placeholder="00000-000" />
-                          {cepLoading && <p className="text-xs text-muted-foreground mt-1">Buscando…</p>}
-                          <FieldError msg={submitted ? errors.cep : undefined} />
+                            onChange={e => {
+                              const val = e.target.value;
+                              setCep(maskCEP(val));
+                              if (val.replace(/\D/g, '').length === 8) {
+                                fetchCep(val);
+                              }
+                            }}
+                            onBlur={() => {
+                              if (cep.replace(/\D/g, '').length < 8 && cep.replace(/\D/g, '').length > 0) {
+                                setCepInlineError('CEP deve ter 8 dígitos');
+                              } else {
+                                setCepInlineError('');
+                              }
+                            }} placeholder="00000-000" />
+                          <FieldError msg={submitted && errors.cep ? errors.cep : cepInlineError} />
                         </div>
 
                         <div className="sm:col-span-2">
@@ -391,7 +432,18 @@ export default function CheckoutPage() {
                       <p className="text-xs text-destructive">{errors.shipping}</p>
                     )}
 
-                    {groups.map((group, idx) => {
+                    {cepLoading ? (
+                      <div className="space-y-4">
+                        {[1, 2, 3].map(i => (
+                          <div key={i} className="h-16 w-full animate-pulse bg-muted/60 rounded-md relative overflow-hidden before:absolute before:inset-0 before:-translate-x-full before:animate-[shimmer_2s_infinite] before:bg-gradient-to-r before:from-transparent before:via-white/10 before:to-transparent" />
+                        ))}
+                      </div>
+                    ) : cepError ? (
+                      <div className="flex items-center gap-3 p-4 rounded-md border border-destructive/50 bg-destructive/10 text-destructive">
+                        <AlertTriangle className="h-5 w-5 shrink-0" />
+                        <p className="text-sm font-medium">Não encontramos opções de envio para este CEP.</p>
+                      </div>
+                    ) : groups.map((group, idx) => {
                       const options = getShippingOptions(group.sellerSlug);
                       return (
                         <div key={group.sellerSlug}>
@@ -405,22 +457,29 @@ export default function CheckoutPage() {
                             }
                             className="space-y-2"
                           >
-                            {options.map(opt => (
-                              <label
-                                key={opt.id}
-                                htmlFor={opt.id}
-                                className="flex items-center gap-3 p-3 rounded-md border border-border hover:border-primary/40 transition-colors cursor-pointer"
-                              >
-                                <RadioGroupItem value={opt.id} id={opt.id} />
-                                <div className="flex-1">
-                                  <span className="font-body text-sm font-medium">{opt.label}</span>
-                                  <span className="text-xs text-muted-foreground ml-2">({opt.days})</span>
-                                </div>
-                                <span className="font-heading font-bold text-sm text-primary">
-                                  {opt.price === 0 ? 'Grátis' : formatBRL(opt.price / 100)}
-                                </span>
-                              </label>
-                            ))}
+                            {options.map(opt => {
+                              const isActive = selectedShipping[group.sellerSlug] === opt.id;
+                              return (
+                                <label
+                                  key={opt.id}
+                                  htmlFor={opt.id}
+                                  className={`flex items-center gap-3 p-3 rounded-md border transition-all cursor-pointer ${isActive ? 'border-[#F5C300]/60 bg-[#F5C300]/5' : 'border-border hover:border-primary/40'}`}
+                                >
+                                  <RadioGroupItem 
+                                    value={opt.id} 
+                                    id={opt.id} 
+                                    className={isActive ? 'text-[#F5C300] border-[#F5C300]' : ''} 
+                                  />
+                                  <div className="flex-1">
+                                    <span className="font-body text-sm font-medium">{opt.label}</span>
+                                    <span className="text-xs text-muted-foreground ml-2">({opt.days})</span>
+                                  </div>
+                                  <span className="font-heading font-bold text-sm text-primary">
+                                    {opt.price === 0 ? 'Grátis' : formatBRL(opt.price / 100)}
+                                  </span>
+                                </label>
+                              );
+                            })}
                           </RadioGroup>
                           {idx < groups.length - 1 && <div className="line-tech my-4" />}
                         </div>
@@ -509,14 +568,14 @@ export default function CheckoutPage() {
 
                   <div className="flex justify-between text-sm font-body">
                     <span className="text-muted-foreground">Frete</span>
-                    <span>{allShippingSelected ? formatBRL(shippingTotal / 100) : 'a calcular'}</span>
+                    <span className="transition-all duration-200">{allShippingSelected ? formatBRL(shippingTotal / 100) : 'a calcular'}</span>
                   </div>
 
                   <div className="line-tech" />
 
                   <div className="flex justify-between items-center">
                     <span className="font-heading text-lg font-bold uppercase">Total</span>
-                    <span className="font-heading text-2xl font-bold text-primary">
+                    <span className="font-heading text-2xl font-bold text-primary transition-all duration-200">
                       {formatBRL(grandTotal)}
                     </span>
                   </div>
