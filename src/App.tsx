@@ -64,8 +64,10 @@ import AdminMedia from "./pages/admin/Media";
 import CartPage from "./pages/Cart";
 import CheckoutPage from "./pages/Checkout";
 import OrderConfirmationPage from "./pages/OrderConfirmation";
+import ConnectSuccessPage from "./pages/connect/Success";
 import { CartProvider } from "./contexts/CartContext";
 import CartDrawer from "./components/CartDrawer";
+import { Navigate } from "react-router-dom";
 
 const queryClient = new QueryClient();
 
@@ -111,6 +113,10 @@ const App = () => (
             <Route path="/ajuda/:slug" element={<HelpArticlePage />} />
             <Route path="/termos" element={<TermsPage />} />
             <Route path="/privacidade" element={<PrivacyPage />} />
+
+            {/* Stripe Connect Callbacks */}
+            <Route path="/connect/success" element={<ConnectSuccessPage />} />
+            <Route path="/connect/refresh" element={<Navigate to="/painel/stripe-onboarding" replace />} />
 
             {/* Conta — requireAuth (todo user autenticado) */}
             <Route path="/conta" element={<ProtectedRoute><AccountDashboard /></ProtectedRoute>} />

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useCart } from '@/contexts/CartContext';
 import {
   Heart, ShieldCheck, Star, Gavel, ShoppingCart, Flag,
@@ -15,11 +15,17 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 import { mockProducts, conditionLabel, formatBRL } from '@/lib/mock-data';
-import type { ProductCondition } from '@/lib/mock-data';
+import type { ProductCondition, ListingStatus, Product, ProductType } from '@/lib/mock-data';
+import { api } from '@/lib/api';
 import type { Listing } from '@/lib/api';
 import { useListing } from '@/hooks/use-api';
 import { trackEvent } from '@/lib/analytics';
+import { useMutation } from '@tanstack/react-query';
+import { useAuth } from '@clerk/clerk-react';
+import { useToast } from '@/hooks/use-toast';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -55,8 +61,9 @@ function listingToCartProduct(listing: Listing) {
     images: parseImages(listing.images),
     category: '',
     categorySlug: listing.categoryId ?? '',
+    subcategorySlug: '',
     condition: (listing.condition as ProductCondition) ?? 'novo',
-    type: listing.type,
+    type: (listing.type as ProductType) ?? 'direct',
     price: listing.priceInCents != null ? listing.priceInCents / 100 : undefined,
     seller: {
       id: listing.sellerId,
@@ -73,9 +80,9 @@ function listingToCartProduct(listing: Listing) {
     details: buildDetails(listing),
     featured: false,
     tags: [],
-    status: listing.status as any,
+    status: (listing.status as ListingStatus) ?? 'aprovado',
     createdAt: listing.createdAt,
-  };
+  } as Product;
 }
 
 // ── Skeleton ──────────────────────────────────────────────────────────────────
@@ -102,17 +109,54 @@ function ProductDetailSkeleton() {
 
 export default function ProductDetail() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { addItem, openCart } = useCart();
+  const { getToken } = useAuth();
+  const { toast } = useToast();
 
   // ── Dados reais do backend ───────────────────────────────────────────────
   const { data: listing, isLoading, isError } = useListing(id);
 
   const [isFavorite, setIsFavorite] = useState(false);
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
+  const [chatDialogOpen, setChatDialogOpen] = useState(false);
+  const [chatMessage, setChatMessage] = useState('');
   const [reported, setReported] = useState(() => {
     if (!id) return false;
     return localStorage.getItem(`report_${id}`) === 'true';
   });
+
+  const startChatMutation = useMutation({
+    mutationFn: async (message: string) => {
+      if (!listing) throw new Error('Listing not found');
+      const token = await getToken();
+      if (!token) throw new Error('Unauthorized');
+      return api.messages.startConversation(token, { listingId: listing.id, message });
+    },
+    onSuccess: () => {
+      setChatDialogOpen(false);
+      setChatMessage('');
+      toast({
+        title: 'Mensagem enviada!',
+        description: 'Sua conversa foi iniciada com o vendedor.',
+      });
+      // Navega para a página de mensagens do comprador
+      navigate('/account/messages');
+    },
+    onError: (err) => {
+      console.error(err);
+      toast({
+        title: 'Erro ao enviar',
+        description: 'Faça login para poder enviar mensagens.',
+        variant: 'destructive',
+      });
+    }
+  });
+
+  const handleStartChat = () => {
+    if (!chatMessage.trim()) return;
+    startChatMutation.mutate(chatMessage.trim());
+  };
 
   // Track view quando o listing carregar
   useEffect(() => {
@@ -283,7 +327,7 @@ export default function ProductDetail() {
                   Transação protegida pelo Kolecta
                 </div>
               </div>
-              <Button variant="ghost" size="sm" className="shrink-0">
+              <Button variant="ghost" size="sm" className="shrink-0" onClick={() => setChatDialogOpen(true)}>
                 <MessageSquare className="h-4 w-4" />
               </Button>
             </div>
@@ -306,6 +350,37 @@ export default function ProductDetail() {
                 </button>
               )}
             </div>
+
+            {/* Chat Dialog */}
+            <Dialog open={chatDialogOpen} onOpenChange={setChatDialogOpen}>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>Falar com Vendedor</DialogTitle>
+                  <DialogDescription>
+                    Envie uma mensagem para tirar dúvidas sobre o item "{listing.title}".
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <Textarea
+                    placeholder="Olá! Gostaria de saber mais sobre..."
+                    value={chatMessage}
+                    onChange={(e) => setChatMessage(e.target.value)}
+                    rows={4}
+                    className="resize-none"
+                    disabled={startChatMutation.isPending}
+                  />
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setChatDialogOpen(false)} disabled={startChatMutation.isPending}>
+                    Cancelar
+                  </Button>
+                  <Button onClick={handleStartChat} disabled={!chatMessage.trim() || startChatMutation.isPending} className="bg-[hsl(var(--kolecta-gold))] text-black hover:bg-[hsl(var(--kolecta-gold)/0.9)]">
+                    {startChatMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <MessageSquare className="h-4 w-4 mr-2" />}
+                    Enviar Mensagem
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
 
             <ReportListingDialog
               listingId={listing.id}

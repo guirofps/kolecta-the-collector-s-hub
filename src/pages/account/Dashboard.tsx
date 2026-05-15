@@ -18,8 +18,10 @@ import {
   TrendingUp,
   Loader2,
   Shield,
+  AlertCircle,
 } from 'lucide-react';
-import { useWallet, useMyProfile } from '@/hooks/use-api';
+import { useWallet, useMyProfile, useConnect } from '@/hooks/use-api';
+import { Button } from '@/components/ui/button';
 
 // ── Helpers ───────────────────────────────────────────────
 
@@ -64,7 +66,19 @@ function WalletSummary() {
     );
   }
 
-  if (isError || !data) return null;
+  if (isError || !data) {
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+        <Card className="bg-card border-border">
+          <CardContent className="flex flex-col items-center justify-center gap-2 p-6 text-center">
+            <Wallet className="h-8 w-8 text-muted-foreground mb-2" />
+            <p className="font-heading font-bold">Carteira Indisponível</p>
+            <p className="text-xs text-muted-foreground">Não foi possível carregar o saldo ou a carteira ainda não foi criada.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
@@ -101,7 +115,10 @@ function WalletSummary() {
 export default function AccountDashboard() {
   const { isLoaded, isSignedIn, user } = useUser();
   const { data: profile } = useMyProfile();
+  const { statusQuery, loginLinkMutation } = useConnect();
+  
   const isAdmin = profile?.role === 'admin';
+  const showStripeAlert = statusQuery.data && !statusQuery.data.chargesEnabled;
 
   if (!isLoaded) {
     return (
@@ -130,6 +147,24 @@ export default function AccountDashboard() {
           </p>
         </div>
 
+        {/* Stripe Connect alert */}
+        {showStripeAlert && (
+          <div className="mb-6">
+            <Card className="border-destructive/30 bg-destructive/5">
+              <CardContent className="p-4 flex items-center gap-4">
+                <AlertCircle className="h-8 w-8 text-destructive shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="font-heading text-sm font-bold uppercase">Configure seus recebimentos</p>
+                  <p className="text-xs text-muted-foreground">Conecte sua conta bancária para começar a vender na plataforma</p>
+                </div>
+                <Button variant="kolecta" size="sm" asChild>
+                  <Link to="/painel/stripe-onboarding">Conectar conta bancária</Link>
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
         {/* Wallet Overview — dados reais da API */}
         <h2 className="font-heading text-lg font-bold uppercase mb-4">Minha Carteira</h2>
         <WalletSummary />
@@ -152,6 +187,35 @@ export default function AccountDashboard() {
           </div>
         )}
 
+        {/* Stripe Express Access — apenas se ativo */}
+        {statusQuery.data?.status === 'active' && (
+          <div className="mb-6">
+            <Card className="bg-emerald-500/5 border-emerald-500/20">
+              <CardContent className="flex items-center gap-4 p-5">
+                <div className="h-10 w-10 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                  <ShieldCheck className="h-6 w-6 text-emerald-500" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-heading font-bold uppercase text-sm">Conta Stripe Conectada</p>
+                  <p className="text-xs text-muted-foreground">Gerencie seus dados bancários e visualize extratos detalhados</p>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => loginLinkMutation.mutate()}
+                  disabled={loginLinkMutation.isPending}
+                >
+                  {loginLinkMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <><CreditCard className="h-4 w-4 mr-2" /> Gerenciar no Stripe</>
+                  )}
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
         {/* Quick actions */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
           <Link to="/painel" className="block">
@@ -159,7 +223,7 @@ export default function AccountDashboard() {
               <CardContent className="flex items-center gap-4 p-5">
                 <Store className="h-8 w-8 text-primary" />
                 <div>
-                  <p className="font-heading font-bold uppercase text-sm">Painel do Vendedor</p>
+                  <p className="font-heading font-bold uppercase text-sm">Painel de Vendas</p>
                   <p className="text-xs text-muted-foreground">Gerencie seus anúncios</p>
                 </div>
                 <ArrowRight className="h-4 w-4 ml-auto text-primary" />

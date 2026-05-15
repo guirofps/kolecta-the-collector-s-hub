@@ -19,86 +19,25 @@ import {
   Check,
   CheckCheck,
   MessageCircle,
+  Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-
-/* ─── Types ─── */
-interface Seller {
-  name: string;
-  slug: string;
-  initials: string;
-  online: boolean;
-}
-
-interface Message {
-  id: string;
-  content: string;
-  sender: 'buyer' | 'seller' | 'system';
-  createdAt: string;
-  read: boolean;
-}
-
-interface Conversation {
-  id: string;
-  seller: Seller;
-  lastMessage: string;
-  unreadCount: number;
-  updatedAt: string;
-  orderId?: string;
-  messages: Message[];
-}
-
-/* ─── Mock Data ─── */
-const mockConversations: Conversation[] = [
-  {
-    id: 'conv-1',
-    seller: { name: 'JDM Imports', slug: 'jdm-imports', initials: 'JI', online: true },
-    lastMessage: 'O item já foi despachado, segue o código de rastreio.',
-    unreadCount: 2,
-    updatedAt: '2025-03-17T10:30:00',
-    orderId: 'KL-000123',
-    messages: [
-      { id: 'm1', content: 'Olá, gostaria de saber o prazo de envio.', sender: 'buyer', createdAt: '2025-03-16T14:00:00', read: true },
-      { id: 'm2', content: 'Olá! O prazo é de 3 a 5 dias úteis após confirmação do pagamento.', sender: 'seller', createdAt: '2025-03-16T14:05:00', read: true },
-      { id: 'm3', content: 'Pedido #KL-000123 criado', sender: 'system', createdAt: '2025-03-16T15:00:00', read: true },
-      { id: 'm4', content: 'Perfeito, acabei de finalizar o pedido!', sender: 'buyer', createdAt: '2025-03-16T15:01:00', read: true },
-      { id: 'm5', content: 'Recebemos seu pedido, vamos preparar o envio.', sender: 'seller', createdAt: '2025-03-16T16:00:00', read: true },
-      { id: 'm6', content: 'O item já foi despachado, segue o código de rastreio.', sender: 'seller', createdAt: '2025-03-17T10:00:00', read: false },
-      { id: 'm7', content: 'Código: BR123456789JP', sender: 'seller', createdAt: '2025-03-17T10:30:00', read: false },
-    ],
-  },
-  {
-    id: 'conv-2',
-    seller: { name: 'Drift Garage', slug: 'drift-garage', initials: 'DG', online: false },
-    lastMessage: 'Obrigado pela compra! Qualquer dúvida estou à disposição.',
-    unreadCount: 0,
-    updatedAt: '2025-03-15T09:00:00',
-    messages: [
-      { id: 'm8', content: 'Boa tarde, o volante é compatível com S13?', sender: 'buyer', createdAt: '2025-03-14T18:00:00', read: true },
-      { id: 'm9', content: 'Sim, é compatível! Acompanha o hub adapter.', sender: 'seller', createdAt: '2025-03-14T18:30:00', read: true },
-      { id: 'm10', content: 'Obrigado pela compra! Qualquer dúvida estou à disposição.', sender: 'seller', createdAt: '2025-03-15T09:00:00', read: true },
-    ],
-  },
-  {
-    id: 'conv-3',
-    seller: { name: 'Touge Parts', slug: 'touge-parts', initials: 'TP', online: true },
-    lastMessage: 'Vou verificar a disponibilidade e te aviso.',
-    unreadCount: 0,
-    updatedAt: '2025-03-13T20:00:00',
-    messages: [
-      { id: 'm11', content: 'Vocês têm coilovers para AE86?', sender: 'buyer', createdAt: '2025-03-13T19:00:00', read: true },
-      { id: 'm12', content: 'Vou verificar a disponibilidade e te aviso.', sender: 'seller', createdAt: '2025-03-13T20:00:00', read: true },
-    ],
-  },
-];
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { api, Conversation, Message } from '@/lib/api';
+import { useAuth } from '@clerk/clerk-react';
 
 function formatTime(dateStr: string) {
+  if (!dateStr) return '';
   const d = new Date(dateStr);
   const now = new Date();
   const diff = now.getTime() - d.getTime();
   const days = Math.floor(diff / 86400000);
   if (days > 0) return `${days}d`;
   return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+}
+
+function getInitials(name: string) {
+  return name.substring(0, 2).toUpperCase();
 }
 
 /* ─── Conversation Item ─── */
@@ -111,6 +50,11 @@ function ConversationItem({
   active: boolean;
   onClick: () => void;
 }) {
+  const sellerName = conversation.seller?.name || 'Vendedor';
+  const initials = getInitials(sellerName);
+  const lastMessageText = conversation.latestMessage?.content || 'Nova conversa...';
+  const unreadCount = conversation.unreadCount || 0;
+
   return (
     <button
       onClick={onClick}
@@ -123,21 +67,21 @@ function ConversationItem({
     >
       <Avatar className="h-10 w-10 shrink-0">
         <AvatarFallback className="bg-muted text-muted-foreground font-heading text-sm">
-          {conversation.seller.initials}
+          {initials}
         </AvatarFallback>
       </Avatar>
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between">
-          <span className="font-heading font-bold text-sm truncate">{conversation.seller.name}</span>
+          <span className="font-heading font-bold text-sm truncate">{sellerName}</span>
           <span className="text-xs text-muted-foreground shrink-0 ml-2">
             {formatTime(conversation.updatedAt)}
           </span>
         </div>
-        <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{conversation.lastMessage}</p>
+        <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{lastMessageText}</p>
       </div>
-      {conversation.unreadCount > 0 && (
+      {unreadCount > 0 && (
         <Badge className="bg-kolecta-gold text-kolecta-gold-foreground h-5 w-5 p-0 flex items-center justify-center text-[10px] rounded-full shrink-0">
-          {conversation.unreadCount}
+          {unreadCount}
         </Badge>
       )}
     </button>
@@ -145,38 +89,28 @@ function ConversationItem({
 }
 
 /* ─── Message Bubble ─── */
-function MessageBubble({ message }: { message: Message }) {
-  if (message.sender === 'system') {
-    return (
-      <div className="flex justify-center my-3">
-        <span className="text-xs text-muted-foreground bg-muted px-3 py-1 rounded-full">
-          {message.content}
-        </span>
-      </div>
-    );
-  }
-
-  const isBuyer = message.sender === 'buyer';
+function MessageBubble({ message, currentUserId }: { message: Message; currentUserId: string }) {
+  const isMe = message.senderId === currentUserId; 
 
   return (
-    <div className={cn('flex mb-3', isBuyer ? 'justify-end' : 'justify-start')}>
+    <div className={cn('flex mb-3', isMe ? 'justify-end' : 'justify-start')}>
       <div className="max-w-[75%]">
         <div
           className={cn(
             'px-3 py-2 text-sm',
-            isBuyer
+            isMe
               ? 'bg-kolecta-gold/10 border border-kolecta-gold/20 rounded-2xl rounded-tr-sm'
               : 'bg-muted rounded-2xl rounded-tl-sm'
           )}
         >
           {message.content}
         </div>
-        <div className={cn('flex items-center gap-1 mt-1', isBuyer ? 'justify-end' : 'justify-start')}>
+        <div className={cn('flex items-center gap-1 mt-1', isMe ? 'justify-end' : 'justify-start')}>
           <span className="text-[10px] text-muted-foreground">
             {new Date(message.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
           </span>
-          {isBuyer && (
-            message.read
+          {isMe && (
+            message.readAt
               ? <CheckCheck className="h-3 w-3 text-kolecta-gold" />
               : <Check className="h-3 w-3 text-muted-foreground" />
           )}
@@ -189,23 +123,67 @@ function MessageBubble({ message }: { message: Message }) {
 /* ─── Main Component ─── */
 export default function MessagesPage() {
   const isMobile = useIsMobile();
-  const [conversations, setConversations] = useState(mockConversations);
-  const [activeId, setActiveId] = useState<string | null>(isMobile ? null : mockConversations[0]?.id ?? null);
+  const { getToken, userId } = useAuth();
+  const queryClient = useQueryClient();
+  const [activeId, setActiveId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [newMessage, setNewMessage] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const activeConversation = conversations.find((c) => c.id === activeId) ?? null;
+  const { data: conversations = [], isLoading: loadingConvs } = useQuery({
+    queryKey: ['buyer-conversations'],
+    queryFn: async () => {
+      const token = await getToken();
+      if (!token) return [];
+      return api.messages.getConversations(token);
+    },
+    enabled: !!userId,
+  });
+
+  const { data: activeConversationData, isLoading: loadingActive } = useQuery({
+    queryKey: ['conversation', activeId],
+    queryFn: async () => {
+      const token = await getToken();
+      if (!token || !activeId) return null;
+      return api.messages.getConversation(token, activeId);
+    },
+    enabled: !!activeId && !!userId,
+    refetchInterval: activeId ? 5000 : false, // Polling a cada 5 segundos
+  });
+
+  const sendMutation = useMutation({
+    mutationFn: async (content: string) => {
+      const token = await getToken();
+      if (!token || !activeId) throw new Error('Unauthorized');
+      return api.messages.sendMessage(token, activeId, content);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['conversation', activeId] });
+      queryClient.invalidateQueries({ queryKey: ['buyer-conversations'] });
+    },
+  });
+
+  const markAsReadMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const token = await getToken();
+      if (!token) return;
+      return api.messages.markAsRead(token, id);
+    },
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: ['buyer-conversations'] });
+      queryClient.invalidateQueries({ queryKey: ['conversation', id] });
+    }
+  });
 
   const filtered = conversations.filter((c) =>
-    c.seller.name.toLowerCase().includes(searchQuery.toLowerCase())
+    (c.seller?.name || 'Vendedor').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   // Auto-scroll
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [activeId, activeConversation?.messages.length]);
+  }, [activeId, activeConversationData?.messages?.length]);
 
   // Auto-resize textarea
   const resizeTextarea = useCallback(() => {
@@ -221,20 +199,7 @@ export default function MessagesPage() {
 
   const handleSend = () => {
     if (!newMessage.trim() || !activeId) return;
-    const msg: Message = {
-      id: `m-${Date.now()}`,
-      content: newMessage.trim(),
-      sender: 'buyer',
-      createdAt: new Date().toISOString(),
-      read: false,
-    };
-    setConversations((prev) =>
-      prev.map((c) =>
-        c.id === activeId
-          ? { ...c, messages: [...c.messages, msg], lastMessage: msg.content, updatedAt: msg.createdAt }
-          : c
-      )
-    );
+    sendMutation.mutate(newMessage.trim());
     setNewMessage('');
   };
 
@@ -247,19 +212,15 @@ export default function MessagesPage() {
 
   const selectConversation = (id: string) => {
     setActiveId(id);
-    // Mark as read
-    setConversations((prev) =>
-      prev.map((c) =>
-        c.id === id
-          ? { ...c, unreadCount: 0, messages: c.messages.map((m) => ({ ...m, read: true })) }
-          : c
-      )
-    );
+    const conv = conversations.find(c => c.id === id);
+    if (conv && conv.unreadCount && conv.unreadCount > 0) {
+      markAsReadMutation.mutate(id);
+    }
   };
 
   /* ─── Conversation Panel ─── */
   const renderConversation = () => {
-    if (!activeConversation) {
+    if (!activeId) {
       return (
         <div className="flex-1 flex items-center justify-center">
           <EmptyState
@@ -269,6 +230,18 @@ export default function MessagesPage() {
         </div>
       );
     }
+
+    if (loadingActive) {
+      return (
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 className="h-6 w-6 animate-spin text-kolecta-gold" />
+        </div>
+      );
+    }
+
+    const conv = activeConversationData?.conversation;
+    const messages = activeConversationData?.messages || [];
+    const sellerName = conv?.seller?.name || 'Vendedor';
 
     return (
       <div className="flex flex-col h-full">
@@ -281,52 +254,33 @@ export default function MessagesPage() {
           )}
           <Avatar className="h-9 w-9">
             <AvatarFallback className="bg-muted text-muted-foreground font-heading text-xs">
-              {activeConversation.seller.initials}
+              {getInitials(sellerName)}
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
             <Link
-              to={`/vendedor/${activeConversation.seller.slug}`}
+              to={`/vendedor/${conv?.seller?.id || ''}`}
               className="font-heading font-bold text-sm hover:text-kolecta-gold transition-colors"
             >
-              {activeConversation.seller.name}
+              {sellerName}
             </Link>
-            <div className="flex items-center gap-1.5">
-              <span
-                className={cn(
-                  'h-2 w-2 rounded-full',
-                  activeConversation.seller.online ? 'bg-green-500' : 'bg-muted-foreground'
-                )}
-              />
-              <span className="text-xs text-muted-foreground">
-                {activeConversation.seller.online ? 'Online' : 'Offline'}
-              </span>
-            </div>
           </div>
-          {activeConversation.orderId && (
-            <Link to={`/conta/pedidos/${activeConversation.orderId}`}>
-              <Badge variant="outline" className="text-xs">
-                Pedido #{activeConversation.orderId}
+          {conv?.listingId && (
+            <Link to={`/anuncio/${conv.listingId}`}>
+              <Badge variant="outline" className="text-xs hover:bg-muted cursor-pointer">
+                Ver anúncio
               </Badge>
             </Link>
           )}
         </div>
 
-        {/* API: GET /api/messages/conversations/:id
-            Retorna: { messages: Message[] }
-            Cada Message: { id, content, sender, createdAt, read } */}
-
         {/* Messages */}
         <ScrollArea className="flex-1 px-4 py-3">
-          {activeConversation.messages.map((msg) => (
-            <MessageBubble key={msg.id} message={msg} />
+          {messages.map((msg) => (
+            <MessageBubble key={msg.id} message={msg} currentUserId={userId || ''} />
           ))}
           <div ref={messagesEndRef} />
         </ScrollArea>
-
-        {/* API: POST /api/messages/conversations/:id
-            Body: { content: string }
-            Retorna: { message: Message } */}
 
         {/* Input */}
         <div className="p-3 border-t border-border shrink-0">
@@ -348,14 +302,15 @@ export default function MessagesPage() {
               rows={1}
               className="flex-1 resize-none rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               style={{ maxHeight: 120 }}
+              disabled={sendMutation.isPending}
             />
             <Button
               size="icon"
               onClick={handleSend}
-              disabled={!newMessage.trim()}
+              disabled={!newMessage.trim() || sendMutation.isPending}
               className="bg-kolecta-gold text-kolecta-gold-foreground hover:bg-kolecta-gold/90 shrink-0 mb-0.5"
             >
-              <Send className="h-4 w-4" />
+              {sendMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             </Button>
           </div>
         </div>
@@ -380,12 +335,12 @@ export default function MessagesPage() {
       </div>
       <Separator />
 
-      {/* API: GET /api/messages/conversations
-          Retorna: { conversations: Conversation[] }
-          Cada Conversation: { id, seller, lastMessage, unreadCount, updatedAt } */}
-
       <ScrollArea className="flex-1">
-        {filtered.length === 0 ? (
+        {loadingConvs ? (
+          <div className="p-6 flex justify-center">
+            <Loader2 className="h-6 w-6 animate-spin text-kolecta-gold" />
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="p-6">
             <EmptyState
               icon={MessageCircle}

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   TrendingUp, Package, Gavel, DollarSign, Eye, ShoppingBag,
-  ArrowUpRight, ArrowDownRight, PlusCircle, AlertCircle, Clock,
+  ArrowUpRight, ArrowDownRight, PlusCircle, AlertCircle, Clock, Wallet, Loader2
 } from 'lucide-react';
 import SellerLayout from '@/components/layout/SellerLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,8 +11,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { formatBRL } from '@/lib/mock-data';
 import { trackEvent } from '@/lib/analytics';
+import { useWallet } from '@/hooks/use-api';
 
-// Mock seller metrics
+// Mock seller metrics (exceto saldo, que agora é real)
 const metrics = {
   totalSales: 47,
   revenue: 14850,
@@ -23,8 +24,6 @@ const metrics = {
   totalBids: 42,
   views: 1284,
   viewsChange: 8.3,
-  balance: 3250,
-  pendingPayout: 1800,
 };
 
 const recentOrders = [
@@ -61,6 +60,8 @@ const fadeIn = {
 };
 
 export default function SellerDashboard() {
+  const { data: walletData, isLoading: walletLoading } = useWallet();
+
   useEffect(() => {
     trackEvent('view_seller_dashboard');
   }, []);
@@ -71,7 +72,7 @@ export default function SellerDashboard() {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="font-heading text-2xl font-extrabold italic uppercase">Dashboard</h1>
+            <h1 className="font-heading text-2xl font-extrabold italic uppercase">Painel de Vendas</h1>
             <p className="text-sm text-muted-foreground mt-1">Visão geral do seu desempenho</p>
           </div>
           <Button variant="kolecta" asChild>
@@ -81,22 +82,6 @@ export default function SellerDashboard() {
             </Link>
           </Button>
         </div>
-
-        {/* Stripe Connect alert */}
-        <motion.div variants={fadeIn} custom={0} initial="hidden" animate="visible" className="mb-6">
-          <Card className="border-destructive/30 bg-destructive/5">
-            <CardContent className="p-4 flex items-center gap-4">
-              <AlertCircle className="h-8 w-8 text-destructive shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="font-heading text-sm font-bold uppercase">Configure seus recebimentos</p>
-                <p className="text-xs text-muted-foreground">Conecte sua conta bancária para começar a vender</p>
-              </div>
-              <Button variant="kolecta" size="sm" asChild>
-                <Link to="/painel/stripe-onboarding">Conectar conta bancária</Link>
-              </Button>
-            </CardContent>
-          </Card>
-        </motion.div>
 
         {/* Metrics grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -140,24 +125,35 @@ export default function SellerDashboard() {
                 <TrendingUp className="h-4 w-4 text-primary" />
                 <span className="font-heading text-sm font-semibold uppercase tracking-wider">Resumo Financeiro</span>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div>
-                  <span className="text-[11px] text-muted-foreground uppercase">Saldo Disponível</span>
-                  <div className="font-heading text-xl font-bold text-primary">{formatBRL(metrics.balance)}</div>
+              
+              {walletLoading ? (
+                <div className="flex items-center justify-center p-4">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
                 </div>
-                <div>
-                  <span className="text-[11px] text-muted-foreground uppercase">Pendente</span>
-                  <div className="font-heading text-xl font-bold">{formatBRL(metrics.pendingPayout)}</div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div>
+                    <span className="text-[11px] text-muted-foreground uppercase">Saldo Disponível</span>
+                    <div className="font-heading text-xl font-bold text-primary">
+                      {walletData ? formatBRL(walletData.balanceInCents) : 'R$ 0,00'}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-[11px] text-muted-foreground uppercase">Pendente</span>
+                    <div className="font-heading text-xl font-bold">
+                      {walletData ? formatBRL(walletData.pendingInCents) : 'R$ 0,00'}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-[11px] text-muted-foreground uppercase">Modo Lance Ativos</span>
+                    <div className="font-heading text-xl font-bold">{metrics.activeAuctions}</div>
+                  </div>
+                  <div>
+                    <span className="text-[11px] text-muted-foreground uppercase">Total de Lances</span>
+                    <div className="font-heading text-xl font-bold">{metrics.totalBids}</div>
+                  </div>
                 </div>
-                <div>
-                  <span className="text-[11px] text-muted-foreground uppercase">Modo Lance Ativos</span>
-                  <div className="font-heading text-xl font-bold">{metrics.activeAuctions}</div>
-                </div>
-                <div>
-                  <span className="text-[11px] text-muted-foreground uppercase">Total de Lances</span>
-                  <div className="font-heading text-xl font-bold">{metrics.totalBids}</div>
-                </div>
-              </div>
+              )}
             </CardContent>
           </Card>
         </motion.div>

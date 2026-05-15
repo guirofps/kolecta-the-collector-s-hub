@@ -464,7 +464,7 @@ export function useDeposit() {
 // ── useConnect ─────────────────────────────────────────────────────────────
 
 export function useConnect() {
-  const { getToken } = useAuth();
+  const { getToken, isSignedIn } = useAuth();
   const { toast } = useToast();
 
   const statusQuery = useQuery({
@@ -510,7 +510,16 @@ export function useConnect() {
     },
   });
 
-  return { statusQuery, onboardMutation, loginLinkMutation };
+  const bankAccountQuery = useQuery({
+    queryKey: ['connect', 'bank-account'],
+    queryFn: async () => {
+      const token = await getToken();
+      return api.connect.getBankAccount(token!);
+    },
+    enabled: !!isSignedIn && statusQuery.data?.status === 'active',
+  });
+
+  return { statusQuery, onboardMutation, loginLinkMutation, bankAccountQuery };
 }
 
 // ── useCreateCheckout ──────────────────────────────────────────────────────

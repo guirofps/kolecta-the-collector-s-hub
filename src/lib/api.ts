@@ -218,23 +218,131 @@ export const api = {
 
   connect: {
     onboard: (token: string) =>
-      request<{ url: string }>('/api/connect/onboard', {
+      request<{ data: { url: string } }>('/api/connect/onboard', {
         method: 'POST',
         token,
-      }),
+      }).then((r) => r.data),
 
     loginLink: (token: string) =>
-      request<{ url: string }>('/api/connect/login', {
+      request<{ data: { url: string } }>('/api/connect/login', {
         method: 'POST',
         token,
-      }),
+      }).then((r) => r.data),
 
     getStatus: (token: string) =>
       request<{ data: ConnectStatus }>('/api/connect/status', { token }).then((r) => r.data),
+
+    getBankAccount: (token: string) =>
+      request<{ data: { bankName: string; last4: string; status: string } | null }>('/api/connect/bank-account', { token }).then((r) => r.data),
+  },
+
+  messages: {
+    getConversations: (token: string) =>
+      request<{ data: Conversation[] }>('/api/messages/conversations', { token }).then((r) => r.data),
+
+    getConversation: (token: string, id: string) =>
+      request<{ data: { conversation: Conversation; messages: Message[] } }>(`/api/messages/conversations/${id}`, { token }).then((r) => r.data),
+
+    startConversation: (token: string, body: { listingId: string; message: string }) =>
+      request<{ data: { conversationId: string; message: Message } }>('/api/messages/conversations', {
+        method: 'POST',
+        body: JSON.stringify(body),
+        token,
+      }).then((r) => r.data),
+
+    sendMessage: (token: string, id: string, content: string) =>
+      request<{ data: Message }>(`/api/messages/conversations/${id}`, {
+        method: 'POST',
+        body: JSON.stringify({ content }),
+        token,
+      }).then((r) => r.data),
+
+    markAsRead: (token: string, id: string) =>
+      request<{ success: boolean }>(`/api/messages/conversations/${id}/read`, {
+        method: 'PATCH',
+        token,
+      }),
+  },
+
+  // ── Sellers ────────────────────────────────────────────────────────────────
+  sellers: {
+    getProfile: (id: string) =>
+      request<SellerProfile>(`/api/sellers/${id}`),
+
+    getListings: (id: string, params?: { page?: number; limit?: number; categoryId?: string }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.page) searchParams.append('page', params.page.toString());
+      if (params?.limit) searchParams.append('limit', params.limit.toString());
+      if (params?.categoryId) searchParams.append('categoryId', params.categoryId);
+      const query = searchParams.toString() ? `?${searchParams.toString()}` : '';
+      return request<{ data: Listing[]; meta: PaginationMeta }>(`/api/sellers/${id}/listings${query}`);
+    },
+
+    getReviews: (id: string, params?: { page?: number; limit?: number }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.page) searchParams.append('page', params.page.toString());
+      if (params?.limit) searchParams.append('limit', params.limit.toString());
+      const query = searchParams.toString() ? `?${searchParams.toString()}` : '';
+      return request<{ data: SellerReview[]; meta: PaginationMeta }>(`/api/sellers/${id}/reviews${query}`);
+    },
   },
 };
 
 // ── Tipos de domínio ──────────────────────────────────────────────────────────
+
+export interface PaginationMeta {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface SellerProfile {
+  id: string;
+  name: string | null;
+  email: string;
+  bio: string | null;
+  isVerified: boolean | null;
+  createdAt: string;
+  totalActiveListings: number;
+  totalSales: number;
+  totalReviews: number;
+  averageRating: number;
+}
+
+export interface SellerReview {
+  id: string;
+  rating: number;
+  comment: string | null;
+  createdAt: string;
+  author: {
+    id: string;
+    name: string | null;
+  };
+}
+
+export interface Message {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  content: string;
+  readAt: string | null;
+  createdAt: string;
+}
+
+export interface Conversation {
+  id: string;
+  listingId: string;
+  buyerId: string;
+  sellerId: string;
+  createdAt: string;
+  updatedAt: string;
+  unreadCount?: number;
+  latestMessage?: Message | null;
+  listing?: Listing | null;
+  buyer?: UserProfile | null;
+  seller?: UserProfile | null;
+}
 
 export interface WalletData {
   id: string;

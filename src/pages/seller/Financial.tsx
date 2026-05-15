@@ -133,6 +133,7 @@ export default function SellerFinancialPage() {
   const { data: wallet, isLoading: walletLoading } = useWallet();
   const { data: withdrawals = [], isLoading: withdrawalsLoading } = useWithdrawals().query;
   const { requestMutation } = useWithdrawals();
+  const { statusQuery, bankAccountQuery } = useConnect();
   const depositMutation = useWalletDeposit();
 
   const loading = walletLoading;
@@ -142,7 +143,7 @@ export default function SellerFinancialPage() {
     pending:        (wallet?.pendingInCents ?? 0) / 100,
     monthTotal:     mockFinancialSummary.monthTotal,     // ainda mock
     totalWithdrawn: mockFinancialSummary.totalWithdrawn, // ainda mock
-    stripeConnected: true,
+    stripeConnected: statusQuery.data?.status === 'active',
   };
 
   // ── Withdraw dialog helpers ────────────────────────────
@@ -504,7 +505,15 @@ export default function SellerFinancialPage() {
             <div className="space-y-2">
               <p className="text-sm font-medium">Conta destino</p>
               <div className="flex items-center justify-between rounded-lg border border-border bg-muted/50 px-4 py-3">
-                <span className="text-sm">Nubank •••• 4521</span>
+                {bankAccountQuery.isLoading ? (
+                  <Skeleton className="h-4 w-32" />
+                ) : bankAccountQuery.data ? (
+                  <span className="text-sm">
+                    {bankAccountQuery.data.bankName} •••• {bankAccountQuery.data.last4}
+                  </span>
+                ) : (
+                  <span className="text-sm text-destructive">Nenhuma conta configurada</span>
+                )}
                 <Button size="sm" variant="ghost" asChild>
                   <Link to="/painel/stripe-onboarding">Alterar conta</Link>
                 </Button>
