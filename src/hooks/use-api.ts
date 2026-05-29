@@ -770,6 +770,40 @@ export function useResolveDispute() {
   });
 }
 
+// ── Bling Hooks ────────────────────────────────────────────────────────────
+
+export function useBlingStatus() {
+  const { getToken } = useAuth();
+  return useQuery({
+    queryKey: ['bling', 'status'],
+    queryFn: async () => {
+      const token = await getToken();
+      return api.bling.getStatus(token!);
+    },
+    staleTime: 30_000,
+  });
+}
+
+export function useBlingDisconnect() {
+  const { getToken } = useAuth();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async () => {
+      const token = await getToken();
+      return api.bling.disconnect(token!);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bling'] });
+      toast({ title: 'Bling desconectado.' });
+    },
+    onError: (err: Error) => {
+      toast({ title: 'Erro ao desconectar', description: err.message, variant: 'destructive' });
+    },
+  });
+}
+
 // ── useUploadImage ─────────────────────────────────────────────────────────
 
 export function useUploadImage() {

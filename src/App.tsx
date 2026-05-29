@@ -49,6 +49,8 @@ import AuctionManagerPage from "./pages/seller/AuctionManager";
 import SellerMessagesPage from "./pages/seller/Messages";
 import SellerSettingsPage from "./pages/seller/Settings";
 import SellerMediaPage from "./pages/seller/Media";
+import BulkImportPage from "./pages/seller/BulkImport";
+import IntegrationsPage from "./pages/seller/Integrations";
 import AdminOverview from "./pages/admin/Overview";
 import AdminListings from "./pages/admin/Listings";
 import AdminUsers from "./pages/admin/Users";
@@ -139,11 +141,13 @@ const App = () => (
             <Route path="/painel/pedidos" element={<ProtectedRoute><SellerOrdersPage /></ProtectedRoute>} />
             <Route path="/painel/pedidos/:id" element={<ProtectedRoute><SellerOrderDetailPage /></ProtectedRoute>} />
             <Route path="/painel/modo-lance" element={<ProtectedRoute><AuctionManagerPage /></ProtectedRoute>} />
+            <Route path="/painel/integracoes" element={<ProtectedRoute><IntegrationsPage /></ProtectedRoute>} />
             <Route path="/painel/financeiro" element={<ProtectedRoute><SellerFinancialPage /></ProtectedRoute>} />
             <Route path="/painel/stripe-onboarding" element={<ProtectedRoute><StripeOnboardingPage /></ProtectedRoute>} />
             <Route path="/painel/mensagens" element={<ProtectedRoute><SellerMessagesPage /></ProtectedRoute>} />
             <Route path="/painel/configuracoes" element={<ProtectedRoute><SellerSettingsPage /></ProtectedRoute>} />
             <Route path="/painel/midia" element={<ProtectedRoute><SellerMediaPage /></ProtectedRoute>} />
+            <Route path="/painel/importar" element={<ProtectedRoute><BulkImportPage /></ProtectedRoute>} />
 
             {/* Admin — requireAuth + role admin */}
             <Route path="/admin" element={<ProtectedRoute role="admin"><AdminOverview /></ProtectedRoute>} />

@@ -384,6 +384,16 @@ export const api = {
       }),
   },
 
+  // ── Bling ──────────────────────────────────────────────────────────────────
+
+  bling: {
+    getStatus: (token: string) =>
+      request<{ data: BlingStatus }>('/api/bling/status', { token }).then(r => r.data),
+
+    disconnect: (token: string) =>
+      request<{ data: BlingStatus }>('/api/bling/disconnect', { method: 'DELETE', token }).then(r => r.data),
+  },
+
   // ── Sellers ────────────────────────────────────────────────────────────────
   sellers: {
     getProfile: (id: string) =>
@@ -708,6 +718,11 @@ export interface AdminSellerProfile {
   isVerified: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface BlingStatus {
+  connected: boolean;
+  expired?: boolean;
 }
 
 export interface AdminDispute {
