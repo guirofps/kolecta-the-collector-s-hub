@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -25,6 +25,7 @@ import {
   Clock, Search, CheckCircle2, XCircle, ShieldCheck, FileText, Camera, CreditCard,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAdminSellers, useVerifySeller } from '@/hooks/use-api';
 
 /* ─── Types ─── */
 type VerificationStatus = 'pending' | 'in_review' | 'approved' | 'rejected';
@@ -194,14 +195,39 @@ const docStatusCls: Record<DocStatus, string> = {
 /* ─── Main Component ─── */
 export default function SellerVerificationPage() {
   const { toast } = useToast();
-  const [loading, setLoading] = useState(true);
-  const [items, setItems] = useState<SellerVerificationItem[]>([]);
+  const { data: apiSellers = [], isLoading: loading } = useAdminSellers();
+  const verifySeller = useVerifySeller();
+
+  // Mapeia seller profiles da API para o shape dos mock items (mantendo a UI existente)
+  const apiItems: SellerVerificationItem[] = useMemo(() => apiSellers.map(s => ({
+    id: s.id,
+    name: s.userId,
+    initials: s.userId.slice(0, 2).toUpperCase(),
+    email: '',
+    cpfCnpj: '—',
+    phone: '—',
+    birthDate: s.createdAt,
+    city: '—', state: '—',
+    registeredAt: s.createdAt,
+    requestedAt: s.createdAt,
+    status: s.isVerified ? 'approved' as VerificationStatus : 'pending' as VerificationStatus,
+    documents: [],
+    previousOrders: 0, previousDisputes: 0,
+  })), [apiSellers]);
+
   const [tab, setTab] = useState('pending');
   const [search, setSearch] = useState('');
   const [period, setPeriod] = useState('all');
   const [sort, setSort] = useState('oldest');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [analyzeItem, setAnalyzeItem] = useState<SellerVerificationItem | null>(null);
+  const [items, setItems] = useState<SellerVerificationItem[]>(mockVerifications);
+
+  // Sync API data into items (API sellers take precedence over mocks for matching IDs)
+  const mergedItems = useMemo(() => {
+    const apiIds = new Set(apiItems.map(i => i.id));
+    return [...apiItems, ...items.filter(i => !apiIds.has(i.id))];
+  }, [apiItems, items]);
 
   // Dialog state
   const [decision, setDecision] = useState<'approve' | 'reject' | 'request_docs'>('approve');
@@ -213,21 +239,16 @@ export default function SellerVerificationPage() {
   const [docTab, setDocTab] = useState('id');
   const [docStatuses, setDocStatuses] = useState<Record<string, DocStatus>>({});
 
-  useEffect(() => {
-    const t = setTimeout(() => { setItems(mockVerifications); setLoading(false); }, 500);
-    return () => clearTimeout(t);
-  }, []);
-
   const counts = useMemo(() => ({
-    pending: items.filter(i => i.status === 'pending').length,
-    in_review: items.filter(i => i.status === 'in_review').length,
-    approved: items.filter(i => i.status === 'approved' && daysAgo(i.requestedAt) < 1).length,
-    rejected: items.filter(i => i.status === 'rejected' && daysAgo(i.requestedAt) < 1).length,
-  }), [items]);
+    pending: mergedItems.filter(i => i.status === 'pending').length,
+    in_review: mergedItems.filter(i => i.status === 'in_review').length,
+    approved: mergedItems.filter(i => i.status === 'approved' && daysAgo(i.requestedAt) < 1).length,
+    rejected: mergedItems.filter(i => i.status === 'rejected' && daysAgo(i.requestedAt) < 1).length,
+  }), [mergedItems]);
 
   const filtered = useMemo(() => {
     const statusMap: Record<string, VerificationStatus> = { pending: 'pending', in_review: 'in_review', approved: 'approved', rejected: 'rejected' };
-    let list = items.filter(i => i.status === statusMap[tab]);
+    let list = mergedItems.filter(i => i.status === statusMap[tab]);
     if (search) {
       const q = search.toLowerCase();
       list = list.filter(i => i.name.toLowerCase().includes(q) || i.email.toLowerCase().includes(q) || i.cpfCnpj.includes(q));
@@ -269,6 +290,14 @@ export default function SellerVerificationPage() {
       return;
     }
     const newStatus: VerificationStatus = decision === 'approve' ? 'approved' : decision === 'reject' ? 'rejected' : 'pending';
+
+    // Para approvals de sellers da API, chama o backend real
+    const isApiSeller = apiSellers.some(s => s.id === analyzeItem.id);
+    if (isApiSeller && (decision === 'approve' || decision === 'reject')) {
+      verifySeller.mutate({ sellerProfileId: analyzeItem.id, verified: decision === 'approve' });
+    }
+
+    // Atualiza o estado local (mock ou mesclado)
     setItems(prev => prev.map(i => i.id === analyzeItem.id ? { ...i, status: newStatus } : i));
     const msgs = { approve: 'Vendedor aprovado', reject: 'Vendedor rejeitado', request_docs: 'Documentos solicitados' };
     toast({ title: msgs[decision] });
@@ -277,6 +306,10 @@ export default function SellerVerificationPage() {
 
   const handleBulkApprove = () => {
     setItems(prev => prev.map(i => selected.has(i.id) ? { ...i, status: 'approved' } : i));
+    // Chama API para sellers reais
+    apiSellers.filter(s => selected.has(s.id)).forEach(s => {
+      verifySeller.mutate({ sellerProfileId: s.id, verified: true });
+    });
     toast({ title: `${selected.size} vendedores aprovados` });
     setSelected(new Set());
   };
@@ -328,8 +361,8 @@ export default function SellerVerificationPage() {
         {/* 3. Tabs */}
         <Tabs value={tab} onValueChange={(v) => { setTab(v); setSelected(new Set()); }}>
           <TabsList className="flex-wrap">
-            <TabsTrigger value="pending">Aguardando <Badge className="ml-1.5 text-[10px] bg-amber-500/20 text-amber-600">{items.filter(i => i.status === 'pending').length}</Badge></TabsTrigger>
-            <TabsTrigger value="in_review">Em análise <Badge className="ml-1.5 text-[10px] bg-blue-500/20 text-blue-600">{items.filter(i => i.status === 'in_review').length}</Badge></TabsTrigger>
+            <TabsTrigger value="pending">Aguardando <Badge className="ml-1.5 text-[10px] bg-amber-500/20 text-amber-600">{mergedItems.filter(i => i.status === 'pending').length}</Badge></TabsTrigger>
+            <TabsTrigger value="in_review">Em análise <Badge className="ml-1.5 text-[10px] bg-blue-500/20 text-blue-600">{mergedItems.filter(i => i.status === 'in_review').length}</Badge></TabsTrigger>
             <TabsTrigger value="approved">Aprovados</TabsTrigger>
             <TabsTrigger value="rejected">Rejeitados</TabsTrigger>
           </TabsList>

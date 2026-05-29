@@ -542,3 +542,251 @@ export function useCreateCheckout() {
     },
   });
 }
+
+
+// ── useBulkImport ──────────────────────────────────────────────────────────
+
+export function useBulkImport() {
+  const { getToken } = useAuth();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const token = await getToken();
+      return api.listings.importFile(token || '', file);
+    },
+    onError: (err: any) => {
+      toast({
+        title: 'Erro na importação',
+        description: err.message ?? 'Não foi possível processar o arquivo.',
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
+// ── useImportJobStatus ─────────────────────────────────────────────────────
+
+export function useImportJobStatus(jobId: string | null) {
+  const { getToken } = useAuth();
+
+  return useQuery({
+    queryKey: ['import-job', jobId],
+    queryFn: async () => {
+      const token = await getToken();
+      return api.listings.getImportJob(token || '', jobId!);
+    },
+    enabled: !!jobId,
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      if (status === 'processing') return 2000;
+      return false;
+    },
+  });
+}
+
+// ── Auction Hooks ──────────────────────────────────────────────────────────
+
+export function useAuctions() {
+  return useQuery({
+    queryKey: ['auctions'],
+    queryFn: () => api.auctions.getAll(),
+    staleTime: 30_000,
+  });
+}
+
+export function useMyBids() {
+  const { getToken } = useAuth();
+  return useQuery({
+    queryKey: ['auctions', 'bids', 'mine'],
+    queryFn: async () => {
+      const token = await getToken();
+      return api.auctions.getMyBids(token!);
+    },
+    staleTime: 30_000,
+  });
+}
+
+export function useSellerAuctions() {
+  const { getToken } = useAuth();
+  return useQuery({
+    queryKey: ['auctions', 'seller', 'mine'],
+    queryFn: async () => {
+      const token = await getToken();
+      return api.auctions.getSellerAuctions(token!);
+    },
+    staleTime: 30_000,
+  });
+}
+
+export function usePlaceBid() {
+  const { getToken } = useAuth();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ auctionId, amountInCents }: { auctionId: string; amountInCents: number }) => {
+      const token = await getToken();
+      return api.auctions.placeBid(token!, auctionId, amountInCents);
+    },
+    onSuccess: (_, { auctionId }) => {
+      queryClient.invalidateQueries({ queryKey: ['auctions'] });
+      queryClient.invalidateQueries({ queryKey: ['auction', auctionId] });
+      toast({ title: 'Lance registrado!', description: 'Você está liderando o leilão.' });
+    },
+    onError: (err: Error) => {
+      toast({ title: 'Erro ao dar lance', description: err.message, variant: 'destructive' });
+    },
+  });
+}
+
+export function useEndAuction() {
+  const { getToken } = useAuth();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (auctionId: string) => {
+      const token = await getToken();
+      return api.auctions.end(token!, auctionId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['auctions'] });
+      toast({ title: 'Leilão encerrado!' });
+    },
+    onError: (err: Error) => {
+      toast({ title: 'Erro ao encerrar leilão', description: err.message, variant: 'destructive' });
+    },
+  });
+}
+
+// ── Admin Hooks ────────────────────────────────────────────────────────────
+
+export function useAdminStats() {
+  const { getToken } = useAuth();
+  return useQuery({
+    queryKey: ['admin', 'stats'],
+    queryFn: async () => {
+      const token = await getToken();
+      return api.admin.getStats(token!);
+    },
+    staleTime: 60_000,
+  });
+}
+
+export function useAdminUsers(limit = 50, offset = 0) {
+  const { getToken } = useAuth();
+  return useQuery({
+    queryKey: ['admin', 'users', limit, offset],
+    queryFn: async () => {
+      const token = await getToken();
+      return api.admin.getUsers(token!, limit, offset);
+    },
+    staleTime: 30_000,
+  });
+}
+
+export function useUpdateUserRole() {
+  const { getToken } = useAuth();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ userId, role }: { userId: string; role: 'user' | 'admin' }) => {
+      const token = await getToken();
+      return api.admin.updateUserRole(token!, userId, role);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+      toast({ title: 'Role atualizada!' });
+    },
+    onError: (err: Error) => {
+      toast({ title: 'Erro ao atualizar role', description: err.message, variant: 'destructive' });
+    },
+  });
+}
+
+export function useAdminSellers(verified?: boolean) {
+  const { getToken } = useAuth();
+  return useQuery({
+    queryKey: ['admin', 'sellers', verified],
+    queryFn: async () => {
+      const token = await getToken();
+      return api.admin.getSellers(token!, verified);
+    },
+    staleTime: 30_000,
+  });
+}
+
+export function useVerifySeller() {
+  const { getToken } = useAuth();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ sellerProfileId, verified }: { sellerProfileId: string; verified: boolean }) => {
+      const token = await getToken();
+      return api.admin.verifySeller(token!, sellerProfileId, verified);
+    },
+    onSuccess: (_, { verified }) => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'sellers'] });
+      toast({ title: verified ? 'Vendedor verificado!' : 'Verificação removida.' });
+    },
+    onError: (err: Error) => {
+      toast({ title: 'Erro', description: err.message, variant: 'destructive' });
+    },
+  });
+}
+
+export function useAdminDisputes(status?: string) {
+  const { getToken } = useAuth();
+  return useQuery({
+    queryKey: ['admin', 'disputes', status],
+    queryFn: async () => {
+      const token = await getToken();
+      return api.admin.getDisputes(token!, status);
+    },
+    staleTime: 30_000,
+  });
+}
+
+export function useResolveDispute() {
+  const { getToken } = useAuth();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ disputeId, body }: { disputeId: string; body: { status: string; resolution?: string } }) => {
+      const token = await getToken();
+      return api.admin.resolveDispute(token!, disputeId, body);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'disputes'] });
+      toast({ title: 'Disputa atualizada!' });
+    },
+    onError: (err: Error) => {
+      toast({ title: 'Erro ao resolver disputa', description: err.message, variant: 'destructive' });
+    },
+  });
+}
+
+// ── useUploadImage ─────────────────────────────────────────────────────────
+
+export function useUploadImage() {
+  const { getToken } = useAuth();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const token = await getToken();
+      return api.media.upload(token || '', file);
+    },
+    onError: (err: any) => {
+      toast({
+        title: 'Erro no upload',
+        description: err.message ?? 'Não foi possível enviar a imagem.',
+        variant: 'destructive',
+      });
+    },
+  });
+}

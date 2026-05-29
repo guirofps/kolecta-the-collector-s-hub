@@ -93,19 +93,139 @@ export const api = {
         method: 'PATCH',
         token,
       }).then(r => r.data),
+
+    importFile: (token: string, file: File) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      const devUserId = localStorage.getItem('dev_user_id') || 'seller-001';
+      return fetch(`${BASE_URL}/api/listings/import`, {
+        method: 'POST',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          'x-dev-user-id': devUserId,
+        },
+        body: formData,
+      }).then(async (res) => {
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new ApiError(res.status, body?.message ?? `HTTP ${res.status}`);
+        }
+        return res.json() as Promise<{ data: ImportJob }>;
+      }).then(r => r.data);
+    },
+
+    getImportJob: (token: string, jobId: string) =>
+      request<{ data: ImportJob }>(`/api/listings/import/${jobId}`, { token }).then(r => r.data),
+
+    getImportTemplate: () =>
+      request<{ templateUrl: string }>('/api/listings/import/template'),
+  },
+
+  // ── Media ──────────────────────────────────────────────────────────────────
+
+  media: {
+    upload: (token: string, file: File): Promise<{ url: string }> => {
+      const formData = new FormData();
+      formData.append('file', file);
+      const devUserId = localStorage.getItem('dev_user_id') || 'seller-001';
+      return fetch(`${BASE_URL}/api/media/upload`, {
+        method: 'POST',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          'x-dev-user-id': devUserId,
+        },
+        body: formData,
+      }).then(async (res) => {
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new ApiError(res.status, body?.message ?? `HTTP ${res.status}`);
+        }
+        return res.json();
+      });
+    },
+  },
+
+  // ── Auctions ───────────────────────────────────────────────────────────────
+
+  auctions: {
+    getAll: () =>
+      request<{ data: AuctionWithListing[] }>('/api/auctions').then(r => r.data),
+
+    getById: (id: string) =>
+      request<{ data: AuctionWithListing }>(`/api/auctions/${id}`).then(r => r.data),
+
+    getMyBids: (token: string) =>
+      request<{ data: MyBid[] }>('/api/auctions/bids/mine', { token }).then(r => r.data),
+
+    getSellerAuctions: (token: string) =>
+      request<{ data: AuctionWithListing[] }>('/api/auctions/seller/mine', { token }).then(r => r.data),
+
+    placeBid: (token: string, auctionId: string, amountInCents: number) =>
+      request<{ data: Bid }>(`/api/auctions/${auctionId}/bids`, {
+        method: 'POST',
+        body: JSON.stringify({ amountInCents }),
+        token,
+      }).then(r => r.data),
+
+    end: (token: string, auctionId: string) =>
+      request<{ data: AuctionWithListing }>(`/api/auctions/${auctionId}/end`, {
+        method: 'POST',
+        token,
+      }).then(r => r.data),
   },
 
   // ── Admin ──────────────────────────────────────────────────────────────────
 
   admin: {
+    getStats: (token: string) =>
+      request<{ data: AdminStats }>('/api/admin/stats', { token }).then(r => r.data),
+
+    getUsers: (token: string, limit = 50, offset = 0) => {
+      const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+      return request<{ data: AdminUser[] }>(`/api/admin/users?${params}`, { token }).then(r => r.data);
+    },
+
+    updateUserRole: (token: string, userId: string, role: 'user' | 'admin') =>
+      request<{ data: AdminUser }>(`/api/admin/users/${userId}/role`, {
+        method: 'PATCH',
+        body: JSON.stringify({ role }),
+        token,
+      }).then(r => r.data),
+
+    getSellers: (token: string, verified?: boolean) => {
+      const params = new URLSearchParams();
+      if (verified !== undefined) params.set('verified', String(verified));
+      return request<{ data: AdminSellerProfile[] }>(`/api/admin/sellers?${params}`, { token }).then(r => r.data);
+    },
+
+    verifySeller: (token: string, sellerProfileId: string, verified: boolean) =>
+      request<{ data: AdminSellerProfile }>(`/api/admin/sellers/${sellerProfileId}/verify`, {
+        method: 'PATCH',
+        body: JSON.stringify({ verified }),
+        token,
+      }).then(r => r.data),
+
+    getDisputes: (token: string, status?: string) => {
+      const params = new URLSearchParams();
+      if (status) params.set('status', status);
+      return request<{ data: AdminDispute[] }>(`/api/admin/disputes?${params}`, { token }).then(r => r.data);
+    },
+
+    resolveDispute: (token: string, disputeId: string, body: { status: string; resolution?: string }) =>
+      request<{ data: AdminDispute }>(`/api/admin/disputes/${disputeId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+        token,
+      }).then(r => r.data),
+
     getListings: (token: string, status?: string, limit = 50, offset = 0) => {
       const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
       if (status) params.set('status', status);
-      return request<{ data: Listing[] }>(`/api/listings/admin?${params}`, { token }).then(r => r.data);
+      return request<{ data: Listing[] }>(`/api/admin/listings?${params}`, { token }).then(r => r.data);
     },
 
     updateListingStatus: (token: string, id: string, status: string) =>
-      request<{ data: Listing }>(`/api/listings/${id}/status`, {
+      request<{ data: Listing }>(`/api/admin/listings/${id}/status`, {
         method: 'PATCH',
         body: JSON.stringify({ status }),
         token,
@@ -500,4 +620,104 @@ export interface CreateListingPayload {
   type: 'direct' | 'auction';
   priceInCents?: number;
   images?: string; // JSON array stringificado
+}
+
+export interface ImportJobError {
+  row: number;
+  error: string;
+}
+
+export interface ImportJob {
+  id: string;
+  status: 'processing' | 'completed' | 'failed' | 'completed_with_errors';
+  totalRows: number;
+  processedRows: number;
+  failedRows: number;
+  errors: ImportJobError[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface AuctionWithListing {
+  id: string;
+  listingId: string;
+  startingBidInCents: number;
+  minIncrementInCents: number;
+  currentBidInCents: number | null;
+  reservePriceInCents: number | null;
+  currentWinnerId: string | null;
+  durationHours: number;
+  endsAt: string;
+  antiSniper: boolean;
+  status: 'active' | 'ended' | 'cancelled';
+  createdAt: string;
+  updatedAt: string;
+  title: string;
+  images: string | null;
+  condition: string;
+  sellerId: string;
+}
+
+export interface Bid {
+  id: string;
+  auctionId: string;
+  bidderId: string;
+  amountInCents: number;
+  createdAt: string;
+}
+
+export interface MyBid {
+  id: string;
+  auctionId: string;
+  amountInCents: number;
+  createdAt: string;
+  auctionStatus: 'active' | 'ended' | 'cancelled';
+  auctionEndsAt: string;
+  currentBidInCents: number | null;
+  currentWinnerId: string | null;
+  listingId: string;
+  title: string;
+  images: string | null;
+}
+
+export interface AdminStats {
+  totalUsers: number;
+  totalListings: number;
+  totalOrders: number;
+  totalRevenueInCents: number;
+  openDisputes: number;
+}
+
+export interface AdminUser {
+  id: string;
+  email: string;
+  name: string | null;
+  role: 'user' | 'admin';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminSellerProfile {
+  id: string;
+  userId: string;
+  bio: string | null;
+  stripeAccountId: string | null;
+  stripeOnboardingStatus: string | null;
+  stripeChargesEnabled: boolean;
+  stripePayoutsEnabled: boolean;
+  isVerified: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminDispute {
+  id: string;
+  orderId: string;
+  reporterId: string;
+  reason: string;
+  description: string | null;
+  status: 'open' | 'under_review' | 'resolved' | 'closed';
+  resolvedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
 }

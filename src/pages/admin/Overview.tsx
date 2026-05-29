@@ -2,12 +2,13 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import {
   DollarSign, Users, Package, Gavel, TrendingUp, TrendingDown,
-  ArrowUpRight, AlertTriangle, ShieldCheck, Eye,
+  ArrowUpRight, AlertTriangle, ShieldCheck,
 } from 'lucide-react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { formatBRL } from '@/lib/mock-data';
+import { useAdminStats } from '@/hooks/use-api';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell,
@@ -69,6 +70,17 @@ const fadeIn = {
 };
 
 export default function AdminOverview() {
+  const { data: stats, isLoading: statsLoading } = useAdminStats();
+
+  const liveKpis = stats ? [
+    { label: 'Usuários', value: String(stats.totalUsers), icon: Users },
+    { label: 'Anúncios', value: String(stats.totalListings), icon: Package },
+    { label: 'Pedidos', value: String(stats.totalOrders), icon: TrendingUp },
+    { label: 'Receita (taxas)', value: formatBRL(stats.totalRevenueInCents), icon: DollarSign },
+    { label: 'Leilões ativos', value: '—', icon: Gavel },
+    { label: 'Disputas abertas', value: String(stats.openDisputes), icon: AlertTriangle },
+  ] : kpis;
+
   return (
     <AdminLayout>
       <div className="p-6 lg:p-8 max-w-7xl">
@@ -91,29 +103,24 @@ export default function AdminOverview() {
           ))}
         </div>
 
-        {/* KPIs */}
+        {/* KPIs — reais da API */}
         <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
-          {kpis.map((kpi, i) => (
-            <motion.div key={kpi.label} variants={fadeIn} custom={i} initial="hidden" animate="visible">
-              <Card className="bg-card border-border hover:border-primary/20 transition-colors">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{kpi.label}</span>
-                    <kpi.icon className="h-3.5 w-3.5 text-muted-foreground" />
-                  </div>
-                  <div className="font-heading text-xl font-bold">{kpi.value}</div>
-                  <div className={`flex items-center gap-1 mt-1 text-[11px] ${
-                    kpi.negative
-                      ? (kpi.change <= 0 ? 'text-green-400' : 'text-accent')
-                      : (kpi.change >= 0 ? 'text-green-400' : 'text-accent')
-                  }`}>
-                    {kpi.change >= 0 ? <ArrowUpRight className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                    {Math.abs(kpi.change)}%
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          ))}
+          {statsLoading
+            ? Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-lg" />)
+            : liveKpis.map((kpi, i) => (
+              <motion.div key={kpi.label} variants={fadeIn} custom={i} initial="hidden" animate="visible">
+                <Card className="bg-card border-border hover:border-primary/20 transition-colors">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{kpi.label}</span>
+                      <kpi.icon className="h-3.5 w-3.5 text-muted-foreground" />
+                    </div>
+                    <div className="font-heading text-xl font-bold">{kpi.value}</div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))
+          }
         </div>
 
         {/* Charts row */}

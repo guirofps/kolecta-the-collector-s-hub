@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Gavel, Clock, AlertCircle, Timer, Eye, X, RotateCcw } from 'lucide-react';
+import { useSellerAuctions, useEndAuction } from '@/hooks/use-api';
+import type { AuctionWithListing } from '@/lib/api';
 import SellerLayout from '@/components/layout/SellerLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -273,17 +275,33 @@ function PaymentCountdown({ deadline }: { deadline: string }) {
 // ── Main Component ───────────────────────────────────────
 
 export default function AuctionManager() {
-  const [loading, setLoading] = useState(true);
-  const [auctions, setAuctions] = useState<MockAuction[]>([]);
+  const { data: apiAuctions = [], isLoading: loading } = useSellerAuctions();
+  const endAuctionMutation = useEndAuction();
+
   const [tab, setTab] = useState('active');
   const [bidsDialog, setBidsDialog] = useState<MockAuction | null>(null);
-  const [closeDialog, setCloseDialog] = useState<MockAuction | null>(null);
+  const [closeDialog, setCloseDialog] = useState<AuctionWithListing | null>(null);
   const [closedPeriod, setClosedPeriod] = useState('all');
 
-  useEffect(() => {
-    const t = setTimeout(() => { setAuctions(mockAuctions); setLoading(false); }, 600);
-    return () => clearTimeout(t);
-  }, []);
+  // Mapeia dados da API para o shape usado pelos sub-componentes
+  const auctions: MockAuction[] = useMemo(() => apiAuctions.map(a => ({
+    id: a.id,
+    productName: a.title,
+    productImage: (() => { try { return JSON.parse(a.images ?? '[]')[0] ?? '/placeholder.svg'; } catch { return '/placeholder.svg'; } })(),
+    status: a.status === 'active' ? 'active' : 'closed',
+    startedAt: a.createdAt,
+    endsAt: a.endsAt,
+    startingBid: a.startingBidInCents / 100,
+    minIncrement: a.minIncrementInCents / 100,
+    reservePrice: a.reservePriceInCents ? a.reservePriceInCents / 100 : undefined,
+    currentBid: a.currentBidInCents ? a.currentBidInCents / 100 : null,
+    highestBidder: a.currentWinnerId ?? null,
+    totalBids: 0,
+    bids: [],
+    closedResult: a.status === 'ended' ? 'sold' as ClosedResult : undefined,
+    closedAt: a.status === 'ended' ? a.updatedAt : undefined,
+    finalValue: a.currentBidInCents ? a.currentBidInCents / 100 : undefined,
+  })), [apiAuctions]);
 
   const active = useMemo(() => auctions.filter(a => a.status === 'active'), [auctions]);
   const ending24h = useMemo(() => active.filter(a => getTimeLeft(a.endsAt).totalMs <= 86400000 && !getTimeLeft(a.endsAt).ended), [active]);
@@ -301,27 +319,13 @@ export default function AuctionManager() {
     { label: 'Aguardando pagamento', value: pendingPayment.length, icon: AlertCircle, color: 'text-amber-500' },
   ];
 
-  function handleClose(auc: MockAuction) {
-    setAuctions(prev => prev.map(a => a.id === auc.id ? {
-      ...a,
-      status: 'closed' as AuctionStatus,
-      closedAt: new Date().toISOString(),
-      closedResult: a.totalBids > 0 ? 'sold' as ClosedResult : 'no_bids' as ClosedResult,
-      finalValue: a.currentBid ?? undefined,
-    } : a));
+  async function handleClose(auc: AuctionWithListing) {
+    await endAuctionMutation.mutateAsync(auc.id);
     setCloseDialog(null);
   }
 
-  function handleReopen(auc: MockAuction) {
-    setAuctions(prev => prev.map(a => a.id === auc.id ? {
-      ...a,
-      status: 'active' as AuctionStatus,
-      endsAt: futureDate(48),
-      currentBid: null,
-      highestBidder: null,
-      totalBids: 0,
-      bids: [],
-    } : a));
+  function handleReopen(_auc: MockAuction) {
+    // Reabrir leilão: criar novo leilão a partir do mesmo listing (futuro)
   }
 
   // ── Render ─────────────────────────────────────────────
@@ -382,8 +386,10 @@ export default function AuctionManager() {
               <EmptyTab icon={Gavel} message="Nenhum leilão ativo" cta />
             ) : (
               <div className="space-y-4 mt-4">
-                {/* API: GET /api/seller/auctions?status=active */}
-                {active.map(a => <AuctionCard key={a.id} auction={a} onViewBids={setBidsDialog} onClose={setCloseDialog} />)}
+                {active.map(a => {
+                  const raw = apiAuctions.find(r => r.id === a.id);
+                  return <AuctionCard key={a.id} auction={a} onViewBids={setBidsDialog} onClose={() => raw && setCloseDialog(raw)} />;
+                })}
               </div>
             )}
           </TabsContent>
@@ -394,7 +400,10 @@ export default function AuctionManager() {
               <EmptyTab icon={Clock} message="Nenhum leilão encerrando nas próximas 24h" />
             ) : (
               <div className="space-y-4 mt-4">
-                {ending24h.map(a => <AuctionCard key={a.id} auction={a} onViewBids={setBidsDialog} onClose={setCloseDialog} />)}
+                {ending24h.map(a => {
+                  const raw = apiAuctions.find(r => r.id === a.id);
+                  return <AuctionCard key={a.id} auction={a} onViewBids={setBidsDialog} onClose={() => raw && setCloseDialog(raw)} />;
+                })}
               </div>
             )}
           </TabsContent>
@@ -491,11 +500,10 @@ export default function AuctionManager() {
                 <DialogTitle className="font-heading">Encerrar leilão</DialogTitle>
                 <DialogDescription className="sr-only">Confirmação de encerramento</DialogDescription>
               </DialogHeader>
-              {/* PATCH /api/seller/auctions/:id/close */}
-              {closeDialog.totalBids > 0 ? (
+              {closeDialog.currentBidInCents ? (
                 <p className="text-[hsl(var(--kolecta-red))] text-sm">
                   Ao encerrar agora o maior lance vence imediatamente. O lance atual é de{' '}
-                  <strong>{formatBRL(closeDialog.currentBid!)}</strong> por <strong>{closeDialog.highestBidder}</strong>.
+                  <strong>{formatBRL(closeDialog.currentBidInCents / 100)}</strong>.
                 </p>
               ) : (
                 <p className="text-[hsl(var(--kolecta-red))] text-sm">
@@ -504,7 +512,13 @@ export default function AuctionManager() {
               )}
               <DialogFooter className="gap-2 mt-4">
                 <Button variant="ghost" onClick={() => setCloseDialog(null)}>Cancelar</Button>
-                <Button variant="destructive" onClick={() => handleClose(closeDialog)}>Encerrar leilão</Button>
+                <Button
+                  variant="destructive"
+                  disabled={endAuctionMutation.isPending}
+                  onClick={() => handleClose(closeDialog)}
+                >
+                  {endAuctionMutation.isPending ? 'Encerrando...' : 'Encerrar leilão'}
+                </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
