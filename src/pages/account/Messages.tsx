@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -45,13 +45,18 @@ function ConversationItem({
   conversation,
   active,
   onClick,
+  currentUserId,
 }: {
   conversation: Conversation;
   active: boolean;
   onClick: () => void;
+  currentUserId: string;
 }) {
-  const sellerName = conversation.seller?.name || 'Vendedor';
-  const initials = getInitials(sellerName);
+  const isbuyer = conversation.buyerId === currentUserId;
+  const otherName = isbuyer
+    ? (conversation.seller?.name || 'Vendedor')
+    : (conversation.buyer?.name || 'Comprador');
+  const initials = getInitials(otherName);
   const lastMessageText = conversation.latestMessage?.content || 'Nova conversa...';
   const unreadCount = conversation.unreadCount || 0;
 
@@ -72,7 +77,7 @@ function ConversationItem({
       </Avatar>
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between">
-          <span className="font-heading font-bold text-sm truncate">{sellerName}</span>
+          <span className="font-heading font-bold text-sm truncate">{otherName}</span>
           <span className="text-xs text-muted-foreground shrink-0 ml-2">
             {formatTime(conversation.updatedAt)}
           </span>
@@ -125,7 +130,8 @@ export default function MessagesPage() {
   const isMobile = useIsMobile();
   const { getToken, userId } = useAuth();
   const queryClient = useQueryClient();
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const [searchParams] = useSearchParams();
+  const [activeId, setActiveId] = useState<string | null>(searchParams.get('conv'));
   const [searchQuery, setSearchQuery] = useState('');
   const [newMessage, setNewMessage] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -362,6 +368,7 @@ export default function MessagesPage() {
                 conversation={conv}
                 active={conv.id === activeId}
                 onClick={() => selectConversation(conv.id)}
+                currentUserId={userId || ''}
               />
             ))}
           </div>

@@ -370,6 +370,12 @@ export const api = {
         token,
       }).then((r) => r.data),
 
+    startFromOrder: (token: string, orderId: string) =>
+      request<{ data: { conversationId: string } }>(`/api/messages/from-order/${orderId}`, {
+        method: 'POST',
+        token,
+      }).then((r) => r.data),
+
     sendMessage: (token: string, id: string, content: string) =>
       request<{ data: Message }>(`/api/messages/conversations/${id}`, {
         method: 'POST',

@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { Package, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Link, useSearchParams, useNavigate } from 'react-router-dom';
+import { Package, ChevronLeft, ChevronRight, MessageCircle } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import EmptyState from '@/components/EmptyState';
-import { useOrders } from '@/hooks/use-api';
+import { useOrders, useStartConversationFromOrder } from '@/hooks/use-api';
 import type { Order } from '@/lib/api';
 
 // ── Helpers ──────────────────────────────────────────────
@@ -183,9 +183,18 @@ export default function OrdersPage() {
 
 // ── OrderCard ────────────────────────────────────────────
 
+const CHAT_ELIGIBLE = ['paid', 'shipped', 'delivered', 'completed'];
+
 function OrderCard({ order }: { order: Order }) {
   const cfg = statusMap[order.status] ?? { label: order.status, cls: 'bg-muted text-muted-foreground border-border' };
   const listing = order.listing;
+  const navigate = useNavigate();
+  const startChat = useStartConversationFromOrder();
+
+  async function handleChat() {
+    const result = await startChat.mutateAsync(order.id);
+    navigate(`/conta/mensagens?conv=${result.conversationId}`);
+  }
 
   return (
     <Card className="bg-gradient-card">
@@ -223,12 +232,23 @@ function OrderCard({ order }: { order: Order }) {
           <span className="font-heading text-lg font-bold text-primary">
             {formatBRL(order.totalInCents)}
           </span>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap justify-end">
             {order.status === 'delivered' && (
               <Button variant="outline-gold" size="sm">Avaliar compra</Button>
             )}
             {order.status === 'shipped' && (
               <Button variant="outline-gold" size="sm">Confirmar recebimento</Button>
+            )}
+            {CHAT_ELIGIBLE.includes(order.status) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={startChat.isPending}
+                onClick={handleChat}
+              >
+                <MessageCircle className="h-4 w-4 mr-1" />
+                Chat
+              </Button>
             )}
             <Button variant="kolecta" size="sm" asChild>
               <Link to={`/conta/pedidos/${order.id}`}>Ver detalhes</Link>

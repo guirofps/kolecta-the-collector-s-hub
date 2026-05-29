@@ -770,6 +770,23 @@ export function useResolveDispute() {
   });
 }
 
+// ── useStartConversationFromOrder ──────────────────────────────────────────
+
+export function useStartConversationFromOrder() {
+  const { getToken } = useAuth();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (orderId: string) => {
+      const token = await getToken();
+      return api.messages.startFromOrder(token!, orderId);
+    },
+    onError: (err: Error) => {
+      toast({ title: 'Erro ao abrir chat', description: err.message, variant: 'destructive' });
+    },
+  });
+}
+
 // ── Bling Hooks ────────────────────────────────────────────────────────────
 
 export function useBlingStatus() {
