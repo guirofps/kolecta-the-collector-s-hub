@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save, Eye, Loader2 } from 'lucide-react';
+import { ArrowLeft, Save, Eye, Loader2, ImagePlus, X, AlertCircle } from 'lucide-react';
 import SellerLayout from '@/components/layout/SellerLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,63 +9,153 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
-import { Separator } from '@/components/ui/separator';
-import { mockCategories, formatBRL } from '@/lib/mock-data';
+import { mockCategories } from '@/lib/mock-data';
+import { useListing, useUpdateListing, useUploadImage, useCategories } from '@/hooks/use-api';
+import type { CreateListingPayload } from '@/lib/api';
 import { toast } from 'sonner';
 
-/* API: GET /api/seller/listings/:id
-   PUT /api/seller/listings/:id */
+const MAX_PHOTOS = 8;
 
-const mockListing = {
-  id: '1',
-  title: 'Action Figure Dragon Ball Z - Goku Ultra Instinct',
-  category: 'action-figures',
-  condition: 'novo-lacrado',
-  brand: 'Bandai',
-  line: 'S.H. Figuarts',
-  scale: '1/12',
-  year: '2023',
-  edition: 'Standard',
-  description: 'Action figure oficial da Bandai, linha S.H. Figuarts. Goku na forma Ultra Instinct com acessórios extras e base de exposição. Produto novo e lacrado na embalagem original.',
-  photos: ['/placeholder.svg', '/placeholder.svg', '/placeholder.svg'],
-  price: '899.90',
-  type: 'direct' as const,
-  status: 'active',
-  startingBid: '',
-  minIncrement: '',
-  duration: '',
-  reservePrice: '',
-  antiSniper: false,
+const conditions = [
+  { value: 'novo-lacrado', label: 'Novo / Lacrado' },
+  { value: 'novo-sem-caixa', label: 'Novo / Sem caixa' },
+  { value: 'usado-conservado', label: 'Usado / Conservado' },
+  { value: 'usado-com-marcas', label: 'Usado / Com marcas' },
+];
+
+interface EditForm {
+  title: string;
+  category: string;
+  condition: string;
+  brand: string;
+  line: string;
+  scale: string;
+  year: string;
+  edition: string;
+  description: string;
+  photos: string[];
+  price: string; // em reais (string), convertido p/ centavos ao salvar
+}
+
+const emptyForm: EditForm = {
+  title: '',
+  category: '',
+  condition: '',
+  brand: '',
+  line: '',
+  scale: '',
+  year: '',
+  edition: '',
+  description: '',
+  photos: [],
+  price: '',
 };
+
+function parseImages(raw: string | null): string[] {
+  if (!raw) return [];
+  try {
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr.filter((u) => typeof u === 'string') : [];
+  } catch {
+    return [];
+  }
+}
 
 export default function EditListing() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
 
-  const [form, setForm] = useState(mockListing);
+  const { data: listing, isLoading, isError } = useListing(id);
+  const { data: categories } = useCategories();
+  const updateListing = useUpdateListing();
+  const uploadImage = useUploadImage();
 
+  // Categorias reais da API; cai para o mock se a API ainda não respondeu.
+  const categoryOptions =
+    categories && categories.length > 0
+      ? categories.map((c) => ({ id: c.id, name: c.name }))
+      : mockCategories.map((c) => ({ id: c.id, name: c.name }));
+
+  const [form, setForm] = useState<EditForm>(emptyForm);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Popula o formulário quando o anúncio carrega
   useEffect(() => {
-    // Simulate API fetch
-    const timer = setTimeout(() => setLoading(false), 600);
-    return () => clearTimeout(timer);
-  }, [id]);
+    if (!listing) return;
+    setForm({
+      title: listing.title ?? '',
+      category: listing.categoryId ?? '',
+      condition: listing.condition ?? '',
+      brand: listing.brand ?? '',
+      line: listing.line ?? '',
+      scale: listing.scale ?? '',
+      year: listing.year ?? '',
+      edition: listing.edition ?? '',
+      description: listing.description ?? '',
+      photos: parseImages(listing.images),
+      price: listing.priceInCents != null ? String(listing.priceInCents / 100) : '',
+    });
+  }, [listing]);
 
-  const updateField = (field: string, value: string | boolean) => {
-    setForm(prev => ({ ...prev, [field]: value }));
+  const updateField = (field: keyof EditForm, value: string | string[]) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleFileSelect = (file: File) => {
+    if (form.photos.length >= MAX_PHOTOS) return;
+    uploadImage.mutate(file, {
+      onSuccess: (data) => {
+        setForm((prev) => ({ ...prev, photos: [...prev.photos, data.url] }));
+      },
+    });
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) handleFileSelect(file);
+    e.target.value = '';
+  };
+
+  const removePhoto = (index: number) => {
+    setForm((prev) => ({ ...prev, photos: prev.photos.filter((_, i) => i !== index) }));
   };
 
   const handleSave = () => {
-    setSaving(true);
-    setTimeout(() => {
-      setSaving(false);
-      toast.success('Anúncio atualizado com sucesso!');
-    }, 1000);
+    if (!id) return;
+    if (!form.title.trim()) {
+      toast.error('O título é obrigatório.');
+      return;
+    }
+
+    const isAuction = listing?.type === 'auction';
+    const priceLabel = isAuction ? 'lance inicial' : 'preço';
+    const priceInCents = form.price ? Math.round(Number(form.price) * 100) : undefined;
+    if (form.price && (priceInCents === undefined || Number.isNaN(priceInCents) || priceInCents < 0)) {
+      toast.error(`Informe um ${priceLabel} válido.`);
+      return;
+    }
+
+    const payload: Partial<CreateListingPayload> = {
+      title: form.title.trim(),
+      description: form.description || undefined,
+      categoryId: form.category || undefined,
+      brand: form.brand || undefined,
+      line: form.line || undefined,
+      scale: form.scale || undefined,
+      year: form.year || undefined,
+      edition: form.edition || undefined,
+      condition: form.condition || undefined,
+      priceInCents,
+      images: JSON.stringify(form.photos),
+    };
+
+    updateListing.mutate(
+      { id, data: payload },
+      { onSuccess: () => navigate('/painel/anuncios') },
+    );
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <SellerLayout>
         <div className="flex items-center justify-center min-h-[400px]">
@@ -74,6 +164,28 @@ export default function EditListing() {
       </SellerLayout>
     );
   }
+
+  if (isError || !listing) {
+    return (
+      <SellerLayout>
+        <div className="flex flex-col items-center justify-center min-h-[400px] gap-4 text-center">
+          <AlertCircle className="h-10 w-10 text-muted-foreground" />
+          <div>
+            <h2 className="font-heading text-xl font-bold">Anúncio não encontrado</h2>
+            <p className="text-sm text-muted-foreground">Ele pode ter sido removido ou você não tem acesso.</p>
+          </div>
+          <Link to="/painel/anuncios">
+            <Button variant="outline" className="gap-1.5">
+              <ArrowLeft className="h-4 w-4" /> Voltar aos anúncios
+            </Button>
+          </Link>
+        </div>
+      </SellerLayout>
+    );
+  }
+
+  const isAuction = listing.type === 'auction';
+  const saving = updateListing.isPending;
 
   return (
     <SellerLayout>
@@ -86,14 +198,14 @@ export default function EditListing() {
             </Link>
             <div>
               <h1 className="font-heading text-3xl font-bold tracking-tight">Editar Anúncio</h1>
-              <p className="text-sm text-muted-foreground">ID: #{id}</p>
+              <p className="text-sm text-muted-foreground">ID: #{listing.id}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant={form.status === 'active' ? 'default' : 'secondary'}>
-              {form.status === 'active' ? 'Ativo' : 'Inativo'}
+            <Badge variant={listing.status === 'active' ? 'default' : 'secondary'}>
+              {listing.status === 'active' ? 'Ativo' : listing.status}
             </Badge>
-            <Link to={`/produto/${id}`}>
+            <Link to={`/produto/${listing.id}`}>
               <Button variant="ghost" size="sm" className="gap-1.5">
                 <Eye className="h-4 w-4" /> Ver anúncio
               </Button>
@@ -114,63 +226,59 @@ export default function EditListing() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
                 <Label>Título do anúncio</Label>
-                <Input value={form.title} onChange={e => updateField('title', e.target.value)} />
+                <Input value={form.title} onChange={(e) => updateField('title', e.target.value)} />
               </div>
               <div>
                 <Label>Categoria</Label>
-                <Select value={form.category} onValueChange={v => updateField('category', v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                <Select value={form.category} onValueChange={(v) => updateField('category', v)}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>
-                    {mockCategories.map(c => (
-                      <SelectItem key={c.slug} value={c.slug}>{c.name}</SelectItem>
+                    {categoryOptions.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div>
                 <Label>Condição</Label>
-                <Select value={form.condition} onValueChange={v => updateField('condition', v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                <Select value={form.condition} onValueChange={(v) => updateField('condition', v)}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="novo-lacrado">Novo / Lacrado</SelectItem>
-                    <SelectItem value="novo-aberto">Novo / Aberto</SelectItem>
-                    <SelectItem value="usado-excelente">Usado / Excelente</SelectItem>
-                    <SelectItem value="usado-bom">Usado / Bom</SelectItem>
-                    <SelectItem value="usado-regular">Usado / Regular</SelectItem>
+                    {conditions.map((c) => (
+                      <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
             </div>
 
-            <Separator className="bg-border" />
-
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
                 <Label>Marca</Label>
-                <Input value={form.brand} onChange={e => updateField('brand', e.target.value)} />
+                <Input value={form.brand} onChange={(e) => updateField('brand', e.target.value)} />
               </div>
               <div>
                 <Label>Linha</Label>
-                <Input value={form.line} onChange={e => updateField('line', e.target.value)} />
+                <Input value={form.line} onChange={(e) => updateField('line', e.target.value)} />
               </div>
               <div>
                 <Label>Escala</Label>
-                <Input value={form.scale} onChange={e => updateField('scale', e.target.value)} />
+                <Input value={form.scale} onChange={(e) => updateField('scale', e.target.value)} />
               </div>
               <div>
                 <Label>Ano</Label>
-                <Input value={form.year} onChange={e => updateField('year', e.target.value)} />
+                <Input value={form.year} onChange={(e) => updateField('year', e.target.value)} />
               </div>
             </div>
 
             <div>
               <Label>Edição</Label>
-              <Input value={form.edition} onChange={e => updateField('edition', e.target.value)} />
+              <Input value={form.edition} onChange={(e) => updateField('edition', e.target.value)} />
             </div>
 
             <div>
               <Label>Descrição</Label>
-              <Textarea value={form.description} onChange={e => updateField('description', e.target.value)} rows={5} />
+              <Textarea value={form.description} onChange={(e) => updateField('description', e.target.value)} rows={5} />
             </div>
           </CardContent>
         </Card>
@@ -181,18 +289,50 @@ export default function EditListing() {
             <CardTitle className="font-heading text-xl">Fotos</CardTitle>
           </CardHeader>
           <CardContent>
+            <input
+              ref={inputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              onChange={handleFileChange}
+            />
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
               {form.photos.map((photo, i) => (
-                <div key={i} className="aspect-square rounded-lg border border-border bg-secondary overflow-hidden">
+                <div key={`${photo}-${i}`} className="relative aspect-square rounded-lg border border-border bg-secondary overflow-hidden group">
                   <img src={photo} alt={`Foto ${i + 1}`} className="w-full h-full object-cover" />
+                  {i === 0 && (
+                    <Badge className="absolute top-1 left-1 text-[9px] bg-primary text-primary-foreground">Capa</Badge>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => removePhoto(i)}
+                    className="absolute top-1 right-1 w-6 h-6 rounded-full bg-background/80 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    aria-label="Remover foto"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
                 </div>
               ))}
-              <button className="aspect-square rounded-lg border-2 border-dashed border-border flex flex-col items-center justify-center text-muted-foreground hover:border-primary hover:text-primary transition-colors">
-                <span className="text-2xl">+</span>
-                <span className="text-xs">Adicionar</span>
-              </button>
+
+              {form.photos.length < MAX_PHOTOS && (
+                <button
+                  type="button"
+                  onClick={() => !uploadImage.isPending && inputRef.current?.click()}
+                  disabled={uploadImage.isPending}
+                  className="aspect-square rounded-lg border-2 border-dashed border-border flex flex-col items-center justify-center text-muted-foreground hover:border-primary hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {uploadImage.isPending ? (
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                  ) : (
+                    <ImagePlus className="h-6 w-6" />
+                  )}
+                  <span className="text-xs mt-1">{uploadImage.isPending ? 'Enviando…' : 'Adicionar'}</span>
+                </button>
+              )}
             </div>
-            {/* API: POST /api/uploads para imagens */}
+            <p className="text-[10px] text-muted-foreground mt-3">
+              {form.photos.length}/{MAX_PHOTOS} fotos · A primeira é a capa · JPG, PNG ou WebP · Máx 5MB cada
+            </p>
           </CardContent>
         </Card>
 
@@ -202,35 +342,21 @@ export default function EditListing() {
             <CardTitle className="font-heading text-xl">Preço</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Badge variant="outline">{form.type === 'direct' ? 'Preço fixo' : 'Modo Lance'}</Badge>
-            {form.type === 'direct' ? (
-              <div className="max-w-xs">
-                <Label>Preço (R$)</Label>
-                <Input type="number" value={form.price} onChange={e => updateField('price', e.target.value)} />
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-lg">
-                <div>
-                  <Label>Lance inicial (R$)</Label>
-                  <Input type="number" value={form.startingBid} onChange={e => updateField('startingBid', e.target.value)} />
-                </div>
-                <div>
-                  <Label>Incremento mínimo (R$)</Label>
-                  <Input type="number" value={form.minIncrement} onChange={e => updateField('minIncrement', e.target.value)} />
-                </div>
-                <div>
-                  <Label>Preço reserva (R$)</Label>
-                  <Input type="number" value={form.reservePrice} onChange={e => updateField('reservePrice', e.target.value)} />
-                </div>
-                <div>
-                  <Label>Duração (dias)</Label>
-                  <Input type="number" value={form.duration} onChange={e => updateField('duration', e.target.value)} />
-                </div>
-                <div className="sm:col-span-2 flex items-center gap-3">
-                  <Switch checked={form.antiSniper} onCheckedChange={v => updateField('antiSniper', v)} />
-                  <Label>Anti-sniper (extensão automática)</Label>
-                </div>
-              </div>
+            <Badge variant="outline">{isAuction ? 'Modo Lance' : 'Preço fixo'}</Badge>
+            <div className="max-w-xs">
+              <Label>{isAuction ? 'Lance inicial (R$)' : 'Preço (R$)'}</Label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={form.price}
+                onChange={(e) => updateField('price', e.target.value)}
+              />
+            </div>
+            {isAuction && (
+              <p className="text-xs text-muted-foreground">
+                Os parâmetros do leilão (duração, incremento, reserva) são gerenciados na página de leilões.
+              </p>
             )}
           </CardContent>
         </Card>

@@ -121,6 +121,86 @@ export const api = {
       request<{ templateUrl: string }>('/api/listings/import/template'),
   },
 
+  // ── Categories (público) ─────────────────────────────────────────────────────
+
+  categories: {
+    getAll: () =>
+      request<{ data: ApiCategory[] }>('/api/categories').then(r => r.data),
+  },
+
+  // ── Community ────────────────────────────────────────────────────────────────
+
+  community: {
+    getFeed: (params: {
+      sort?: string;
+      page?: number;
+      limit?: number;
+      categoryId?: string;
+      type?: string;
+    } = {}) => {
+      const qs = new URLSearchParams();
+      if (params.sort) qs.set('sort', params.sort);
+      if (params.page) qs.set('page', String(params.page));
+      if (params.limit) qs.set('limit', String(params.limit));
+      if (params.categoryId) qs.set('categoryId', params.categoryId);
+      if (params.type) qs.set('type', params.type);
+      return request<CommunityFeed>(`/api/community/feed?${qs}`);
+    },
+
+    getHighlights: () =>
+      request<{ data: CommunityHighlights }>('/api/community/highlights').then(r => r.data),
+
+    getTrends: (window: '24h' | '7d' | 'month' = '24h') =>
+      request<{ data: { window: string; posts: CommunityPost[] } }>(
+        `/api/community/trends?window=${window}`,
+      ).then(r => r.data),
+
+    getPost: (id: string) =>
+      request<{ data: CommunityPost }>(`/api/community/posts/${id}`).then(r => r.data),
+
+    getComments: (id: string) =>
+      request<{ data: CommunityComment[] }>(`/api/community/posts/${id}/comments`).then(r => r.data),
+
+    createPost: (token: string, payload: CreatePostPayload) =>
+      request<{ data: CommunityPost }>('/api/community/posts', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+        token,
+      }).then(r => r.data),
+
+    toggleLike: (token: string, id: string) =>
+      request<{ data: { liked: boolean } }>(`/api/community/posts/${id}/like`, {
+        method: 'POST',
+        token,
+      }).then(r => r.data),
+
+    toggleSave: (token: string, id: string) =>
+      request<{ data: { saved: boolean } }>(`/api/community/posts/${id}/save`, {
+        method: 'POST',
+        token,
+      }).then(r => r.data),
+
+    togglePin: (token: string, id: string) =>
+      request<{ data: { pinned: boolean } }>(`/api/community/posts/${id}/pin`, {
+        method: 'POST',
+        token,
+      }).then(r => r.data),
+
+    addComment: (token: string, id: string, body: string) =>
+      request<{ data: CommunityComment }>(`/api/community/posts/${id}/comments`, {
+        method: 'POST',
+        body: JSON.stringify({ body }),
+        token,
+      }).then(r => r.data),
+
+    report: (token: string, payload: CreateReportPayload) =>
+      request<{ data: unknown }>('/api/community/reports', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+        token,
+      }).then(r => r.data),
+  },
+
   // ── Media ──────────────────────────────────────────────────────────────────
 
   media: {
@@ -258,8 +338,18 @@ export const api = {
       return request<{ data: Order[] }>(`/api/orders/my/purchases?${params}`, { token }).then(r => r.data);
     },
 
+    getMySales: (token: string) =>
+      request<{ data: Order[] }>('/api/orders/my/sales', { token }).then(r => r.data),
+
     getById: (token: string, id: string) =>
       request<{ data: Order }>(`/api/orders/${id}`, { token }).then(r => r.data),
+
+    updateStatus: (token: string, id: string, status: OrderStatus, trackingCode?: string) =>
+      request<{ data: Order }>(`/api/orders/${id}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status, ...(trackingCode ? { trackingCode } : {}) }),
+        token,
+      }).then(r => r.data),
 
     createCheckout: (token: string, body: { items: { listingId: string }[]; addressId?: string; useWalletBalance?: boolean }) =>
       request<{ clientSecret?: string; orderId: string; totalInCents: number; walletDeducted?: number; chargeAmount?: number; paidViaWallet?: boolean }>(
@@ -515,6 +605,7 @@ export interface Order {
   listingId: string;
   status: OrderStatus;
   totalInCents: number;
+  trackingCode?: string | null;
   createdAt: string;
   updatedAt: string;
   listing?: {
@@ -522,6 +613,9 @@ export interface Order {
     images: string[];
     priceInCents: number;
   };
+  // Contraparte: o backend popula `buyer` em /my/sales e `seller` em /my/purchases
+  buyer?: { id: string; name: string };
+  seller?: { id: string; name: string };
 }
 
 export interface Favorite {
@@ -605,6 +699,84 @@ export interface Listing {
   status: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ApiCategory {
+  id: string;
+  name: string;
+  slug: string;
+  icon: string | null;
+  parentId: string | null;
+}
+
+export type CommunityPostType = 'collection' | 'product' | 'discussion' | 'guide';
+
+export interface CommunityPost {
+  id: string;
+  authorId: string;
+  type: CommunityPostType;
+  title: string;
+  body: string | null;
+  images: string[];
+  categoryId: string | null;
+  listingId: string | null;
+  status: string;
+  likeCount: number;
+  saveCount: number;
+  commentCount: number;
+  pinCount: number;
+  score: number;
+  createdAt: string;
+  updatedAt: string;
+  author?: { id: string; name: string | null } | null;
+  listing?: {
+    id: string;
+    title: string;
+    images: string[];
+    priceInCents: number | null;
+    sellerId: string;
+  } | null;
+  category?: { id: string; name: string; slug: string } | null;
+}
+
+export interface CommunityComment {
+  id: string;
+  body: string;
+  createdAt: string;
+  author: { id: string; name: string | null };
+}
+
+export interface CommunityFeed {
+  data: CommunityPost[];
+  meta: { page: number; limit: number; total: number; totalPages: number };
+}
+
+export interface CommunityHighlights {
+  topPost: CommunityPost | null;
+  topProductPost: CommunityPost | null;
+  topCategory: {
+    id: string;
+    name: string;
+    slug: string;
+    icon: string | null;
+    posts: number;
+  } | null;
+}
+
+export interface CreatePostPayload {
+  type: CommunityPostType;
+  title: string;
+  body?: string;
+  images?: string[];
+  categoryId?: string;
+  listingId?: string;
+}
+
+export interface CreateReportPayload {
+  targetType: 'post' | 'comment';
+  targetId: string;
+  reason: string;
+  description?: string;
 }
 
 export interface ConnectStatus {

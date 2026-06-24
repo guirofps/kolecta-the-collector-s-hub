@@ -13,6 +13,7 @@ import NotFound from "./pages/NotFound";
 import SearchPage from "./pages/Search";
 import ProductDetail from "./pages/ProductDetail";
 import AuctionsPage from "./pages/Auctions";
+import CommunityPage from "./pages/Community";
 import CategoriesPage from "./pages/Categories";
 import CategoryPage from "./pages/CategoryPage";
 import LoginPage from "./pages/auth/Login";
@@ -102,6 +103,7 @@ const App = () => (
             <Route path="/produto/:id" element={<ProductDetail />} />
             <Route path="/modo-lance" element={<AuctionsPage />} />
             <Route path="/modo-lance/:id" element={<ProductDetail />} />
+            <Route path="/comunidade" element={<CommunityPage />} />
             <Route path="/categorias" element={<CategoriesPage />} />
             <Route path="/categoria/:slug" element={<CategoryPage />} />
             <Route path="/entrar/*" element={<LoginPage />} />

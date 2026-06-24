@@ -1,9 +1,9 @@
-import { Link, useLocation } from 'react-router-dom';
-import { 
-  Search, Heart, MessageSquare, X, Gavel, User, 
-  ShoppingCart, Home, LogOut, MapPin, AlertCircle, 
-  Tag, PlusCircle, DollarSign, Package, List, 
-  HelpCircle, ChevronRight 
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import {
+  Search, Heart, MessageSquare, X, Gavel, User,
+  ShoppingCart, Home, LogOut, MapPin, AlertCircle,
+  Tag, PlusCircle, DollarSign, Package, List,
+  HelpCircle, ChevronRight, Users, Store, ShoppingBag, CreditCard
 } from 'lucide-react';
 import { SignedIn, SignedOut, UserButton, useUser, useClerk } from '@clerk/clerk-react';
 import { useState, useEffect } from 'react';
@@ -24,6 +24,7 @@ const navLinks = [
   { label: 'Explorar', href: '/busca' },
   { label: 'Categorias', href: '/categorias' },
   { label: 'Modo Lance', href: '/modo-lance', icon: Gavel },
+  { label: 'Comunidade', href: '/comunidade', icon: Users },
   { label: 'Vender', href: '/painel/anuncios/novo' },
   { label: 'Ajuda', href: '/ajuda' },
 ];
@@ -102,6 +103,12 @@ function DrawerContent() {
               <Link to="/modo-lance" className="flex items-center gap-3 py-2 text-white/70 hover:text-white transition-colors">
                 <Gavel className="w-4 h-4" />
                 <span className="text-sm">Modo Lance</span>
+              </Link>
+            </SheetClose>
+            <SheetClose asChild>
+              <Link to="/comunidade" className="flex items-center gap-3 py-2 text-white/70 hover:text-white transition-colors">
+                <Users className="w-4 h-4" />
+                <span className="text-sm">Comunidade</span>
               </Link>
             </SheetClose>
             <SheetClose asChild>
@@ -251,6 +258,7 @@ export default function Header() {
   const [searchQuery, setSearchQuery] = useState('');
   const { totalItems, openCart } = useCart();
   const location = useLocation();
+  const navigate = useNavigate();
   const pathname = location.pathname;
 
   useEffect(() => {
@@ -353,7 +361,45 @@ export default function Header() {
                     <span className="text-sm font-medium">Minha Conta</span>
                   </Link>
                   <div className="hidden lg:block ml-2">
-                    <UserButton afterSignOutUrl="/" />
+                    <UserButton>
+                      <UserButton.MenuItems>
+                        {/* Atalhos de navegação Kolecta */}
+                        <UserButton.Action
+                          label="Painel de Vendas"
+                          labelIcon={<Store className="h-4 w-4" />}
+                          onClick={() => navigate('/painel')}
+                        />
+                        <UserButton.Action
+                          label="Explorar"
+                          labelIcon={<ShoppingBag className="h-4 w-4" />}
+                          onClick={() => navigate('/busca')}
+                        />
+                        <UserButton.Action
+                          label="Modo Lance"
+                          labelIcon={<Gavel className="h-4 w-4" />}
+                          onClick={() => navigate('/modo-lance')}
+                        />
+                        {/* Atalhos rápidos da Conta */}
+                        <UserButton.Action
+                          label="Meus Pedidos"
+                          labelIcon={<Package className="h-4 w-4" />}
+                          onClick={() => navigate('/conta/pedidos')}
+                        />
+                        <UserButton.Action
+                          label="Pagamentos"
+                          labelIcon={<CreditCard className="h-4 w-4" />}
+                          onClick={() => navigate('/conta/pagamentos')}
+                        />
+                        <UserButton.Action
+                          label="Mensagens"
+                          labelIcon={<MessageSquare className="h-4 w-4" />}
+                          onClick={() => navigate('/conta/mensagens')}
+                        />
+                        {/* Ações nativas do Clerk (reposicionadas) */}
+                        <UserButton.Action label="manageAccount" />
+                        <UserButton.Action label="signOut" />
+                      </UserButton.MenuItems>
+                    </UserButton>
                   </div>
                 </SignedIn>
                 <SignedOut>

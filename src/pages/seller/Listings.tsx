@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { PlusCircle, Search, MoreHorizontal, Eye, Pencil, Pause, Play, Trash2, Loader2 } from 'lucide-react';
+import { PlusCircle, Search, MoreHorizontal, Eye, Pencil, Pause, Play, Trash2, Loader2, Upload } from 'lucide-react';
 import SellerLayout from '@/components/layout/SellerLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -64,12 +64,20 @@ export default function SellerListings() {
             <h1 className="font-heading text-2xl font-extrabold italic uppercase">Meus Anúncios</h1>
             <p className="text-sm text-muted-foreground mt-1">{(myProducts || []).length} anúncios no total</p>
           </div>
-          <Button variant="kolecta" asChild>
-            <Link to="/painel/anuncios/novo">
-              <PlusCircle className="h-4 w-4" />
-              Novo Anúncio
-            </Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/painel/importar">
+                <Upload className="h-4 w-4" />
+                Importar Planilha
+              </Link>
+            </Button>
+            <Button variant="kolecta" asChild>
+              <Link to="/painel/anuncios/novo">
+                <PlusCircle className="h-4 w-4" />
+                Novo Anúncio
+              </Link>
+            </Button>
+          </div>
         </div>
 
         {/* Tabs */}

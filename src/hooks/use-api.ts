@@ -6,6 +6,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@clerk/clerk-react';
 import { api } from '@/lib/api';
+import type { OrderStatus } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 
 // ── useMyProfile ───────────────────────────────────────────────────────────
@@ -40,6 +41,16 @@ export function useListings(limit = 20, offset = 0, q?: string) {
     queryKey: ['listings', limit, offset, q],
     queryFn: () => api.listings.getAll(limit, offset, q),
     staleTime: 60_000,
+  });
+}
+
+// ── useCategories ────────────────────────────────────────────────────────────
+
+export function useCategories() {
+  return useQuery({
+    queryKey: ['categories'],
+    queryFn: () => api.categories.getAll(),
+    staleTime: 5 * 60_000, // 5 min — categorias mudam raramente
   });
 }
 
@@ -287,6 +298,43 @@ export function useOrderById(id: string) {
     },
     enabled: Boolean(id),
     staleTime: 30_000,
+  });
+}
+
+// ── useSellerOrders (pedidos recebidos pelo vendedor) ────────────────────────
+
+export function useSellerOrders() {
+  const { getToken } = useAuth();
+
+  return useQuery({
+    queryKey: ['orders', 'seller'],
+    queryFn: async () => {
+      const token = await getToken();
+      return api.orders.getMySales(token!);
+    },
+    staleTime: 60_000,
+  });
+}
+
+// ── useUpdateOrderStatus (vendedor marca enviado / etc.) ─────────────────────
+
+export function useUpdateOrderStatus() {
+  const { getToken } = useAuth();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (vars: { id: string; status: OrderStatus; trackingCode?: string }) => {
+      const token = await getToken();
+      return api.orders.updateStatus(token!, vars.id, vars.status, vars.trackingCode);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      toast({ title: 'Pedido atualizado' });
+    },
+    onError: (err: Error) => {
+      toast({ title: 'Erro ao atualizar pedido', description: err.message, variant: 'destructive' });
+    },
   });
 }
 
@@ -836,6 +884,153 @@ export function useUploadImage() {
       toast({
         title: 'Erro no upload',
         description: err.message ?? 'Não foi possível enviar a imagem.',
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
+// ── Community ────────────────────────────────────────────────────────────────
+
+export function useCommunityFeed(params: {
+  sort?: string;
+  page?: number;
+  categoryId?: string;
+  type?: string;
+} = {}) {
+  return useQuery({
+    queryKey: ['community-feed', params],
+    queryFn: () => api.community.getFeed(params),
+    staleTime: 30_000,
+  });
+}
+
+export function useCommunityHighlights() {
+  return useQuery({
+    queryKey: ['community-highlights'],
+    queryFn: () => api.community.getHighlights(),
+    staleTime: 60_000,
+  });
+}
+
+export function useCommunityTrends(window: '24h' | '7d' | 'month' = '24h') {
+  return useQuery({
+    queryKey: ['community-trends', window],
+    queryFn: () => api.community.getTrends(window),
+    staleTime: 60_000,
+  });
+}
+
+export function useCommunityPost(id: string | undefined) {
+  return useQuery({
+    queryKey: ['community-post', id],
+    queryFn: () => api.community.getPost(id!),
+    enabled: !!id,
+  });
+}
+
+export function useCommunityComments(id: string | undefined) {
+  return useQuery({
+    queryKey: ['community-comments', id],
+    queryFn: () => api.community.getComments(id!),
+    enabled: !!id,
+  });
+}
+
+export function useCreateCommunityPost() {
+  const queryClient = useQueryClient();
+  const { getToken } = useAuth();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (payload: import('@/lib/api').CreatePostPayload) => {
+      const token = await getToken();
+      return api.community.createPost(token || '', payload);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['community-feed'] });
+      queryClient.invalidateQueries({ queryKey: ['community-highlights'] });
+      toast({ title: 'Publicação criada!' });
+    },
+    onError: (err: Error) => {
+      toast({
+        title: 'Erro ao publicar',
+        description: err.message,
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
+function usePostInteraction(
+  action: 'toggleLike' | 'toggleSave' | 'togglePin',
+) {
+  const queryClient = useQueryClient();
+  const { getToken } = useAuth();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (postId: string) => {
+      const token = await getToken();
+      return api.community[action](token || '', postId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['community-feed'] });
+    },
+    onError: (err: Error) => {
+      toast({
+        title: 'Ação não realizada',
+        description: err.message,
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
+export const useTogglePostLike = () => usePostInteraction('toggleLike');
+export const useTogglePostSave = () => usePostInteraction('toggleSave');
+export const useTogglePostPin = () => usePostInteraction('togglePin');
+
+export function useAddCommunityComment(postId: string) {
+  const queryClient = useQueryClient();
+  const { getToken } = useAuth();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (body: string) => {
+      const token = await getToken();
+      return api.community.addComment(token || '', postId, body);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['community-comments', postId] });
+      queryClient.invalidateQueries({ queryKey: ['community-feed'] });
+    },
+    onError: (err: Error) => {
+      toast({
+        title: 'Erro ao comentar',
+        description: err.message,
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
+export function useReportCommunity() {
+  const { getToken } = useAuth();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (payload: import('@/lib/api').CreateReportPayload) => {
+      const token = await getToken();
+      return api.community.report(token || '', payload);
+    },
+    onSuccess: () => {
+      toast({ title: 'Denúncia enviada', description: 'Obrigado por ajudar a moderar a comunidade.' });
+    },
+    onError: (err: Error) => {
+      toast({
+        title: 'Erro ao denunciar',
+        description: err.message,
         variant: 'destructive',
       });
     },

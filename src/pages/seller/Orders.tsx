@@ -1,8 +1,8 @@
-import { useState, useEffect, useMemo } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useState, useMemo } from 'react';
+import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import {
-  Package, Search, ChevronLeft, ChevronRight, Clock, Truck,
-  CheckCircle2, XCircle, AlertTriangle, User,
+  Package, Search, ChevronLeft, ChevronRight, Truck,
+  CheckCircle2, XCircle, User, MessageCircle,
 } from 'lucide-react';
 import SellerLayout from '@/components/layout/SellerLayout';
 import { Card, CardContent } from '@/components/ui/card';
@@ -20,8 +20,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { formatBRL } from '@/lib/mock-data';
 import EmptyState from '@/components/EmptyState';
+import {
+  useSellerOrders,
+  useUpdateOrderStatus,
+  useStartConversationFromOrder,
+} from '@/hooks/use-api';
+import type { Order, OrderStatus } from '@/lib/api';
+
+function formatBRL(cents: number) {
+  return (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
 
 // ── Types ────────────────────────────────────────────────
 
@@ -48,9 +57,46 @@ interface SellerOrder {
   buyerAvatar?: string;
   items: OrderItem[];
   status: SellerOrderStatus;
+  rawStatus: OrderStatus;
   total: number;
   shipDeadline?: string;
   trackingCode?: string;
+}
+
+// Mapeia o status do backend para o status de exibição do painel do vendedor.
+const statusMap: Record<OrderStatus, SellerOrderStatus> = {
+  pending: 'aguardando_pagamento',
+  paid: 'pagamento_confirmado',
+  processing: 'em_separacao',
+  shipped: 'enviado',
+  delivered: 'entregue',
+  cancelled: 'cancelado',
+  disputed: 'cancelado',
+};
+
+// Status (de exibição) que liberam o chat com o comprador.
+const CHAT_ELIGIBLE: SellerOrderStatus[] = ['pagamento_confirmado', 'enviado', 'entregue'];
+
+function toSellerOrder(o: Order): SellerOrder {
+  const display = statusMap[o.status] ?? 'aguardando_pagamento';
+  return {
+    id: o.id,
+    number: `KL-${o.id.slice(-6).toUpperCase()}`,
+    date: o.createdAt,
+    buyerName: o.buyer?.name ?? 'Comprador',
+    items: [
+      {
+        name: o.listing?.title ?? 'Item',
+        image: o.listing?.images?.[0] ?? '/placeholder.svg',
+        quantity: 1,
+        price: o.totalInCents,
+      },
+    ],
+    status: display,
+    rawStatus: o.status,
+    total: o.totalInCents,
+    trackingCode: o.trackingCode ?? undefined,
+  };
 }
 
 // ── Status config ────────────────────────────────────────
@@ -89,61 +135,7 @@ const emptyMessages: Record<TabKey, string> = {
   concluidos: 'Nenhum pedido concluído ainda',
 };
 
-// ── Mock data ────────────────────────────────────────────
-
-const tomorrow = new Date();
-tomorrow.setDate(tomorrow.getDate() + 1);
-
-const mockSellerOrders: SellerOrder[] = [
-  {
-    id: 'so1', number: 'KL-000201', date: '2025-03-15',
-    buyerName: 'Lucas Mendes',
-    items: [{ name: 'Turbo HKS GT3076R', image: '/placeholder.svg', quantity: 1, price: 4890 }],
-    status: 'pagamento_confirmado', total: 4890,
-    shipDeadline: tomorrow.toISOString().slice(0, 10),
-  },
-  {
-    id: 'so2', number: 'KL-000198', date: '2025-03-14',
-    buyerName: 'Ana Carolina',
-    items: [
-      { name: 'Coilovers Tein Flex Z', image: '/placeholder.svg', quantity: 1, price: 3200 },
-      { name: 'Barra estabilizadora Cusco', image: '/placeholder.svg', quantity: 1, price: 890 },
-    ],
-    status: 'enviado', total: 4090, trackingCode: 'BR123456789',
-  },
-  {
-    id: 'so3', number: 'KL-000195', date: '2025-03-12',
-    buyerName: 'Rafael Souza',
-    items: [{ name: 'Escape Tomei Expreme Ti', image: '/placeholder.svg', quantity: 1, price: 6500 }],
-    status: 'entregue', total: 6500,
-  },
-  {
-    id: 'so4', number: 'KL-000190', date: '2025-03-10',
-    buyerName: 'Fernanda Lima',
-    items: [{ name: 'Volante Nardi Classic', image: '/placeholder.svg', quantity: 1, price: 1850 }],
-    status: 'cancelado', total: 1850,
-  },
-  {
-    id: 'so5', number: 'KL-000188', date: '2025-03-09',
-    buyerName: 'Thiago Oliveira',
-    items: [{ name: 'Kit embreagem Exedy Stage 2', image: '/placeholder.svg', quantity: 1, price: 2400 }],
-    status: 'pagamento_confirmado', total: 2400,
-    shipDeadline: '2025-03-20',
-  },
-  {
-    id: 'so6', number: 'KL-000185', date: '2025-03-07',
-    buyerName: 'Mariana Costa',
-    items: [{ name: 'ECU Link G4X', image: '/placeholder.svg', quantity: 1, price: 7200 }],
-    status: 'em_separacao', total: 7200,
-  },
-];
-
 // ── Helpers ──────────────────────────────────────────────
-
-function daysUntil(dateStr: string) {
-  const diff = new Date(dateStr).getTime() - Date.now();
-  return Math.max(0, Math.ceil(diff / 86400000));
-}
 
 function formatDate(d: string) {
   return new Date(d).toLocaleDateString('pt-BR');
@@ -155,23 +147,42 @@ const PER_PAGE = 5;
 
 export default function SellerOrdersPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('todos');
   const [period, setPeriod] = useState('todos');
   const [sort, setSort] = useState('recentes');
 
+  const { data: rawOrders = [], isLoading: loading } = useSellerOrders();
+  const updateStatus = useUpdateOrderStatus();
+  const startChat = useStartConversationFromOrder();
+
+  const sellerOrders = useMemo(() => rawOrders.map(toSellerOrder), [rawOrders]);
+
   const activeTab = (searchParams.get('tab') as TabKey) || 'todos';
   const page = Number(searchParams.get('page') || '1');
 
-  useEffect(() => { const t = setTimeout(() => setLoading(false), 600); return () => clearTimeout(t); }, []);
+  function markShipped(id: string) {
+    const tracking = window.prompt('Código de rastreamento (opcional):')?.trim();
+    updateStatus.mutate({ id, status: 'shipped', trackingCode: tracking || undefined });
+  }
 
-  /* API: GET /api/seller/orders?status=&period=&sort=&search=&page=
-     Retorna: { orders: SellerOrder[], total: number } */
+  function bulkMarkShipped() {
+    const eligible = sellerOrders.filter(
+      (o) => selected.has(o.id) && o.status === 'pagamento_confirmado',
+    );
+    eligible.forEach((o) => updateStatus.mutate({ id: o.id, status: 'shipped' }));
+    setSelected(new Set());
+  }
+
+  async function handleChat(id: string) {
+    const result = await startChat.mutateAsync(id);
+    navigate(`/painel/mensagens?conv=${result.conversationId}`);
+  }
 
   const filtered = useMemo(() => {
-    let list = [...mockSellerOrders];
+    let list = [...sellerOrders];
 
     // Tab filter
     const tabSt = tabStatuses[activeTab];
@@ -193,20 +204,20 @@ export default function SellerOrdersPage() {
     else list.sort((a, b) => b.date.localeCompare(a.date));
 
     return list;
-  }, [activeTab, statusFilter, search, sort]);
+  }, [sellerOrders, activeTab, statusFilter, search, sort]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
   const paged = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
 
   const tabCounts = useMemo(() => {
-    const counts: Record<TabKey, number> = { todos: mockSellerOrders.length, acao: 0, andamento: 0, concluidos: 0 };
-    mockSellerOrders.forEach((o) => {
+    const counts: Record<TabKey, number> = { todos: sellerOrders.length, acao: 0, andamento: 0, concluidos: 0 };
+    sellerOrders.forEach((o) => {
       if (tabStatuses.acao!.includes(o.status)) counts.acao++;
       if (tabStatuses.andamento!.includes(o.status)) counts.andamento++;
       if (tabStatuses.concluidos!.includes(o.status)) counts.concluidos++;
     });
     return counts;
-  }, []);
+  }, [sellerOrders]);
 
   function setTab(t: string) { setSearchParams({ tab: t, page: '1' }); setSelected(new Set()); }
   function setPage(p: number) { setSearchParams({ tab: activeTab, page: String(p) }); }
@@ -225,7 +236,7 @@ export default function SellerOrdersPage() {
         {/* Header */}
         <div>
           <h1 className="font-heading text-3xl font-bold tracking-tight">Pedidos Recebidos</h1>
-          <p className="text-muted-foreground text-sm mt-1">{mockSellerOrders.length} pedidos no total</p>
+          <p className="text-muted-foreground text-sm mt-1">{sellerOrders.length} pedidos no total</p>
         </div>
 
         {/* Filters */}
@@ -302,8 +313,6 @@ export default function SellerOrdersPage() {
 
             {paged.map((order) => {
               const sc = statusConfig[order.status];
-              const deadlineDays = order.shipDeadline ? daysUntil(order.shipDeadline) : null;
-              const urgent = deadlineDays !== null && deadlineDays <= 1 && order.status === 'pagamento_confirmado';
 
               return (
                 <Card key={order.id} className="bg-gradient-card hover:border-primary/20 transition-colors">
@@ -349,31 +358,41 @@ export default function SellerOrdersPage() {
                           <span className="font-heading font-bold text-lg text-kolecta-gold">{formatBRL(order.total)}</span>
 
                           <div className="flex items-center gap-2 flex-wrap">
-                            {urgent && (
-                              <span className="flex items-center gap-1 text-xs font-semibold text-kolecta-red">
-                                <Clock className="h-3.5 w-3.5" />
-                                Enviar até {formatDate(order.shipDeadline!)}
-                              </span>
-                            )}
                             {order.status === 'pagamento_confirmado' && (
-                              <Button size="sm" variant="kolecta" className="glow-primary">
+                              <Button
+                                size="sm"
+                                variant="kolecta"
+                                className="glow-primary"
+                                disabled={updateStatus.isPending}
+                                onClick={() => markShipped(order.id)}
+                              >
                                 <Truck className="h-3.5 w-3.5 mr-1" /> Marcar como enviado
                               </Button>
                             )}
-                            {order.status === 'enviado' && (
-                              <Button size="sm" variant="outline-gold">
-                                <Package className="h-3.5 w-3.5 mr-1" /> Ver rastreamento
-                              </Button>
+                            {order.status === 'enviado' && order.trackingCode && (
+                              <Badge variant="outline" className="bg-kolecta-gold/10 text-kolecta-gold border-kolecta-gold/30">
+                                <Package className="h-3 w-3 mr-1" /> {order.trackingCode}
+                              </Badge>
                             )}
                             {order.status === 'entregue' && (
                               <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/30">
-                                <CheckCircle2 className="h-3 w-3 mr-1" /> Concluído
+                                <CheckCircle2 className="h-3 w-3 mr-1" /> Entregue
                               </Badge>
                             )}
                             {order.status === 'cancelado' && (
                               <Badge variant="destructive">
                                 <XCircle className="h-3 w-3 mr-1" /> Cancelado
                               </Badge>
+                            )}
+                            {CHAT_ELIGIBLE.includes(order.status) && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                disabled={startChat.isPending}
+                                onClick={() => handleChat(order.id)}
+                              >
+                                <MessageCircle className="h-3.5 w-3.5 mr-1" /> Chat
+                              </Button>
                             )}
                             <Button size="sm" variant="ghost" asChild>
                               <Link to={`/painel/pedidos/${order.id}`}>Ver detalhes</Link>
@@ -409,11 +428,15 @@ export default function SellerOrdersPage() {
           <div className="max-w-5xl mx-auto px-6 py-3 flex items-center justify-between">
             <span className="text-sm font-medium">{selected.size} pedido{selected.size > 1 ? 's' : ''} selecionado{selected.size > 1 ? 's' : ''}</span>
             <div className="flex gap-2">
-              {/* API: POST /api/seller/orders/bulk-update */}
-              <Button size="sm" variant="kolecta" className="glow-primary">
+              <Button
+                size="sm"
+                variant="kolecta"
+                className="glow-primary"
+                disabled={updateStatus.isPending}
+                onClick={bulkMarkShipped}
+              >
                 <Truck className="h-3.5 w-3.5 mr-1" /> Marcar como enviado
               </Button>
-              <Button size="sm" variant="ghost">Exportar selecionados</Button>
             </div>
           </div>
         </div>

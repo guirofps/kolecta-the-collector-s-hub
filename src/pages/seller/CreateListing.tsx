@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, ArrowRight, Check, ShoppingCart, Gavel, Upload,
-  X, ImagePlus, AlertCircle, Eye,
+  X, ImagePlus, AlertCircle, Eye, Loader2,
 } from 'lucide-react';
 import SellerLayout from '@/components/layout/SellerLayout';
 import { Button } from '@/components/ui/button';
@@ -16,8 +16,31 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { mockCategories, formatBRL } from '@/lib/mock-data';
 import { trackEvent } from '@/lib/analytics';
-import { useCreateListing } from '@/hooks/use-api';
+import { useCreateListing, useUploadImage, useCategories } from '@/hooks/use-api';
 import type { CreateListingPayload } from '@/lib/api';
+
+// Opção de categoria usada no wizard (id real + slug estável para keyar campos).
+interface CategoryOption {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+}
+
+// Categorias reais da API; cai para o mock se a API ainda não respondeu.
+// O `slug` é a chave estável usada nos campos dinâmicos por categoria.
+function useCategoryOptions(): CategoryOption[] {
+  const { data } = useCategories();
+  if (data && data.length > 0) {
+    return data.map((c) => ({ id: c.id, name: c.name, slug: c.slug }));
+  }
+  return mockCategories.map((c) => ({
+    id: c.id,
+    name: c.name,
+    slug: c.slug,
+    description: c.description,
+  }));
+}
 
 function CategoryIcon({ slug, size = 32 }: { slug: string; size?: number }) {
   const fill = '#FFD700';
@@ -143,6 +166,9 @@ export default function CreateListing() {
   const [form, setForm] = useState<FormData>(initialForm);
   const navigate = useNavigate();
   const createListing = useCreateListing();
+  const uploadImage = useUploadImage();
+  const categories = useCategoryOptions();
+  const slugOf = (id: string) => categories.find((c) => c.id === id)?.slug;
 
   useEffect(() => {
     trackEvent('start_sell_flow');
@@ -157,11 +183,12 @@ export default function CreateListing() {
       case 1: return form.type !== null;
       case 2: {
         if (!form.title || !form.category || !form.condition) return false;
-        if (form.category === 'c1') return !!form.categoryFields?.brand && !!form.categoryFields?.scale;
-        if (form.category === 'c2') return !!form.categoryFields?.jogo;
-        if (form.category === 'c3') return !!form.categoryFields?.brand && !!form.categoryFields?.line && !!form.categoryFields?.personagem;
-        if (form.category === 'c4') return !!form.categoryFields?.numero && !!form.categoryFields?.line;
-        if (form.category === 'c5') return !!form.categoryFields?.tituloObra;
+        const slug = slugOf(form.category);
+        if (slug === 'miniaturas-diecast') return !!form.categoryFields?.brand && !!form.categoryFields?.scale;
+        if (slug === 'cards-colecionaveis') return !!form.categoryFields?.jogo;
+        if (slug === 'action-figures') return !!form.categoryFields?.brand && !!form.categoryFields?.line && !!form.categoryFields?.personagem;
+        if (slug === 'funko-pop') return !!form.categoryFields?.numero && !!form.categoryFields?.line;
+        if (slug === 'mangas-hqs') return !!form.categoryFields?.tituloObra;
         return true;
       }
       case 3: return true; // photos optional for MVP
@@ -197,10 +224,13 @@ export default function CreateListing() {
     });
   };
 
-  const addMockPhoto = () => {
-    if (form.photos.length < 8) {
-      update('photos', [...form.photos, `/placeholder.svg`]);
-    }
+  const handleFileSelect = (file: File) => {
+    if (form.photos.length >= 8) return;
+    uploadImage.mutate(file, {
+      onSuccess: (data) => {
+        update('photos', [...form.photos, data.url]);
+      },
+    });
   };
 
   const removePhoto = (index: number) => {
@@ -258,10 +288,10 @@ export default function CreateListing() {
             transition={{ duration: 0.25 }}
           >
             {step === 1 && <StepType form={form} update={update} />}
-            {step === 2 && <StepDetails form={form} update={update} />}
-            {step === 3 && <StepPhotos form={form} addPhoto={addMockPhoto} removePhoto={removePhoto} />}
+            {step === 2 && <StepDetails form={form} update={update} categories={categories} />}
+            {step === 3 && <StepPhotos form={form} onFileSelect={handleFileSelect} removePhoto={removePhoto} isUploading={uploadImage.isPending} />}
             {step === 4 && <StepPricing form={form} update={update} />}
-            {step === 5 && <StepReview form={form} />}
+            {step === 5 && <StepReview form={form} categories={categories} />}
           </motion.div>
         </AnimatePresence>
 
@@ -348,7 +378,7 @@ function StepType({ form, update }: { form: FormData; update: (f: keyof FormData
 
 // ─── Step 2: Details ───────────────────────────────────────
 
-function StepDetails({ form, update }: { form: FormData; update: (f: keyof FormData, v: any) => void }) {
+function StepDetails({ form, update, categories }: { form: FormData; update: (f: keyof FormData, v: any) => void; categories: CategoryOption[] }) {
   const [subStep, setSubStep] = useState<'category' | 'details'>(form.category ? 'details' : 'category');
   const [tempCategory, setTempCategory] = useState(form.category);
 
@@ -379,7 +409,7 @@ function StepDetails({ form, update }: { form: FormData; update: (f: keyof FormD
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          {mockCategories.map((c: any) => {
+          {categories.map((c) => {
             const isSelected = tempCategory === c.id;
             return (
               <button
@@ -420,12 +450,13 @@ function StepDetails({ form, update }: { form: FormData; update: (f: keyof FormD
     );
   }
 
-  const categoryObj = mockCategories.find((c: any) => c.id === form.category);
+  const categoryObj = categories.find((c) => c.id === form.category);
+  const catSlug = categoryObj?.slug;
 
   return (
     <div className="space-y-6">
       <div>
-        <button 
+        <button
           type="button"
           onClick={() => setSubStep('category')}
           className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 mb-4 transition-colors"
@@ -503,7 +534,7 @@ function StepDetails({ form, update }: { form: FormData; update: (f: keyof FormD
           <div className="pt-6 mt-6 border-t border-border">
             <h3 className="font-heading text-base font-bold uppercase mb-4">Detalhes de {categoryObj?.name}</h3>
             
-            {form.category === 'c1' && (
+            {catSlug === 'miniaturas-diecast' && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="c1-brand">Marca *</Label>
@@ -535,7 +566,7 @@ function StepDetails({ form, update }: { form: FormData; update: (f: keyof FormD
               </div>
             )}
 
-            {form.category === 'c2' && (
+            {catSlug === 'cards-colecionaveis' && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label>Jogo / Universo *</Label>
@@ -602,7 +633,7 @@ function StepDetails({ form, update }: { form: FormData; update: (f: keyof FormD
               </div>
             )}
 
-            {form.category === 'c3' && (
+            {catSlug === 'action-figures' && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="c3-brand">Marca / Fabricante *</Label>
@@ -649,7 +680,7 @@ function StepDetails({ form, update }: { form: FormData; update: (f: keyof FormD
               </div>
             )}
 
-            {form.category === 'c4' && (
+            {catSlug === 'funko-pop' && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="c4-numero">Número do Pop *</Label>
@@ -705,7 +736,7 @@ function StepDetails({ form, update }: { form: FormData; update: (f: keyof FormD
               </div>
             )}
 
-            {form.category === 'c5' && (
+            {catSlug === 'mangas-hqs' && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="c5-titulo">Título da obra *</Label>
@@ -765,7 +796,29 @@ function StepDetails({ form, update }: { form: FormData; update: (f: keyof FormD
 
 // ─── Step 3: Photos ────────────────────────────────────────
 
-function StepPhotos({ form, addPhoto, removePhoto }: { form: FormData; addPhoto: () => void; removePhoto: (i: number) => void }) {
+function StepPhotos({
+  form,
+  onFileSelect,
+  removePhoto,
+  isUploading,
+}: {
+  form: FormData;
+  onFileSelect: (file: File) => void;
+  removePhoto: (i: number) => void;
+  isUploading: boolean;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleClick = () => {
+    if (!isUploading && form.photos.length < 8) inputRef.current?.click();
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) onFileSelect(file);
+    e.target.value = '';
+  };
+
   return (
     <div>
       <h2 className="font-heading text-lg font-bold uppercase mb-1">Fotos do Item</h2>
@@ -775,6 +828,14 @@ function StepPhotos({ form, addPhoto, removePhoto }: { form: FormData; addPhoto:
         <AlertCircle className="h-4 w-4 text-primary shrink-0" />
         <span className="text-xs text-muted-foreground">Fotos com boa iluminação e fundo neutro aumentam as chances de venda em até 3×.</span>
       </div>
+
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="hidden"
+        onChange={handleChange}
+      />
 
       <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
         {form.photos.map((photo, i) => (
@@ -794,11 +855,18 @@ function StepPhotos({ form, addPhoto, removePhoto }: { form: FormData; addPhoto:
 
         {form.photos.length < 8 && (
           <button
-            onClick={addPhoto}
-            className="aspect-square rounded-lg border-2 border-dashed border-border hover:border-primary/40 bg-secondary/50 flex flex-col items-center justify-center gap-2 transition-colors"
+            onClick={handleClick}
+            disabled={isUploading}
+            className="aspect-square rounded-lg border-2 border-dashed border-border hover:border-primary/40 bg-secondary/50 flex flex-col items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <ImagePlus className="h-6 w-6 text-muted-foreground" />
-            <span className="text-[10px] text-muted-foreground">Adicionar</span>
+            {isUploading ? (
+              <Loader2 className="h-6 w-6 text-muted-foreground animate-spin" />
+            ) : (
+              <ImagePlus className="h-6 w-6 text-muted-foreground" />
+            )}
+            <span className="text-[10px] text-muted-foreground">
+              {isUploading ? 'Enviando…' : 'Adicionar'}
+            </span>
           </button>
         )}
       </div>
@@ -939,8 +1007,8 @@ function StepPricing({ form, update }: { form: FormData; update: (f: keyof FormD
 
 // ─── Step 5: Review ────────────────────────────────────────
 
-function StepReview({ form }: { form: FormData }) {
-  const categoryObj = mockCategories.find((c: any) => c.id === form.category);
+function StepReview({ form, categories }: { form: FormData; categories: CategoryOption[] }) {
+  const categoryObj = categories.find((c) => c.id === form.category);
   const conditionObj = conditions.find((c) => c.value === form.condition);
 
   return (
