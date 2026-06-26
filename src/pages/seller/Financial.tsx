@@ -1,7 +1,8 @@
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import {
-  Wallet, Clock, TrendingUp, ArrowDownToLine, AlertCircle,
+  Wallet, Clock, TrendingUp, ArrowDownToLine, AlertCircle, Copy, Loader2,
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -27,6 +28,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { formatBRL } from '@/lib/mock-data';
 import { useWallet, useWithdrawals, useWalletDeposit, useWalletTransactions } from '@/hooks/use-api';
+import { isValidCpf } from '@/lib/cpf';
 
 // ── Mock data ────────────────────────────────────────────
 
@@ -128,6 +130,9 @@ export default function SellerFinancialPage() {
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [depositOpen, setDepositOpen] = useState(false);
   const [depositAmount, setDepositAmount] = useState('');
+  const [depositCpf, setDepositCpf] = useState('');
+  const [depositPhone, setDepositPhone] = useState('');
+  const queryClient = useQueryClient();
 
   // ── API real ──────────────────────────────────────────
   const { data: wallet, isLoading: walletLoading } = useWallet();
@@ -192,14 +197,59 @@ export default function SellerFinancialPage() {
     );
   }
 
+  const pixData = depositMutation.data;
+  const depositCpfDigits = depositCpf.replace(/\D/g, '');
+  const depositPhoneDigits = depositPhone.replace(/\D/g, '');
+
+  const formatCpf = (v: string) =>
+    v
+      .replace(/\D/g, '')
+      .slice(0, 11)
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+
+  const formatPhone = (v: string) => {
+    const d = v.replace(/\D/g, '').slice(0, 11);
+    if (d.length <= 10) {
+      return d.replace(/(\d{2})(\d)/, '($1) $2').replace(/(\d{4})(\d)/, '$1-$2');
+    }
+    return d.replace(/(\d{2})(\d)/, '($1) $2').replace(/(\d{5})(\d)/, '$1-$2');
+  };
+
   function handleConfirmDeposit() {
     const amount = parseAmount(depositAmount);
     if (amount < 5) {
       toast({ title: 'Valor mínimo', description: 'O valor mínimo para depósito é R$ 5,00.', variant: 'destructive' });
       return;
     }
+    if (!isValidCpf(depositCpfDigits)) {
+      toast({ title: 'CPF inválido', description: 'Confira os dígitos do CPF.', variant: 'destructive' });
+      return;
+    }
+    if (depositPhoneDigits.length < 10) {
+      toast({ title: 'Telefone inválido', description: 'Informe o telefone com DDD.', variant: 'destructive' });
+      return;
+    }
     const amountInCents = Math.round(amount * 100);
-    depositMutation.mutate(amountInCents);
+    depositMutation.mutate({ amountInCents, cpf: depositCpfDigits, phone: depositPhoneDigits });
+  }
+
+  async function handleCopyDepositPix() {
+    if (!pixData?.qrCode) return;
+    await navigator.clipboard.writeText(pixData.qrCode);
+    toast({ title: 'Código Pix copiado!' });
+  }
+
+  function handleDepositOpenChange(open: boolean) {
+    setDepositOpen(open);
+    if (!open) {
+      depositMutation.reset();
+      setDepositAmount('');
+      setDepositCpf('');
+      setDepositPhone('');
+      queryClient.invalidateQueries({ queryKey: ['wallet'] });
+    }
   }
 
   return (
@@ -538,56 +588,124 @@ export default function SellerFinancialPage() {
       </Dialog>
 
       {/* ── Deposit Dialog ──────────────────────────────────── */}
-      <Dialog open={depositOpen} onOpenChange={setDepositOpen}>
+      <Dialog open={depositOpen} onOpenChange={handleDepositOpenChange}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="font-heading text-xl uppercase tracking-wider">Adicionar Saldo</DialogTitle>
+            <DialogTitle className="font-heading text-xl uppercase tracking-wider">
+              {pixData ? 'Pague com Pix' : 'Adicionar Saldo'}
+            </DialogTitle>
             <DialogDescription>
-              Recarregue sua carteira Kolecta via cartão de crédito ou Pix. O valor será creditado automaticamente.
+              {pixData
+                ? 'Escaneie o QR Code ou copie o código no app do seu banco. O saldo é creditado automaticamente após o pagamento.'
+                : 'Recarregue sua carteira Kolecta via Pix. Informe os dados abaixo para gerar o código.'}
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label htmlFor="deposit-amount" className="text-sm">Valor do depósito (R$)</Label>
-              <Input
-                id="deposit-amount"
-                placeholder="Ex: 50,00"
-                className="font-mono text-lg"
-                value={depositAmount}
-                onChange={(e) => setDepositAmount(e.target.value.replace(/[^\d,]/g, ''))}
-              />
+          {pixData ? (
+            <div className="flex flex-col items-center gap-4 py-2">
+              {pixData.qrCodeUrl && (
+                <img
+                  src={pixData.qrCodeUrl}
+                  alt="QR Code Pix"
+                  className="h-52 w-52 rounded-lg border border-border bg-white p-2"
+                />
+              )}
+              <div className="w-full space-y-1">
+                <Label className="text-xs uppercase tracking-widest text-muted-foreground">Pix copia e cola</Label>
+                <div className="flex gap-2">
+                  <Input readOnly value={pixData.qrCode} className="font-mono text-xs" />
+                  <Button type="button" variant="outline" size="icon" onClick={handleCopyDepositPix}>
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Valor:{' '}
+                <span className="font-heading text-foreground">
+                  R$ {(pixData.amountInCents / 100).toFixed(2).replace('.', ',')}
+                </span>
+              </p>
             </div>
+          ) : (
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <Label htmlFor="deposit-amount" className="text-sm">Valor do depósito (R$)</Label>
+                <Input
+                  id="deposit-amount"
+                  placeholder="Ex: 50,00"
+                  className="font-mono text-lg"
+                  value={depositAmount}
+                  onChange={(e) => setDepositAmount(e.target.value.replace(/[^\d,]/g, ''))}
+                />
+              </div>
 
-            <div className="flex gap-2">
-              {[25, 50, 100, 250].map((val) => (
-                <Button
-                  key={val}
-                  variant="outline"
-                  size="sm"
-                  className="flex-1 text-xs"
-                  onClick={() => setDepositAmount(String(val).replace('.', ','))}
-                >
-                  R$ {val}
-                </Button>
-              ))}
+              <div className="flex gap-2">
+                {[25, 50, 100, 250].map((val) => (
+                  <Button
+                    key={val}
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 text-xs"
+                    onClick={() => setDepositAmount(String(val).replace('.', ','))}
+                  >
+                    R$ {val}
+                  </Button>
+                ))}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="deposit-cpf" className="text-sm">CPF</Label>
+                <Input
+                  id="deposit-cpf"
+                  inputMode="numeric"
+                  placeholder="000.000.000-00"
+                  value={depositCpf}
+                  onChange={(e) => setDepositCpf(formatCpf(e.target.value))}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="deposit-phone" className="text-sm">Telefone (com DDD)</Label>
+                <Input
+                  id="deposit-phone"
+                  inputMode="numeric"
+                  placeholder="(11) 99999-9999"
+                  value={depositPhone}
+                  onChange={(e) => setDepositPhone(formatPhone(e.target.value))}
+                />
+              </div>
+
+              <p className="text-xs text-muted-foreground">
+                Mínimo R$ 5,00 · CPF e telefone são exigidos pelo Pix.
+              </p>
             </div>
-
-            <p className="text-xs text-muted-foreground">
-              Mínimo R$ 5,00 · Você será redirecionado para a página de pagamento seguro.
-            </p>
-          </div>
+          )}
 
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setDepositOpen(false)}>Cancelar</Button>
-            <Button
-              variant="kolecta"
-              className="glow-primary"
-              onClick={handleConfirmDeposit}
-              disabled={depositMutation.isPending}
-            >
-              {depositMutation.isPending ? 'Redirecionando...' : 'Pagar e depositar'}
-            </Button>
+            {pixData ? (
+              <Button variant="kolecta" className="w-full" onClick={() => handleDepositOpenChange(false)}>
+                Concluir
+              </Button>
+            ) : (
+              <>
+                <Button variant="ghost" onClick={() => handleDepositOpenChange(false)}>Cancelar</Button>
+                <Button
+                  variant="kolecta"
+                  className="glow-primary"
+                  onClick={handleConfirmDeposit}
+                  disabled={depositMutation.isPending}
+                >
+                  {depositMutation.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Gerando Pix...
+                    </>
+                  ) : (
+                    'Gerar Pix'
+                  )}
+                </Button>
+              </>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

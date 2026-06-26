@@ -321,10 +321,13 @@ export const api = {
     getTransactions: (token: string) =>
       request<{ data: WalletTransaction[] }>('/api/wallet/transactions', { token }).then(r => r.data),
 
-    deposit: (token: string, amountInCents: number) =>
-      request<{ data: { sessionId: string; url: string } }>('/api/wallet/deposit', {
+    deposit: (
+      token: string,
+      payload: { amountInCents: number; cpf: string; phone: string },
+    ) =>
+      request<{ data: PixDeposit }>('/api/wallet/deposit', {
         method: 'POST',
-        body: JSON.stringify({ amountInCents }),
+        body: JSON.stringify(payload),
         token,
       }).then(r => r.data),
   },
@@ -575,6 +578,17 @@ export interface WalletData {
   userId: string;
   balanceInCents: number;
   pendingInCents: number;
+}
+
+/** Retorno da cobrança PIX de depósito (Pagar.me POST /orders). */
+export interface PixDeposit {
+  orderId: string;
+  chargeId?: string;
+  status: string;
+  amountInCents: number;
+  qrCode: string; // payload copia-e-cola
+  qrCodeUrl?: string; // imagem do QR Code
+  expiresAt?: string;
 }
 
 export interface WalletTransaction {

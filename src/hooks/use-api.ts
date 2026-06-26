@@ -248,23 +248,22 @@ export function useWalletTransactions() {
 
 export function useWalletDeposit() {
   const { getToken } = useAuth();
-  const queryClient = useQueryClient();
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (amountInCents: number) => {
+    mutationFn: async (payload: {
+      amountInCents: number;
+      cpf: string;
+      phone: string;
+    }) => {
       const token = await getToken();
-      return api.wallet.deposit(token!, amountInCents);
+      return api.wallet.deposit(token!, payload);
     },
-    onSuccess: (data) => {
-      // Redireciona para o checkout da Stripe
-      if (data.url) {
-        window.location.href = data.url;
-      }
-    },
+    // Não redireciona: o PIX é embutido. A tela renderiza o QR Code a partir
+    // do `data` retornado. O crédito na wallet ocorre via webhook order.paid.
     onError: (err: any) => {
       toast({
-        title: 'Erro ao iniciar depósito',
+        title: 'Erro ao gerar PIX',
         description: err.message,
         variant: 'destructive',
       });
