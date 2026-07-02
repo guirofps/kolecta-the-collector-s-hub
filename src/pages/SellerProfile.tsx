@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
-import { mockCategories } from '@/lib/mock-data';
+import { useCategories } from '@/hooks/use-api';
 import { api } from '@/lib/api';
 
 function CategoryIcon({ slug, size = 32 }: { slug: string; size?: number }) {
@@ -140,6 +140,7 @@ export default function SellerProfilePage() {
   const [sortBy, setSortBy] = useState('recent');
 
   // Queries
+  const { data: categories } = useCategories();
   const { data: seller, isLoading: loadingProfile } = useQuery({
     queryKey: ['sellerProfile', id],
     queryFn: () => api.sellers.getProfile(id),
@@ -302,7 +303,7 @@ export default function SellerProfilePage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todas categorias</SelectItem>
-                  {mockCategories.map((c) => (
+                  {(categories ?? []).map((c) => (
                     <SelectItem key={c.id} value={c.slug}>{c.name}</SelectItem>
                   ))}
                 </SelectContent>
@@ -433,7 +434,7 @@ export default function SellerProfilePage() {
                 <div>
                   <h3 className="font-heading text-lg font-bold mb-2">Categorias</h3>
                   <div className="flex flex-wrap gap-2">
-                    {mockCategories.slice(0, 4).map((c) => (
+                    {(categories ?? []).slice(0, 4).map((c) => (
                       <Badge key={c.id} variant="secondary" className="flex items-center gap-1">
                         <CategoryIcon slug={c.slug} size={14} />
                         {c.name}

@@ -5,8 +5,8 @@ import Layout from '@/components/layout/Layout';
 import ProductCard from '@/components/ProductCard';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { useListings } from '@/hooks/use-api';
-import { mockCategories, type ProductCondition, type ProductType } from '@/lib/mock-data';
+import { useListings, useCategories } from '@/hooks/use-api';
+import { type ProductCondition, type ProductType } from '@/lib/mock-data';
 import { trackEvent } from '@/lib/analytics';
 import { Loader2 } from 'lucide-react';
 
@@ -32,6 +32,7 @@ export default function SearchPage() {
   const categorySlug = searchParams.get('category') || '';
 
   const { data: listingsData, isLoading } = useListings(50, 0, query);
+  const { data: categories } = useCategories();
 
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [selectedCategories, setSelectedCategories] = useState<string[]>(categorySlug ? [categorySlug] : []);
@@ -194,7 +195,7 @@ export default function SearchPage() {
             <div>
               <h3 className="font-heading text-xs font-bold uppercase tracking-widest text-primary mb-3">Categoria</h3>
               <div className="space-y-2">
-                {mockCategories.map((cat) => (
+                {(categories ?? []).map((cat) => (
                   <label key={cat.id} className="flex items-center gap-2 text-sm text-foreground cursor-pointer hover:text-primary transition-colors">
                     <input
                       type="checkbox"

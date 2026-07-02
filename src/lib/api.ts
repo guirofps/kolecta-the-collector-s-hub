@@ -354,6 +354,20 @@ export const api = {
         token,
       }).then(r => r.data),
 
+    // Vendedor marca como entregue (inicia janela de verificação)
+    markDelivered: (token: string, id: string) =>
+      request<{ data: Order }>(`/api/orders/${id}/deliver`, {
+        method: 'PATCH',
+        token,
+      }).then(r => r.data),
+
+    // Comprador confirma recebimento → libera saldo retido ao vendedor
+    confirmDelivery: (token: string, id: string) =>
+      request<{ data: Order }>(`/api/orders/${id}/confirm-delivery`, {
+        method: 'POST',
+        token,
+      }).then(r => r.data),
+
     createCheckout: (token: string, body: { items: { listingId: string }[]; addressId?: string; useWalletBalance?: boolean }) =>
       request<{ clientSecret?: string; orderId: string; totalInCents: number; walletDeducted?: number; chargeAmount?: number; paidViaWallet?: boolean }>(
         '/api/orders/checkout',
@@ -515,6 +529,22 @@ export const api = {
       return request<{ data: SellerReview[]; meta: PaginationMeta }>(`/api/sellers/${id}/reviews${query}`);
     },
   },
+
+  // ── Reviews ────────────────────────────────────────────────────────────────
+  reviews: {
+    getGiven: (token: string) =>
+      request<{ data: GivenReview[] }>('/api/reviews/given', { token }).then(r => r.data),
+
+    getReceived: (token: string) =>
+      request<{ data: ReceivedReview[] }>('/api/reviews/received', { token }).then(r => r.data),
+
+    create: (token: string, body: { orderId: string; rating: number; comment?: string }) =>
+      request<{ data: GivenReview }>('/api/reviews', {
+        method: 'POST',
+        body: JSON.stringify(body),
+        token,
+      }).then(r => r.data),
+  },
 };
 
 // ── Tipos de domínio ──────────────────────────────────────────────────────────
@@ -548,6 +578,26 @@ export interface SellerReview {
     id: string;
     name: string | null;
   };
+}
+
+// Avaliação feita pelo usuário (autor) — alvo é a contraparte do pedido.
+export interface GivenReview {
+  id: string;
+  orderId: string;
+  rating: number;
+  comment: string | null;
+  createdAt: string;
+  target: { id: string; name: string | null };
+}
+
+// Avaliação recebida pelo usuário (alvo).
+export interface ReceivedReview {
+  id: string;
+  orderId: string;
+  rating: number;
+  comment: string | null;
+  createdAt: string;
+  author: { id: string; name: string | null };
 }
 
 export interface Message {
@@ -612,6 +662,19 @@ export type OrderStatus =
   | 'cancelled'
   | 'disputed';
 
+export interface OrderAddress {
+  id: string;
+  recipientName: string;
+  street: string;
+  number: string;
+  complement?: string | null;
+  neighborhood?: string | null;
+  city: string;
+  state: string;
+  zip: string;
+  country: string;
+}
+
 export interface Order {
   id: string;
   buyerId: string;
@@ -622,14 +685,22 @@ export interface Order {
   trackingCode?: string | null;
   createdAt: string;
   updatedAt: string;
+  // Financeiro (preenchido em GET /api/orders/:id)
+  sellerNetInCents?: number | null;
+  platformFeeInCents?: number | null;
+  deliveredAt?: string | null;
+  buyerConfirmedAt?: string | null;
   listing?: {
     title: string;
     images: string[];
     priceInCents: number;
+    condition?: string | null;
   };
-  // Contraparte: o backend popula `buyer` em /my/sales e `seller` em /my/purchases
+  // Contraparte: o backend popula `buyer` em /my/sales e `seller` em /my/purchases.
+  // GET /api/orders/:id popula buyer, seller e address.
   buyer?: { id: string; name: string };
   seller?: { id: string; name: string };
+  address?: OrderAddress | null;
 }
 
 export interface Favorite {

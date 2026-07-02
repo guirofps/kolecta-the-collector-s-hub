@@ -1,6 +1,9 @@
+// Sem fallback hardcoded: a chave vem SEMPRE da env var (local: .env.local com
+// pk_test_ da instância de dev; produção: VITE_CLERK_PUBLISHABLE_KEY = pk_live_
+// na Vercel). Se a env faltar, CLERK_ENABLED fica false e a auth é desativada
+// de forma visível — melhor que embutir uma chave de teste no bundle de produção.
 export const CLERK_PUBLISHABLE_KEY =
-  import.meta.env.VITE_CLERK_PUBLISHABLE_KEY ||
-  "pk_test_cmVuZXdlZC1kaW5nby00MC5jbGVyay5hY2NvdW50cy5kZXYk";
+  import.meta.env.VITE_CLERK_PUBLISHABLE_KEY ?? "";
 
 export const CLERK_ENABLED = Boolean(CLERK_PUBLISHABLE_KEY);
 

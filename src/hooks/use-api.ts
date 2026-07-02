@@ -337,6 +337,100 @@ export function useUpdateOrderStatus() {
   });
 }
 
+// ── useConfirmDelivery (comprador confirma recebimento) ──────────────────────
+
+export function useConfirmDelivery() {
+  const { getToken } = useAuth();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const token = await getToken();
+      return api.orders.confirmDelivery(token!, id);
+    },
+    onSuccess: (_data, id) => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      queryClient.invalidateQueries({ queryKey: ['orders', id] });
+      queryClient.invalidateQueries({ queryKey: ['wallet'] });
+      toast({ title: 'Recebimento confirmado', description: 'O pagamento será liberado ao vendedor.' });
+    },
+    onError: (err: Error) => {
+      toast({ title: 'Erro ao confirmar recebimento', description: err.message, variant: 'destructive' });
+    },
+  });
+}
+
+// ── useMarkDelivered (vendedor marca pedido como entregue) ───────────────────
+
+export function useMarkDelivered() {
+  const { getToken } = useAuth();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const token = await getToken();
+      return api.orders.markDelivered(token!, id);
+    },
+    onSuccess: (_data, id) => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      queryClient.invalidateQueries({ queryKey: ['orders', id] });
+      queryClient.invalidateQueries({ queryKey: ['seller-orders'] });
+      toast({ title: 'Pedido marcado como entregue' });
+    },
+    onError: (err: Error) => {
+      toast({ title: 'Erro ao marcar entrega', description: err.message, variant: 'destructive' });
+    },
+  });
+}
+
+// ── Reviews ──────────────────────────────────────────────────────────────────
+
+export function useGivenReviews() {
+  const { getToken } = useAuth();
+  return useQuery({
+    queryKey: ['reviews', 'given'],
+    queryFn: async () => {
+      const token = await getToken();
+      return api.reviews.getGiven(token!);
+    },
+    staleTime: 60_000,
+  });
+}
+
+export function useReceivedReviews() {
+  const { getToken } = useAuth();
+  return useQuery({
+    queryKey: ['reviews', 'received'],
+    queryFn: async () => {
+      const token = await getToken();
+      return api.reviews.getReceived(token!);
+    },
+    staleTime: 60_000,
+  });
+}
+
+export function useCreateReview() {
+  const { getToken } = useAuth();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (body: { orderId: string; rating: number; comment?: string }) => {
+      const token = await getToken();
+      return api.reviews.create(token!, body);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['reviews'] });
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      toast({ title: 'Avaliação enviada!' });
+    },
+    onError: (err: Error) => {
+      toast({ title: 'Erro ao enviar avaliação', description: err.message, variant: 'destructive' });
+    },
+  });
+}
+
 // ── useFavorites ───────────────────────────────────────────────────────────
 
 export function useFavorites() {

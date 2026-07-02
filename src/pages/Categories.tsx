@@ -1,6 +1,15 @@
 import Layout from '@/components/layout/Layout';
 import { Link } from 'react-router-dom';
-import { mockCategories } from '@/lib/mock-data';
+import { useCategories } from '@/hooks/use-api';
+
+// Descrições curadas por slug — o endpoint /api/categories ainda não retorna `description`.
+const CATEGORY_DESCRIPTIONS: Record<string, string> = {
+  'miniaturas-diecast': 'Die-cast, miniaturas escala, réplicas e customizados',
+  'cards-colecionaveis': 'Pokémon, Magic, Dragon Ball, Sport Cards e outros',
+  'action-figures': 'Action figures articulados, statues e resin',
+  'funko-pop': 'Figuras vinil, edições especiais e exclusivos',
+  'mangas-hqs': 'Mangá, HQs nacionais e importadas, edições especiais',
+};
 
 function CategoryIcon({ slug, size = 32 }: { slug: string; size?: number }) {
   const fill = '#FFD700';
@@ -63,23 +72,33 @@ function CategoryIcon({ slug, size = 32 }: { slug: string; size?: number }) {
 }
 
 export default function CategoriesPage() {
+  const { data: categories, isLoading } = useCategories();
+
   return (
     <Layout>
       <div className="container mx-auto px-4 py-8">
         <h1 className="font-heading text-3xl font-extrabold italic uppercase mb-8">Categorias</h1>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-          {mockCategories.map((cat) => (
-            <Link
-              key={cat.id}
-              to={`/categoria/${cat.slug}`}
-              className="group p-6 rounded-lg border border-border bg-card hover:border-primary/40 transition-all"
-            >
-              <CategoryIcon slug={cat.slug} size={48} />
-              <h2 className="font-heading text-lg font-bold uppercase tracking-wider text-foreground group-hover:text-primary transition-colors">{cat.name}</h2>
-              <p className="text-sm text-muted-foreground mt-1">{cat.description}</p>
-            </Link>
-          ))}
-        </div>
+        {isLoading ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="h-32 rounded-lg border border-border bg-card animate-pulse" />
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+            {(categories ?? []).map((cat) => (
+              <Link
+                key={cat.id}
+                to={`/categoria/${cat.slug}`}
+                className="group p-6 rounded-lg border border-border bg-card hover:border-primary/40 transition-all"
+              >
+                <CategoryIcon slug={cat.slug} size={48} />
+                <h2 className="font-heading text-lg font-bold uppercase tracking-wider text-foreground group-hover:text-primary transition-colors">{cat.name}</h2>
+                <p className="text-sm text-muted-foreground mt-1">{CATEGORY_DESCRIPTIONS[cat.slug] ?? ''}</p>
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
     </Layout>
   );
