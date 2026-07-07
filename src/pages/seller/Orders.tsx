@@ -27,10 +27,7 @@ import {
   useStartConversationFromOrder,
 } from '@/hooks/use-api';
 import type { Order, OrderStatus } from '@/lib/api';
-
-function formatBRL(cents: number) {
-  return (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-}
+import { formatBRL } from '@/lib/currency';
 
 // ── Types ────────────────────────────────────────────────
 
@@ -355,7 +352,7 @@ export default function SellerOrdersPage() {
 
                         {/* Bottom */}
                         <div className="flex flex-wrap items-center justify-between gap-3">
-                          <span className="font-heading font-bold text-lg text-kolecta-gold">{formatBRL(order.total)}</span>
+                          <span className="font-heading font-bold text-lg text-kolecta-gold">{formatBRL(order.total / 100)}</span>
 
                           <div className="flex items-center gap-2 flex-wrap">
                             {order.status === 'pagamento_confirmado' && (

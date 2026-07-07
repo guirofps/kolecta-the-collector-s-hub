@@ -8,6 +8,7 @@ import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import EmptyState from '@/components/EmptyState';
+import { formatBRL } from '@/lib/currency';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog';
@@ -51,9 +52,6 @@ const actionToApiStatus: Record<string, string> = {
   remove: 'cancelled',
 };
 
-function formatBRL(cents: number) {
-  return (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-}
 
 function parseImages(raw: string | null): string[] {
   if (!raw) return ['/placeholder.svg'];
@@ -255,7 +253,7 @@ export default function AdminListingDetail() {
               <CardContent className="space-y-2 text-sm">
                 <p><span className="text-muted-foreground">Tipo:</span> {listing.type === 'direct' ? 'Preço fixo' : 'Modo Lance'}</p>
                 {listing.priceInCents != null && (
-                  <p className="font-heading text-2xl font-bold text-[hsl(var(--kolecta-gold))]">{formatBRL(listing.priceInCents)}</p>
+                  <p className="font-heading text-2xl font-bold text-[hsl(var(--kolecta-gold))]">{formatBRL((listing.priceInCents ?? 0) / 100)}</p>
                 )}
               </CardContent>
             </Card>

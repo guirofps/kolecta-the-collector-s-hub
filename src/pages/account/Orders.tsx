@@ -11,12 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import EmptyState from '@/components/EmptyState';
 import { useOrders, useStartConversationFromOrder } from '@/hooks/use-api';
 import type { Order } from '@/lib/api';
-
-// ── Helpers ──────────────────────────────────────────────
-
-function formatBRL(cents: number) {
-  return (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-}
+import { formatBRL } from '@/lib/currency';
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -230,7 +225,7 @@ function OrderCard({ order }: { order: Order }) {
         {/* Footer */}
         <div className="flex items-center justify-between">
           <span className="font-heading text-lg font-bold text-primary">
-            {formatBRL(order.totalInCents)}
+            {formatBRL(order.totalInCents / 100)}
           </span>
           <div className="flex gap-2 flex-wrap justify-end">
             {order.status === 'delivered' && (

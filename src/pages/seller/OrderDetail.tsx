@@ -12,6 +12,7 @@ import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
+import { formatBRL } from '@/lib/currency';
 import EmptyState from '@/components/EmptyState';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
@@ -37,9 +38,6 @@ interface TimelineEvent {
   icon: React.ElementType;
 }
 
-function formatBRL(cents: number) {
-  return (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-}
 
 // ── Status config ────────────────────────────────────────
 
@@ -207,12 +205,12 @@ export default function SellerOrderDetailPage() {
                   </div>
                   <div className="text-right text-sm">
                     <p className="text-muted-foreground">x1</p>
-                    <p className="font-medium">{formatBRL(gross)}</p>
+                    <p className="font-medium">{formatBRL(gross / 100)}</p>
                   </div>
                 </div>
                 <Separator className="opacity-50" />
                 <div className="flex justify-end">
-                  <span className="font-heading font-bold text-xl text-kolecta-gold">{formatBRL(gross)}</span>
+                  <span className="font-heading font-bold text-xl text-kolecta-gold">{formatBRL(gross / 100)}</span>
                 </div>
               </CardContent>
             </Card>
@@ -339,16 +337,16 @@ export default function SellerOrderDetailPage() {
               <CardContent className="space-y-3 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Valor bruto</span>
-                  <span>{formatBRL(gross)}</span>
+                  <span>{formatBRL(gross / 100)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Comissão Kolecta ({(commissionRate * 100).toFixed(0)}%)</span>
-                  <span className="text-kolecta-red">-{formatBRL(commission)}</span>
+                  <span className="text-kolecta-red">-{formatBRL(commission / 100)}</span>
                 </div>
                 <Separator className="opacity-50" />
                 <div className="flex justify-between items-center">
                   <span className="font-heading font-semibold">Valor líquido</span>
-                  <span className="font-heading font-bold text-lg text-kolecta-gold">{formatBRL(net)}</span>
+                  <span className="font-heading font-bold text-lg text-kolecta-gold">{formatBRL(net / 100)}</span>
                 </div>
                 <div className="flex items-center gap-2 pt-1">
                   <ShieldCheck className="h-3.5 w-3.5 text-muted-foreground" />

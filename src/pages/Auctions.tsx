@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuctions } from '@/hooks/use-api';
+import { formatBRL } from '@/lib/currency';
 import { AuctionWithListing } from '@/lib/api';
 import { Gavel, SlidersHorizontal, X, ChevronDown, Timer, Clock } from 'lucide-react';
 
@@ -14,10 +15,6 @@ const sortOptions = [
   { value: 'price_asc', label: 'Menor lance atual' },
   { value: 'price_desc', label: 'Maior lance atual' },
 ];
-
-function formatBRL(cents: number) {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cents / 100);
-}
 
 function getImages(images: string | null): string[] {
   if (!images) return [];
@@ -59,7 +56,7 @@ function AuctionCard({ auction }: { auction: AuctionWithListing }) {
         <div className="flex items-center justify-between">
           <div>
             <p className="text-[10px] text-muted-foreground">Lance atual</p>
-            <p className="font-heading font-bold text-[hsl(var(--kolecta-gold))]">{formatBRL(currentBid)}</p>
+            <p className="font-heading font-bold text-[hsl(var(--kolecta-gold))]">{formatBRL(currentBid / 100)}</p>
           </div>
           <TimeLeft endsAt={auction.endsAt} />
         </div>

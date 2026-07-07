@@ -22,12 +22,7 @@ import {
 } from 'lucide-react';
 import { useWallet, useMyProfile, useConnect } from '@/hooks/use-api';
 import { Button } from '@/components/ui/button';
-
-// ── Helpers ───────────────────────────────────────────────
-
-function formatBRL(cents: number) {
-  return (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-}
+import { formatBRL } from '@/lib/currency';
 
 // ── Menu items ────────────────────────────────────────────
 
@@ -89,7 +84,7 @@ function WalletSummary() {
             <Wallet className="h-8 w-8 text-primary shrink-0" />
             <div className="min-w-0">
               <p className="text-xs text-muted-foreground uppercase tracking-wide font-body">Saldo disponível</p>
-              <p className="font-heading font-extrabold text-lg text-primary">{formatBRL(data.balanceInCents)}</p>
+              <p className="font-heading font-extrabold text-lg text-primary">{formatBRL(data.balanceInCents / 100)}</p>
             </div>
             <ArrowRight className="h-4 w-4 ml-auto text-primary shrink-0" />
           </CardContent>
@@ -102,7 +97,7 @@ function WalletSummary() {
           <TrendingUp className="h-8 w-8 text-kolecta-gold shrink-0" />
           <div className="min-w-0">
             <p className="text-xs text-muted-foreground uppercase tracking-wide font-body">Saldo pendente</p>
-            <p className="font-heading font-extrabold text-lg">{formatBRL(data.pendingInCents)}</p>
+            <p className="font-heading font-extrabold text-lg">{formatBRL(data.pendingInCents / 100)}</p>
           </div>
         </CardContent>
       </Card>

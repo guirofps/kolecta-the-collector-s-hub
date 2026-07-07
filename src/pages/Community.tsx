@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
+import { formatBRL } from '@/lib/currency';
 import {
   Select,
   SelectContent,
@@ -73,11 +74,6 @@ const TYPE_LABELS: Record<CommunityPostType, string> = {
 
 const POST_TYPES: CommunityPostType[] = ['collection', 'discussion', 'guide', 'product'];
 
-function formatBRL(cents: number | null) {
-  if (cents == null) return '';
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cents / 100);
-}
-
 function timeAgo(iso: string) {
   const diff = Date.now() - new Date(iso).getTime();
   const m = Math.floor(diff / 60000);
@@ -100,7 +96,7 @@ function LinkedProduct({ listing }: { listing: NonNullable<CommunityPost['listin
       <img src={thumb} alt={listing.title} className="h-14 w-14 rounded-md object-cover" />
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium">{listing.title}</p>
-        <p className="font-heading font-bold text-primary">{formatBRL(listing.priceInCents)}</p>
+        <p className="font-heading font-bold text-primary">{listing.priceInCents != null ? formatBRL(listing.priceInCents / 100) : ''}</p>
       </div>
       <Badge variant="outline" className="shrink-0 text-[10px]">Ver produto</Badge>
     </Link>

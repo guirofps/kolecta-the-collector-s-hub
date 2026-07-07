@@ -76,7 +76,7 @@ export default function AdminOverview() {
     { label: 'Usuários', value: String(stats.totalUsers), icon: Users },
     { label: 'Anúncios', value: String(stats.totalListings), icon: Package },
     { label: 'Pedidos', value: String(stats.totalOrders), icon: TrendingUp },
-    { label: 'Receita (taxas)', value: formatBRL(stats.totalRevenueInCents), icon: DollarSign },
+    { label: 'Receita (taxas)', value: formatBRL(stats.totalRevenueInCents / 100), icon: DollarSign },
     { label: 'Leilões ativos', value: '—', icon: Gavel },
     { label: 'Disputas abertas', value: String(stats.openDisputes), icon: AlertTriangle },
   ] : kpis;

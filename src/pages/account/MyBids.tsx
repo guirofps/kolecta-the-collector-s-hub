@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import EmptyState from '@/components/EmptyState';
 import { useMyBids } from '@/hooks/use-api';
 import { MyBid } from '@/lib/api';
+import { formatBRL } from '@/lib/currency';
 import { Gavel, TrendingUp, TrendingDown, Clock, XCircle } from 'lucide-react';
 
 type BidStatus = 'leading' | 'outbid' | 'won_pending' | 'lost';
@@ -18,9 +19,6 @@ const statusConfig: Record<BidStatus, { label: string; icon: React.ElementType; 
   lost:        { label: 'Perdido',               icon: XCircle,      color: 'text-muted-foreground bg-secondary border-border' },
 };
 
-function formatBRL(cents: number) {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cents / 100);
-}
 
 function getImages(raw: string | null): string[] {
   if (!raw) return [];
@@ -108,9 +106,9 @@ export default function MyBidsPage() {
                         <h3 className="text-sm font-medium line-clamp-2 sm:line-clamp-1 hover:text-primary transition-colors">{bid.title}</h3>
                       </Link>
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-xs text-muted-foreground">
-                        <span>Seu lance: <span className="text-foreground font-medium">{formatBRL(bid.amountInCents)}</span></span>
+                        <span>Seu lance: <span className="text-foreground font-medium">{formatBRL(bid.amountInCents / 100)}</span></span>
                         <span className="hidden sm:inline">·</span>
-                        <span>Maior: <span className="text-foreground font-medium">{formatBRL(currentBid)}</span></span>
+                        <span>Maior: <span className="text-foreground font-medium">{formatBRL(currentBid / 100)}</span></span>
                       </div>
                     </div>
                   </div>

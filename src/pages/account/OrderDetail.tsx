@@ -10,10 +10,7 @@ import EmptyState from '@/components/EmptyState';
 import { ArrowLeft, Package, Truck, Copy, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { useOrderById, useConfirmDelivery } from '@/hooks/use-api';
 import type { Order, OrderStatus } from '@/lib/api';
-
-function formatBRL(cents: number) {
-  return (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-}
+import { formatBRL } from '@/lib/currency';
 
 // Mapeia o status da API para o passo exibido na timeline.
 function toStep(status: OrderStatus): OrderStep {
@@ -159,7 +156,7 @@ export default function OrderDetailPage() {
             </div>
             <div className="flex-1">
               <h3 className="text-sm font-medium text-foreground">{order.listing?.title ?? 'Item'}</h3>
-              <p className="font-heading text-lg font-bold text-foreground mt-2">{formatBRL(order.totalInCents)}</p>
+              <p className="font-heading text-lg font-bold text-foreground mt-2">{formatBRL(order.totalInCents / 100)}</p>
             </div>
           </div>
         </div>

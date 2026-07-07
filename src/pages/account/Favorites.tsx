@@ -26,12 +26,7 @@ import LoadingSkeleton from '@/components/LoadingSkeleton';
 import { useCart } from '@/contexts/CartContext';
 import { useFavorites } from '@/hooks/use-api';
 import type { Favorite } from '@/lib/api';
-
-// ── Helpers ──────────────────────────────────────────────
-
-function formatBRL(cents: number) {
-  return (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-}
+import { formatBRL } from '@/lib/currency';
 
 type SortOption = 'recent' | 'price_asc' | 'price_desc' | 'name';
 
@@ -190,7 +185,7 @@ export default function FavoritesPage() {
 
                     <div>
                       <span className="font-heading text-lg font-bold text-kolecta-gold">
-                        {formatBRL(listing.priceInCents)}
+                        {formatBRL((listing.priceInCents ?? 0) / 100)}
                       </span>
                     </div>
 

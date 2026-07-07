@@ -15,6 +15,7 @@ import { Elements } from '@stripe/react-stripe-js';
 import StripePaymentForm from '@/components/checkout/StripePaymentForm';
 import { useCreateCheckout, useWallet } from '@/hooks/use-api';
 import { useAddresses } from '@/hooks/use-api';
+import { formatBRL } from '@/lib/currency';
 
 // ── Stripe singleton — inicializa uma vez ─────────────────────────────────
 
@@ -34,10 +35,6 @@ function maskCPF(v: string) {
   if (digits.length <= 6) return `${digits.slice(0, 3)}.${digits.slice(3)}`;
   if (digits.length <= 9) return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`;
   return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
-}
-
-function formatBRL(val: number) {
-  return val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
 // ── Shipping ──────────────────────────────────────────────────────────────

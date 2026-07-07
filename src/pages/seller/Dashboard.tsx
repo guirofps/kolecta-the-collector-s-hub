@@ -135,13 +135,13 @@ export default function SellerDashboard() {
                   <div>
                     <span className="text-[11px] text-muted-foreground uppercase">Saldo Disponível</span>
                     <div className="font-heading text-xl font-bold text-primary">
-                      {walletData ? formatBRL(walletData.balanceInCents) : 'R$ 0,00'}
+                      {walletData ? formatBRL(walletData.balanceInCents / 100) : 'R$ 0,00'}
                     </div>
                   </div>
                   <div>
                     <span className="text-[11px] text-muted-foreground uppercase">Pendente</span>
                     <div className="font-heading text-xl font-bold">
-                      {walletData ? formatBRL(walletData.pendingInCents) : 'R$ 0,00'}
+                      {walletData ? formatBRL(walletData.pendingInCents / 100) : 'R$ 0,00'}
                     </div>
                   </div>
                   <div>

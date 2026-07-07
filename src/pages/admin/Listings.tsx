@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Textarea } from '@/components/ui/textarea';
 import { useAdminListings, useUpdateListingStatus } from '@/hooks/use-api';
 import type { Listing } from '@/lib/api';
+import { formatBRL } from '@/lib/currency';
 
 const conditionLabels: Record<string, string> = {
   mint: 'Mint',
@@ -39,9 +40,6 @@ function parseImages(images: string | null): string[] {
   }
 }
 
-function formatBRL(cents: number): string {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cents / 100);
-}
 
 export default function AdminListings() {
   const { data: listings = [], isLoading, isError } = useAdminListings('draft');
@@ -167,7 +165,7 @@ export default function AdminListings() {
                             <span>{conditionLabels[listing.condition] || listing.condition}</span>
                             <span>·</span>
                             <span className="font-medium">
-                              {listing.priceInCents ? formatBRL(listing.priceInCents) : '—'}
+                              {listing.priceInCents ? formatBRL(listing.priceInCents / 100) : '—'}
                             </span>
                           </div>
                           <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
@@ -275,7 +273,7 @@ export default function AdminListings() {
                     <div className="text-right">
                       <span className="text-xs text-muted-foreground">Preço</span>
                       <div className="font-heading text-lg font-bold text-primary">
-                        {selectedListing.priceInCents ? formatBRL(selectedListing.priceInCents) : '—'}
+                        {selectedListing.priceInCents ? formatBRL(selectedListing.priceInCents / 100) : '—'}
                       </div>
                     </div>
                   </div>

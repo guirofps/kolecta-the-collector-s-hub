@@ -478,9 +478,9 @@ export const mockBids: Bid[] = [
 
 // ─── Helpers ─────────────────────────────────────────────
 
-export function formatBRL(value: number): string {
-  return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-}
+// Re-export da fonte única (lib/currency.ts). Mantido aqui para compatibilidade
+// com os imports existentes `from '@/lib/mock-data'`.
+export { formatBRL } from './currency';
 
 export function getAuctionProducts(): Product[] {
   return mockProducts.filter((p) => p.type === 'auction');

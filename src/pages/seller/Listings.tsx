@@ -162,7 +162,7 @@ export default function SellerListings() {
                     </div>
                     <div className="text-right shrink-0 hidden sm:block">
                       <div className="font-heading text-sm font-bold">
-                        {formatBRL(product.priceInCents || 0)}
+                        {formatBRL((product.priceInCents || 0) / 100)}
                       </div>
                       <div className="text-[10px] text-muted-foreground">
                         {product.type === 'auction' ? 'Lances abertos' : 'Preço fixo'}
