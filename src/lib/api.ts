@@ -892,6 +892,11 @@ export interface CreateListingPayload {
   condition: string;
   type: 'direct' | 'auction';
   priceInCents?: number;
+  // Config de leilão (quando type='auction')
+  startingBidInCents?: number;
+  minIncrementInCents?: number;
+  reservePriceInCents?: number;
+  durationHours?: number;
   images?: string; // JSON array stringificado
 }
 

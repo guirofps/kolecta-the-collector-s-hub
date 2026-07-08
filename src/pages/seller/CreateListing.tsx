@@ -200,6 +200,10 @@ export default function CreateListing() {
   const handleSubmit = () => {
     trackEvent('submit_listing', { type: form.type });
 
+    const toCents = (v: string) =>
+      Math.round(Number(v.replace(/\./g, '').replace(',', '.')) * 100);
+    const isAuction = form.type === 'auction';
+
     const payload: CreateListingPayload = {
       title: form.title,
       description: form.description || undefined,
@@ -211,11 +215,11 @@ export default function CreateListing() {
       edition: form.edition || undefined,
       condition: form.condition,
       type: form.type as 'direct' | 'auction',
-      priceInCents: form.type === 'direct' && form.price
-        ? Math.round(Number(form.price.replace(/\./g, '').replace(',', '.')) * 100)
-        : form.type === 'auction' && form.startingBid
-        ? Math.round(Number(form.startingBid.replace(/\./g, '').replace(',', '.')) * 100)
-        : undefined,
+      priceInCents: !isAuction && form.price ? toCents(form.price) : undefined,
+      // Config de leilão: o backend cria a linha de auction (parada) junto do anúncio.
+      startingBidInCents: isAuction && form.startingBid ? toCents(form.startingBid) : undefined,
+      durationHours: isAuction ? Number(form.duration) || 48 : undefined,
+      reservePriceInCents: isAuction && form.reservePrice ? toCents(form.reservePrice) : undefined,
       images: form.photos.length > 0 ? JSON.stringify(form.photos) : undefined,
     };
 
