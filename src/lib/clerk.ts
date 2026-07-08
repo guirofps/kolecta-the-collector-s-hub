@@ -7,6 +7,16 @@ export const CLERK_PUBLISHABLE_KEY =
 
 export const CLERK_ENABLED = Boolean(CLERK_PUBLISHABLE_KEY);
 
+// Alerta de build errado: um bundle de PRODUÇÃO com chave pk_test_ deixa o site
+// em "Development mode". A chave é embutida no build (Vite), então isso só se
+// corrige com a env var certa + redeploy na Vercel — ver docs/STATUS-clerk-producao.md.
+if (import.meta.env.PROD && CLERK_PUBLISHABLE_KEY.startsWith('pk_test_')) {
+  console.error(
+    '[Clerk] Build de PRODUÇÃO com chave pk_test_ → site fica em "Development mode". ' +
+      'Defina VITE_CLERK_PUBLISHABLE_KEY=pk_live_ no escopo Production da Vercel e refaça o deploy sem cache.',
+  );
+}
+
 /**
  * Tema Clerk com a identidade da Kolecta.
  *
