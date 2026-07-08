@@ -15,6 +15,7 @@ import { Elements } from '@stripe/react-stripe-js';
 import StripePaymentForm from '@/components/checkout/StripePaymentForm';
 import { useCreateCheckout, useWallet } from '@/hooks/use-api';
 import { useAddresses } from '@/hooks/use-api';
+import { api } from '@/lib/api';
 import { formatBRL } from '@/lib/currency';
 import { isValidCpf } from '@/lib/cpf';
 
@@ -40,19 +41,14 @@ function maskCPF(v: string) {
 
 // ── Shipping ──────────────────────────────────────────────────────────────
 
-interface ShippingOption { id: string; label: string; price: number; days: string; }
-
-const MOCK_SHIPPING_OPTIONS: ShippingOption[] = [
-  { id: 'pac', label: 'PAC', price: 1890, days: '8-12 dias úteis' },
-  { id: 'sedex', label: 'SEDEX', price: 3450, days: '3-5 dias úteis' },
-  { id: 'jadlog', label: 'Jadlog (.com)', price: 2200, days: '5-8 dias úteis' },
-];
-
-function getShippingOptions(sellerSlug: string): ShippingOption[] {
-  return MOCK_SHIPPING_OPTIONS.map(opt => ({
-    ...opt,
-    id: `${sellerSlug}-${opt.id}`
-  }));
+// `price` em CENTAVOS (mantém a aritmética do resumo); `serviceId` é o id do
+// serviço no Melhor Envio, reaproveitado depois na geração da etiqueta.
+interface ShippingOption {
+  id: string;
+  label: string;
+  price: number;
+  days: string;
+  serviceId?: number;
 }
 
 function groupBySeller(items: CartItem[]) {
@@ -125,6 +121,8 @@ export default function CheckoutPage() {
 
   // ── Shipping state ────────────────────────────────────────────────────
   const [selectedShipping, setSelectedShipping] = useState<Record<string, string>>({});
+  // Opções de frete reais por vendedor (sellerSlug → opções), vindas da cotação.
+  const [shippingOptions, setShippingOptions] = useState<Record<string, ShippingOption[]>>({});
 
   // ── Validation ────────────────────────────────────────────────────────
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -144,26 +142,57 @@ export default function CheckoutPage() {
     try {
       const res = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
       const data = await res.json();
-      if (!data.erro) {
-        setRua(data.logradouro || '');
-        setBairro(data.bairro || '');
-        setCidade(data.localidade || '');
-        setEstado(data.uf || '');
-        setIsCepFilled(true);
-        
-        // Auto-select cheapest shipping per group
-        const newSelected: Record<string, string> = {};
-        groups.forEach(g => {
-          const options = getShippingOptions(g.sellerSlug);
-          const cheapest = options.reduce((prev, curr) => (prev.price < curr.price ? prev : curr));
-          newSelected[g.sellerSlug] = cheapest.id;
-        });
-        setSelectedShipping(prev => ({ ...prev, ...newSelected }));
-      } else {
+      if (data.erro) {
         setCepError(true);
         setIsCepFilled(false);
+        return;
       }
-    } catch { 
+
+      setRua(data.logradouro || '');
+      setBairro(data.bairro || '');
+      setCidade(data.localidade || '');
+      setEstado(data.uf || '');
+      setIsCepFilled(true);
+
+      // Cotação real de frete por vendedor (Melhor Envio). A origem e o pacote
+      // são resolvidos no backend a partir do listing_id.
+      const results = await Promise.all(
+        groups.map(async (g) => {
+          try {
+            const opts = await api.shipping.quote({
+              to_cep: digits,
+              listing_id: g.items[0]?.product.id,
+            });
+            const mapped: ShippingOption[] = opts.map((o) => ({
+              id: `${g.sellerSlug}-${o.raw?.id ?? o.service}`,
+              label: o.carrier ? `${o.carrier} ${o.service}` : o.service,
+              price: Math.round(o.price * 100),
+              days: `${o.delivery_time_days} dias úteis`,
+              serviceId: typeof o.raw?.id === 'number' ? o.raw.id : undefined,
+            }));
+            return { slug: g.sellerSlug, options: mapped };
+          } catch {
+            return { slug: g.sellerSlug, options: [] as ShippingOption[] };
+          }
+        }),
+      );
+
+      const optionsBySlug: Record<string, ShippingOption[]> = {};
+      const newSelected: Record<string, string> = {};
+      let anyEmpty = false;
+      for (const { slug, options } of results) {
+        optionsBySlug[slug] = options;
+        if (options.length === 0) { anyEmpty = true; continue; }
+        const cheapest = options.reduce((prev, curr) => (curr.price < prev.price ? curr : prev));
+        newSelected[slug] = cheapest.id;
+      }
+      setShippingOptions(optionsBySlug);
+      setSelectedShipping(prev => ({ ...prev, ...newSelected }));
+      // Se nenhum vendedor retornou opções, sinaliza o erro visual de frete.
+      if (anyEmpty && Object.values(optionsBySlug).every(o => o.length === 0)) {
+        setCepError(true);
+      }
+    } catch {
       setCepError(true);
       setIsCepFilled(false);
     } finally {
@@ -195,11 +224,13 @@ export default function CheckoutPage() {
     const sel = selectedShipping[group.sellerSlug];
     if (!sel) { allShippingSelected = false; }
     else {
-      const opt = getShippingOptions(group.sellerSlug).find(o => o.id === sel);
+      const opt = (shippingOptions[group.sellerSlug] ?? []).find(o => o.id === sel);
       if (opt) shippingTotal += opt.price;
+      else allShippingSelected = false;
     }
   }
-  const grandTotal = totalPrice + shippingTotal;
+  // shippingTotal está em centavos; totalPrice em reais → normaliza p/ reais.
+  const grandTotal = totalPrice + shippingTotal / 100;
 
   // ── Validate stage 1 ─────────────────────────────────────────────────
   function validate() {
@@ -444,12 +475,17 @@ export default function CheckoutPage() {
                         <p className="text-sm font-medium">Não encontramos opções de envio para este CEP.</p>
                       </div>
                     ) : groups.map((group, idx) => {
-                      const options = getShippingOptions(group.sellerSlug);
+                      const options = shippingOptions[group.sellerSlug] ?? [];
                       return (
                         <div key={group.sellerSlug}>
                           <p className="font-heading text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-2">
                             {group.sellerName}
                           </p>
+                          {isCepFilled && options.length === 0 && (
+                            <p className="text-sm text-muted-foreground mb-2">
+                              Sem opções de frete para este vendedor.
+                            </p>
+                          )}
                           <RadioGroup
                             value={selectedShipping[group.sellerSlug] || ''}
                             onValueChange={(val) =>

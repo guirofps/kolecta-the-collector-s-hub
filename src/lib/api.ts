@@ -530,6 +530,26 @@ export const api = {
     },
   },
 
+  // ── Shipping ─────────────────────────────────────────────────────────────────
+  shipping: {
+    // Cotação real (Melhor Envio). Origem e pacote são resolvidos no backend a
+    // partir do `listing_id` (endereço do vendedor + defaults), então basta o
+    // CEP de destino e o anúncio.
+    quote: (body: {
+      to_cep: string;
+      listing_id?: string;
+      from_cep?: string;
+      weight_kg?: number;
+      width_cm?: number;
+      height_cm?: number;
+      length_cm?: number;
+    }) =>
+      request<{ options: ShippingQuoteOption[] }>('/api/shipping/quote', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }).then((r) => r.options),
+  },
+
   // ── Reviews ────────────────────────────────────────────────────────────────
   reviews: {
     getGiven: (token: string) =>
@@ -548,6 +568,15 @@ export const api = {
 };
 
 // ── Tipos de domínio ──────────────────────────────────────────────────────────
+
+/** Opção de frete retornada pela cotação real (`POST /api/shipping/quote`). */
+export interface ShippingQuoteOption {
+  carrier: string; // ex: "Correios", "Jadlog"
+  service: string; // ex: "PAC", "SEDEX", ".Package"
+  price: number; // em REAIS (float)
+  delivery_time_days: number;
+  raw: { id?: number; [key: string]: unknown };
+}
 
 export interface PaginationMeta {
   page: number;
