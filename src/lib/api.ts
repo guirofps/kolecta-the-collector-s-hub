@@ -811,6 +811,11 @@ export interface Listing {
   priceInCents: number | null;
   images: string | null; // JSON array stringificado: '["url1","url2"]'
   status: string;
+  // Dados de envio (frete): peso em gramas, dimensões em cm. Nullable.
+  weightGrams?: number | null;
+  widthCm?: number | null;
+  heightCm?: number | null;
+  lengthCm?: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -927,6 +932,11 @@ export interface CreateListingPayload {
   reservePriceInCents?: number;
   durationHours?: number;
   images?: string; // JSON array stringificado
+  // Dados de envio (frete): peso em gramas, dimensões em cm.
+  weightGrams?: number;
+  widthCm?: number;
+  heightCm?: number;
+  lengthCm?: number;
 }
 
 export interface ImportJobError {

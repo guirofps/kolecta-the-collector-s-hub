@@ -123,6 +123,11 @@ interface FormData {
   duration: string;
   reservePrice: string;
   antiSniper: boolean;
+  // Envio (frete): peso em gramas, dimensões em cm.
+  weightGrams: string;
+  widthCm: string;
+  heightCm: string;
+  lengthCm: string;
 }
 
 const initialForm: FormData = {
@@ -144,6 +149,10 @@ const initialForm: FormData = {
   duration: '48',
   reservePrice: '',
   antiSniper: true,
+  weightGrams: '',
+  widthCm: '',
+  heightCm: '',
+  lengthCm: '',
 };
 
 const steps = [
@@ -211,6 +220,10 @@ export default function CreateListing() {
 
     const toCents = (v: string) =>
       Math.round(Number(v.replace(/\./g, '').replace(',', '.')) * 100);
+    const toInt = (v: string) => {
+      const n = parseInt(v.replace(/\D/g, ''), 10);
+      return Number.isFinite(n) && n > 0 ? n : undefined;
+    };
     const isAuction = form.type === 'auction';
 
     const payload: CreateListingPayload = {
@@ -230,6 +243,11 @@ export default function CreateListing() {
       durationHours: isAuction ? Number(form.duration) || 48 : undefined,
       reservePriceInCents: isAuction && form.reservePrice ? toCents(form.reservePrice) : undefined,
       images: form.photos.length > 0 ? JSON.stringify(form.photos) : undefined,
+      // Envio (frete): opcionais — sem eles o backend usa um pacote default.
+      weightGrams: toInt(form.weightGrams),
+      widthCm: toInt(form.widthCm),
+      heightCm: toInt(form.heightCm),
+      lengthCm: toInt(form.lengthCm),
     };
 
     createListing.mutate(payload, {
@@ -1042,6 +1060,46 @@ function StepPricing({ form, update }: { form: FormData; update: (f: keyof FormD
           )}
         </div>
       )}
+
+      <ShippingFields form={form} update={update} />
+    </div>
+  );
+}
+
+// ─── Dados para envio (peso/dimensões, opcionais) ──────────
+
+function ShippingFields({ form, update }: { form: FormData; update: (f: keyof FormData, v: any) => void }) {
+  return (
+    <div className="pt-6 mt-6 border-t border-border space-y-4">
+      <div>
+        <h3 className="font-heading text-base font-bold uppercase mb-1">Dados para envio</h3>
+        <p className="text-xs text-muted-foreground">
+          Peso e dimensões do pacote embalado. Melhoram a precisão do frete —
+          se deixar em branco, usamos uma estimativa padrão de colecionável.
+        </p>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div>
+          <Label htmlFor="weightGrams">Peso (g)</Label>
+          <Input id="weightGrams" type="number" inputMode="numeric" placeholder="300"
+            value={form.weightGrams} onChange={(e) => update('weightGrams', e.target.value)} className="mt-1.5" />
+        </div>
+        <div>
+          <Label htmlFor="widthCm">Largura (cm)</Label>
+          <Input id="widthCm" type="number" inputMode="numeric" placeholder="16"
+            value={form.widthCm} onChange={(e) => update('widthCm', e.target.value)} className="mt-1.5" />
+        </div>
+        <div>
+          <Label htmlFor="heightCm">Altura (cm)</Label>
+          <Input id="heightCm" type="number" inputMode="numeric" placeholder="6"
+            value={form.heightCm} onChange={(e) => update('heightCm', e.target.value)} className="mt-1.5" />
+        </div>
+        <div>
+          <Label htmlFor="lengthCm">Compr. (cm)</Label>
+          <Input id="lengthCm" type="number" inputMode="numeric" placeholder="12"
+            value={form.lengthCm} onChange={(e) => update('lengthCm', e.target.value)} className="mt-1.5" />
+        </div>
+      </div>
     </div>
   );
 }

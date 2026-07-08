@@ -35,6 +35,11 @@ interface EditForm {
   description: string;
   photos: string[];
   price: string; // em reais (string), convertido p/ centavos ao salvar
+  // Envio (frete): peso em gramas, dimensões em cm (strings no form).
+  weightGrams: string;
+  widthCm: string;
+  heightCm: string;
+  lengthCm: string;
 }
 
 const emptyForm: EditForm = {
@@ -49,6 +54,10 @@ const emptyForm: EditForm = {
   description: '',
   photos: [],
   price: '',
+  weightGrams: '',
+  widthCm: '',
+  heightCm: '',
+  lengthCm: '',
 };
 
 function parseImages(raw: string | null): string[] {
@@ -94,6 +103,10 @@ export default function EditListing() {
       description: listing.description ?? '',
       photos: parseImages(listing.images),
       price: listing.priceInCents != null ? String(listing.priceInCents / 100) : '',
+      weightGrams: listing.weightGrams != null ? String(listing.weightGrams) : '',
+      widthCm: listing.widthCm != null ? String(listing.widthCm) : '',
+      heightCm: listing.heightCm != null ? String(listing.heightCm) : '',
+      lengthCm: listing.lengthCm != null ? String(listing.lengthCm) : '',
     });
   }, [listing]);
 
@@ -135,6 +148,11 @@ export default function EditListing() {
       return;
     }
 
+    const toInt = (v: string) => {
+      const n = parseInt(v.replace(/\D/g, ''), 10);
+      return Number.isFinite(n) && n > 0 ? n : undefined;
+    };
+
     const payload: Partial<CreateListingPayload> = {
       title: form.title.trim(),
       description: form.description || undefined,
@@ -147,6 +165,10 @@ export default function EditListing() {
       condition: form.condition || undefined,
       priceInCents,
       images: JSON.stringify(form.photos),
+      weightGrams: toInt(form.weightGrams),
+      widthCm: toInt(form.widthCm),
+      heightCm: toInt(form.heightCm),
+      lengthCm: toInt(form.lengthCm),
     };
 
     updateListing.mutate(
@@ -358,6 +380,41 @@ export default function EditListing() {
                 Os parâmetros do leilão (duração, incremento, reserva) são gerenciados na página de leilões.
               </p>
             )}
+          </CardContent>
+        </Card>
+
+        {/* Envio */}
+        <Card className="bg-gradient-card border-border">
+          <CardHeader>
+            <CardTitle className="font-heading text-xl">Dados para envio</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-xs text-muted-foreground">
+              Peso e dimensões do pacote embalado. Melhoram a precisão do frete —
+              em branco, usamos uma estimativa padrão de colecionável.
+            </p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div>
+                <Label>Peso (g)</Label>
+                <Input type="number" inputMode="numeric" placeholder="300"
+                  value={form.weightGrams} onChange={(e) => updateField('weightGrams', e.target.value)} />
+              </div>
+              <div>
+                <Label>Largura (cm)</Label>
+                <Input type="number" inputMode="numeric" placeholder="16"
+                  value={form.widthCm} onChange={(e) => updateField('widthCm', e.target.value)} />
+              </div>
+              <div>
+                <Label>Altura (cm)</Label>
+                <Input type="number" inputMode="numeric" placeholder="6"
+                  value={form.heightCm} onChange={(e) => updateField('heightCm', e.target.value)} />
+              </div>
+              <div>
+                <Label>Comprimento (cm)</Label>
+                <Input type="number" inputMode="numeric" placeholder="12"
+                  value={form.lengthCm} onChange={(e) => updateField('lengthCm', e.target.value)} />
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
