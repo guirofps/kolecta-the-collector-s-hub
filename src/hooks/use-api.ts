@@ -670,7 +670,7 @@ export function useCreateCheckout() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (body: { items: { listingId: string }[]; addressId?: string; useWalletBalance?: boolean }) => {
+    mutationFn: async (body: { items: { listingId: string }[]; addressId?: string; useWalletBalance?: boolean; buyerCpf?: string }) => {
       const token = await getToken();
       return api.orders.createCheckout(token!, body);
     },

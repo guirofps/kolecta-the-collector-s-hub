@@ -16,6 +16,7 @@ import StripePaymentForm from '@/components/checkout/StripePaymentForm';
 import { useCreateCheckout, useWallet } from '@/hooks/use-api';
 import { useAddresses } from '@/hooks/use-api';
 import { formatBRL } from '@/lib/currency';
+import { isValidCpf } from '@/lib/cpf';
 
 // ── Stripe singleton — inicializa uma vez ─────────────────────────────────
 
@@ -205,7 +206,7 @@ export default function CheckoutPage() {
     const e: Record<string, string> = {};
     if (selectedAddressId === 'custom') {
       if (!nome.trim()) e.nome = 'Nome é obrigatório';
-      if (cpf.replace(/\D/g, '').length !== 11) e.cpf = 'CPF inválido';
+      if (!isValidCpf(cpf)) e.cpf = 'CPF inválido';
       if (cep.replace(/\D/g, '').length !== 8) e.cep = 'CEP inválido';
       if (!rua.trim()) e.rua = 'Rua é obrigatória';
       if (!numero.trim()) e.numero = 'Número é obrigatório';
@@ -228,8 +229,10 @@ export default function CheckoutPage() {
     // Um listingId por item do grupo (MVP: 1 item por seller)
     const listingItems = group.items.map(i => ({ listingId: i.product.id }));
     const addressId = selectedAddressId !== 'custom' ? selectedAddressId : undefined;
+    // CPF do comprador (só dígitos) — exigido pela Pagar.me na transação.
+    const buyerCpf = cpf.replace(/\D/g, '') || undefined;
 
-    const result = await createCheckout.mutateAsync({ items: listingItems, addressId, useWalletBalance });
+    const result = await createCheckout.mutateAsync({ items: listingItems, addressId, useWalletBalance, buyerCpf });
 
     // Se pagou integralmente via wallet, redireciona direto para confirmação
     if (result.paidViaWallet) {

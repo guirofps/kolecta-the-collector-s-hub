@@ -368,7 +368,7 @@ export const api = {
         token,
       }).then(r => r.data),
 
-    createCheckout: (token: string, body: { items: { listingId: string }[]; addressId?: string; useWalletBalance?: boolean }) =>
+    createCheckout: (token: string, body: { items: { listingId: string }[]; addressId?: string; useWalletBalance?: boolean; buyerCpf?: string }) =>
       request<{ clientSecret?: string; orderId: string; totalInCents: number; walletDeducted?: number; chargeAmount?: number; paidViaWallet?: boolean }>(
         '/api/orders/checkout',
         { method: 'POST', body: JSON.stringify(body), token },
