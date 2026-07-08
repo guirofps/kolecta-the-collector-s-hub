@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { mockCategories, formatBRL } from '@/lib/mock-data';
 import { trackEvent } from '@/lib/analytics';
-import { useCreateListing, useUploadImage, useCategories } from '@/hooks/use-api';
+import { useCreateListing, useUploadImage, useCategories, useAddresses } from '@/hooks/use-api';
 import type { CreateListingPayload } from '@/lib/api';
 
 // Opção de categoria usada no wizard (id real + slug estável para keyar campos).
@@ -170,6 +170,12 @@ export default function CreateListing() {
   const categories = useCategoryOptions();
   const slugOf = (id: string) => categories.find((c) => c.id === id)?.slug;
 
+  // Endereço de origem do frete: o vendedor precisa ter um endereço cadastrado
+  // na plataforma (o mesmo de "Minha Conta → Endereços"), usado como origem.
+  const { query: addressQuery } = useAddresses();
+  const hasAddress = (addressQuery.data ?? []).length > 0;
+  const addressBlocking = !addressQuery.isLoading && !hasAddress;
+
   useEffect(() => {
     trackEvent('start_sell_flow');
   }, []);
@@ -198,6 +204,9 @@ export default function CreateListing() {
   };
 
   const handleSubmit = () => {
+    // Sem endereço de origem o backend rejeita (BadRequest); trava aqui para dar
+    // um caminho claro ao vendedor em vez de um erro.
+    if (!hasAddress) return;
     trackEvent('submit_listing', { type: form.type });
 
     const toCents = (v: string) =>
@@ -299,6 +308,25 @@ export default function CreateListing() {
           </motion.div>
         </AnimatePresence>
 
+        {/* Gate de endereço de origem (frete) — só no passo de revisão */}
+        {step === 5 && addressBlocking && (
+          <div className="mt-6 p-4 rounded-md bg-destructive/5 border border-destructive/30 flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+            <div className="text-sm">
+              <p className="font-medium text-foreground">
+                Cadastre um endereço antes de anunciar
+              </p>
+              <p className="text-muted-foreground mt-0.5">
+                Ele será usado como <strong>origem do frete</strong> nas suas vendas.
+                É o mesmo endereço da sua conta.
+              </p>
+              <Button variant="kolecta" size="sm" className="mt-3" asChild>
+                <Link to="/conta/enderecos">Cadastrar endereço</Link>
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* Navigation */}
         <div className="flex items-center justify-between mt-8 pt-6 border-t border-border">
           <Button
@@ -318,8 +346,17 @@ export default function CreateListing() {
               Próximo <ArrowRight className="h-4 w-4" />
             </Button>
           ) : (
-            <Button variant="kolecta" onClick={handleSubmit}>
-              <Check className="h-4 w-4" /> Enviar para Aprovação
+            <Button
+              variant="kolecta"
+              onClick={handleSubmit}
+              disabled={createListing.isPending || addressBlocking}
+            >
+              {createListing.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Check className="h-4 w-4" />
+              )}
+              Enviar para Aprovação
             </Button>
           )}
         </div>
