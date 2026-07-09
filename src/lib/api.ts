@@ -548,6 +548,15 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(body),
       }).then((r) => r.options),
+
+    // Gera a etiqueta (escopo "cart + link ao painel"): adiciona o envio ao
+    // carrinho do Melhor Envio e devolve a URL do painel para o vendedor pagar
+    // e imprimir. Não movimenta dinheiro no nosso backend.
+    label: (body: GenerateLabelBody) =>
+      request<GenerateLabelResult>('/api/shipping/label', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
   },
 
   // ── Reviews ────────────────────────────────────────────────────────────────
@@ -576,6 +585,26 @@ export interface ShippingQuoteOption {
   price: number; // em REAIS (float)
   delivery_time_days: number;
   raw: { id?: number; [key: string]: unknown };
+}
+
+/** Corpo de `POST /api/shipping/label` (geração de etiqueta). */
+export interface GenerateLabelBody {
+  order_id: string;
+  service_id: number;
+  origin_address_id: string;
+  volumes: { weight_kg: number; width_cm: number; height_cm: number; length_cm: number };
+  declared_value?: number; // em reais; default = total do pedido
+  to_document?: string; // CPF do comprador
+  from_document?: string; // CPF do vendedor
+}
+
+/** Retorno de `POST /api/shipping/label`. */
+export interface GenerateLabelResult {
+  success: boolean;
+  message: string;
+  cartId: number | string | null;
+  protocol: string | null;
+  panelUrl: string;
 }
 
 export interface PaginationMeta {

@@ -685,6 +685,24 @@ export function useCreateCheckout() {
 }
 
 
+// ── useGenerateLabel (vendedor gera etiqueta Melhor Envio) ──────────────────
+
+export function useGenerateLabel() {
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: (body: import('@/lib/api').GenerateLabelBody) =>
+      api.shipping.label(body),
+    onError: (err: any) => {
+      toast({
+        title: 'Erro ao gerar etiqueta',
+        description: err.message ?? 'Não foi possível gerar a etiqueta. Tente novamente.',
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
 // ── useBulkImport ──────────────────────────────────────────────────────────
 
 export function useBulkImport() {
