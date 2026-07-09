@@ -688,11 +688,14 @@ export function useCreateCheckout() {
 // ── useGenerateLabel (vendedor gera etiqueta Melhor Envio) ──────────────────
 
 export function useGenerateLabel() {
+  const { getToken } = useAuth();
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: (body: import('@/lib/api').GenerateLabelBody) =>
-      api.shipping.label(body),
+    mutationFn: async (body: import('@/lib/api').GenerateLabelBody) => {
+      const token = await getToken();
+      return api.shipping.label(token || '', body);
+    },
     onError: (err: any) => {
       toast({
         title: 'Erro ao gerar etiqueta',

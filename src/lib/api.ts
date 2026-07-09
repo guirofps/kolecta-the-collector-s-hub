@@ -552,10 +552,11 @@ export const api = {
     // Gera a etiqueta (escopo "cart + link ao painel"): adiciona o envio ao
     // carrinho do Melhor Envio e devolve a URL do painel para o vendedor pagar
     // e imprimir. Não movimenta dinheiro no nosso backend.
-    label: (body: GenerateLabelBody) =>
+    label: (token: string, body: GenerateLabelBody) =>
       request<GenerateLabelResult>('/api/shipping/label', {
         method: 'POST',
         body: JSON.stringify(body),
+        token,
       }),
   },
 
