@@ -13,6 +13,7 @@ import { Sheet, SheetContent, SheetTrigger, SheetClose, SheetTitle } from '@/com
 import kolectaLogo from '@/assets/kolecta-logo.png';
 import { CLERK_ENABLED } from '@/lib/clerk';
 import { useCart } from '@/contexts/CartContext';
+import { useLaunchGate } from '@/hooks/use-launch-gate';
 
 const Logo = () => (
   <Link to="/" className="flex items-center select-none">
@@ -32,6 +33,7 @@ const navLinks = [
 function DrawerContent() {
   const { user } = useUser();
   const { signOut } = useClerk();
+  const { gateActive } = useLaunchGate();
 
   return (
     <div className="flex flex-col h-full bg-kolecta-dark text-white overflow-hidden">
@@ -59,7 +61,7 @@ function DrawerContent() {
                   </Link>
                 </SheetClose>
                 <SheetClose asChild>
-                  <Link to="/cadastrar" className="flex-1">
+                  <Link to="/criar-conta" className="flex-1">
                     <Button variant="outline" className="w-full border-white/20 text-white hover:bg-white/10 h-9 text-sm">Criar conta</Button>
                   </Link>
                 </SheetClose>
@@ -74,7 +76,7 @@ function DrawerContent() {
               </Link>
             </SheetClose>
             <SheetClose asChild>
-              <Link to="/cadastrar" className="flex-1">
+              <Link to="/criar-conta" className="flex-1">
                 <Button variant="outline" className="w-full border-white/20 text-white hover:bg-white/10 h-9 text-sm">Criar conta</Button>
               </Link>
             </SheetClose>
@@ -87,30 +89,34 @@ function DrawerContent() {
         <div>
           <h3 className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-3">Navegar</h3>
           <div className="space-y-1">
-            <SheetClose asChild>
-              <Link to="/busca" className="flex items-center gap-3 py-2 text-white/70 hover:text-white transition-colors">
-                <Search className="w-4 h-4" />
-                <span className="text-sm">Explorar</span>
-              </Link>
-            </SheetClose>
-            <SheetClose asChild>
-              <Link to="/categorias" className="flex items-center gap-3 py-2 text-white/70 hover:text-white transition-colors">
-                <List className="w-4 h-4" />
-                <span className="text-sm">Categorias</span>
-              </Link>
-            </SheetClose>
-            <SheetClose asChild>
-              <Link to="/modo-lance" className="flex items-center gap-3 py-2 text-white/70 hover:text-white transition-colors">
-                <Gavel className="w-4 h-4" />
-                <span className="text-sm">Modo Lance</span>
-              </Link>
-            </SheetClose>
-            <SheetClose asChild>
-              <Link to="/comunidade" className="flex items-center gap-3 py-2 text-white/70 hover:text-white transition-colors">
-                <Users className="w-4 h-4" />
-                <span className="text-sm">Comunidade</span>
-              </Link>
-            </SheetClose>
+            {!gateActive && (
+              <>
+                <SheetClose asChild>
+                  <Link to="/busca" className="flex items-center gap-3 py-2 text-white/70 hover:text-white transition-colors">
+                    <Search className="w-4 h-4" />
+                    <span className="text-sm">Explorar</span>
+                  </Link>
+                </SheetClose>
+                <SheetClose asChild>
+                  <Link to="/categorias" className="flex items-center gap-3 py-2 text-white/70 hover:text-white transition-colors">
+                    <List className="w-4 h-4" />
+                    <span className="text-sm">Categorias</span>
+                  </Link>
+                </SheetClose>
+                <SheetClose asChild>
+                  <Link to="/modo-lance" className="flex items-center gap-3 py-2 text-white/70 hover:text-white transition-colors">
+                    <Gavel className="w-4 h-4" />
+                    <span className="text-sm">Modo Lance</span>
+                  </Link>
+                </SheetClose>
+                <SheetClose asChild>
+                  <Link to="/comunidade" className="flex items-center gap-3 py-2 text-white/70 hover:text-white transition-colors">
+                    <Users className="w-4 h-4" />
+                    <span className="text-sm">Comunidade</span>
+                  </Link>
+                </SheetClose>
+              </>
+            )}
             <SheetClose asChild>
               <Link to="/como-funciona" className="flex items-center gap-3 py-2 text-white/70 hover:text-white transition-colors">
                 <HelpCircle className="w-4 h-4" />
@@ -184,6 +190,7 @@ function DrawerContent() {
             </div>
 
             {/* Vendedor */}
+            {!gateActive && (
             <div>
               <h3 className="text-xs font-semibold text-kolecta-gold uppercase tracking-wider mb-3">Vendedor</h3>
               <div className="space-y-1">
@@ -225,6 +232,7 @@ function DrawerContent() {
                 </SheetClose>
               </div>
             </div>
+            )}
           </SignedIn>
         )}
       </div>
@@ -257,9 +265,15 @@ export default function Header() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const { totalItems, openCart } = useCart();
+  const { gateActive } = useLaunchGate();
   const location = useLocation();
   const navigate = useNavigate();
   const pathname = location.pathname;
+
+  // No pré-lançamento (não-admin), só a Ajuda continua navegável no topo.
+  const visibleNavLinks = gateActive
+    ? navLinks.filter((l) => l.href === '/ajuda')
+    : navLinks;
 
   useEffect(() => {
     const updateBodyPadding = () => {
@@ -294,6 +308,7 @@ export default function Header() {
           <Logo />
 
           {/* Desktop search */}
+          {!gateActive && (
           <form onSubmit={handleSearch} className="hidden lg:flex flex-1 max-w-md mx-4">
             <div className="relative w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
@@ -306,10 +321,11 @@ export default function Header() {
               />
             </div>
           </form>
+          )}
 
           {/* Desktop nav */}
           <nav className="hidden lg:flex items-center gap-6">
-            {navLinks.map((link) => (
+            {visibleNavLinks.map((link) => (
               <Link
                 key={link.href}
                 to={link.href}
@@ -324,6 +340,7 @@ export default function Header() {
           {/* Right actions */}
           <div className="flex items-center gap-1 ml-auto lg:ml-0">
             {/* Mobile search toggle */}
+            {!gateActive && (
             <Button
               variant="ghost"
               size="icon"
@@ -332,6 +349,7 @@ export default function Header() {
             >
               {searchOpen ? <X className="h-5 w-5" /> : <Search className="h-5 w-5" />}
             </Button>
+            )}
 
             <Link to="/conta/favoritos" className="hidden lg:block">
               <Button variant="ghost" size="icon" className="text-white/70 hover:text-primary">
@@ -339,6 +357,7 @@ export default function Header() {
               </Button>
             </Link>
 
+            {!gateActive && (
             <Button variant="ghost" size="icon" className="relative text-white/70 hover:text-primary" onClick={openCart}>
               <ShoppingCart className="h-5 w-5" />
               {totalItems > 0 && (
@@ -347,6 +366,7 @@ export default function Header() {
                 </Badge>
               )}
             </Button>
+            )}
 
             <Link to="/conta/mensagens" className="hidden lg:block">
               <Button variant="ghost" size="icon" className="text-white/70 hover:text-white">
@@ -363,22 +383,28 @@ export default function Header() {
                   <div className="hidden lg:block ml-2">
                     <UserButton>
                       <UserButton.MenuItems>
-                        {/* Atalhos de navegação Kolecta */}
-                        <UserButton.Action
-                          label="Painel de Vendas"
-                          labelIcon={<Store className="h-4 w-4" />}
-                          onClick={() => navigate('/painel')}
-                        />
-                        <UserButton.Action
-                          label="Explorar"
-                          labelIcon={<ShoppingBag className="h-4 w-4" />}
-                          onClick={() => navigate('/busca')}
-                        />
-                        <UserButton.Action
-                          label="Modo Lance"
-                          labelIcon={<Gavel className="h-4 w-4" />}
-                          onClick={() => navigate('/modo-lance')}
-                        />
+                        {/* Atalhos de navegação Kolecta (ocultos no pré-lançamento) */}
+                        {!gateActive && (
+                          <UserButton.Action
+                            label="Painel de Vendas"
+                            labelIcon={<Store className="h-4 w-4" />}
+                            onClick={() => navigate('/painel')}
+                          />
+                        )}
+                        {!gateActive && (
+                          <UserButton.Action
+                            label="Explorar"
+                            labelIcon={<ShoppingBag className="h-4 w-4" />}
+                            onClick={() => navigate('/busca')}
+                          />
+                        )}
+                        {!gateActive && (
+                          <UserButton.Action
+                            label="Modo Lance"
+                            labelIcon={<Gavel className="h-4 w-4" />}
+                            onClick={() => navigate('/modo-lance')}
+                          />
+                        )}
                         {/* Atalhos rápidos da Conta */}
                         <UserButton.Action
                           label="Meus Pedidos"
@@ -451,20 +477,24 @@ export default function Header() {
           <Home className="h-5 w-5" />
           <span className="text-[10px] font-medium leading-none">Início</span>
         </Link>
-        <Link 
-          to="/busca" 
+        {!gateActive && (
+        <Link
+          to="/busca"
           className={`flex flex-col items-center justify-center w-full h-full gap-1 ${pathname === '/busca' ? 'text-kolecta-gold' : 'text-white/60 hover:text-white'}`}
         >
           <Search className="h-5 w-5" />
           <span className="text-[10px] font-medium leading-none">Busca</span>
         </Link>
-        <Link 
-          to="/modo-lance" 
+        )}
+        {!gateActive && (
+        <Link
+          to="/modo-lance"
           className={`flex flex-col items-center justify-center w-full h-full gap-1 ${pathname === '/modo-lance' ? 'text-kolecta-gold' : 'text-white/60 hover:text-white'}`}
         >
           <Gavel className="h-5 w-5" />
           <span className="text-[10px] font-medium leading-none">Lances</span>
         </Link>
+        )}
         <Link 
           to="/conta/mensagens" 
           className={`flex flex-col items-center justify-center w-full h-full gap-1 ${pathname.startsWith('/conta/mensagens') ? 'text-kolecta-gold' : 'text-white/60 hover:text-white'}`}

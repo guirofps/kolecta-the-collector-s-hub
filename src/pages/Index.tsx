@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowRight, ShieldCheck, Search, TrendingUp, Package, Users } from 'lucide-react';
+import { ArrowRight, ShieldCheck, Search, TrendingUp, Package, Users, Loader2 } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
 import ProductCard from '@/components/ProductCard';
 import { Button } from '@/components/ui/button';
@@ -9,8 +9,10 @@ import { Badge } from '@/components/ui/badge';
 import type { ProductCondition, Product } from '@/lib/mock-data';
 import type { Listing } from '@/lib/api';
 import { useListings } from '@/hooks/use-api';
+import { useLaunchGate } from '@/hooks/use-launch-gate';
 import { trackEvent } from '@/lib/analytics';
 import heroBg from '@/assets/hero-bg.jpg';
+import LaunchCountdown from './LaunchCountdown';
 
 const CATEGORIES = [
   { id: '1', name: 'Miniaturas Diecast', slug: 'miniaturas-diecast', icon: '🚗', description: 'Hot Wheels, Mini GT, Tomica e mais' },
@@ -90,6 +92,24 @@ const fadeUp = {
 };
 
 export default function Index() {
+  const { isLoading: gateLoading, gateActive } = useLaunchGate();
+
+  // Antes do lançamento, a home vira a landing de countdown (exceto admin).
+  if (gateLoading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-kolecta-dark">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+  if (gateActive) {
+    return <LaunchCountdown />;
+  }
+
+  return <HomeContent />;
+}
+
+function HomeContent() {
   useEffect(() => {
     trackEvent('view_home');
   }, []);

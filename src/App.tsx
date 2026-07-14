@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 import ScrollToTop from "./components/ScrollToTop";
 import ProtectedRoute from "./components/ProtectedRoute";
+import LaunchGate from "./components/LaunchGate";
 import DevUserSwitcher from "./components/DevUserSwitcher";
 import { AuthProvider } from "./contexts/AuthContext";
 import Index from "./pages/Index";
@@ -93,6 +94,7 @@ const App = () => (
           <CartDrawer />
           <ScrollToTop />
           {showDevUserSwitcher && <DevUserSwitcher />}
+          <LaunchGate>
           <Routes>
             {/* Public */}
             <Route path="/" element={<Index />} />
@@ -167,6 +169,7 @@ const App = () => (
 
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </LaunchGate>
         </BrowserRouter>
       </TooltipProvider>
     </CartProvider>
