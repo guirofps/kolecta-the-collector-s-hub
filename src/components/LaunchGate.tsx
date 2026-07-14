@@ -13,6 +13,10 @@ const OPEN_PREFIXES = [
   '/criar-conta',
   '/esqueci-senha',
   '/conta', // páginas da conta do usuário logado
+  // Painel do vendedor: o Fundador precisa montar a vitrine ANTES do lançamento.
+  // Os anúncios criados aqui nascem em `em_analise` e só vão ao ar no dia 25,
+  // então liberar o painel não abre o marketplace.
+  '/painel',
   // Institucionais (conteúdo estático, ajudam a converter cadastro):
   '/como-funciona',
   '/taxas-e-comissoes',

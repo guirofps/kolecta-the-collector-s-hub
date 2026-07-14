@@ -8,12 +8,10 @@ import {
   CreditCard, Truck, CheckCircle2, Clock, AlertTriangle,
   FileText, Search, Scale, ChevronRight,
 } from 'lucide-react';
+import { COMMISSION_RATE, COMMISSION_LABEL, OPERATIONAL_FEE, sellerNet } from '@/lib/fees';
 
-/* ── Fee Constants ── */
-const FEES = {
-  direct: { commission: 0.12, operational: 2, label: 'Venda Direta' },
-  auction: { commission: 0.13, operational: 2, label: 'Modo Lance' },
-};
+/* ── Fee Constants ──
+   Taxa única: a mesma para Venda Direta e Modo Lance. Ver src/lib/fees.ts. */
 
 /* ── Timeline Steps ── */
 const timelineSteps = [
@@ -43,8 +41,8 @@ const faqItems = [
     a: 'Não. A comissão do marketplace incide apenas sobre o valor do item, não sobre o frete ou outros custos adicionais.',
   },
   {
-    q: 'Por que a comissão do Modo Lance é maior?',
-    a: 'O Modo Lance envolve infraestrutura adicional de lances em tempo real, monitoramento anti-fraude e extensão anti-sniper, justificando 1% a mais de comissão.',
+    q: 'A comissão do Modo Lance é diferente da Venda Direta?',
+    a: 'Não. A Kolecta tem taxa única: a mesma comissão vale para Venda Direta e para Modo Lance. Você não paga mais caro por leiloar seu item.',
   },
   {
     q: 'Posso contestar uma disputa?',
@@ -62,13 +60,11 @@ const faqItems = [
 
 /* ── Calculator Component ── */
 function FeeCalculator() {
-  const [type, setType] = useState<'direct' | 'auction'>('direct');
   const [value, setValue] = useState(500);
 
-  const fee = FEES[type];
-  const commissionAmount = value * fee.commission;
-  const totalFees = commissionAmount + fee.operational;
-  const sellerReceives = Math.max(0, value - totalFees);
+  const commissionAmount = value * COMMISSION_RATE;
+  const totalFees = commissionAmount + OPERATIONAL_FEE;
+  const sellerReceives = sellerNet(value);
 
   return (
     <div className="rounded-lg border border-border bg-gradient-card p-6 md:p-8">
@@ -80,35 +76,13 @@ function FeeCalculator() {
       <div className="grid md:grid-cols-2 gap-8">
         {/* Inputs */}
         <div className="space-y-5">
-          {/* Type selector */}
-          <div>
-            <label className="block text-xs font-heading uppercase tracking-widest text-muted-foreground mb-2">
-              Tipo de venda
-            </label>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={() => setType('direct')}
-                className={`flex items-center justify-center gap-2 px-4 py-3 rounded-md border text-sm font-medium transition-all ${
-                  type === 'direct'
-                    ? 'border-primary bg-primary/10 text-primary'
-                    : 'border-border bg-card text-muted-foreground hover:text-foreground hover:border-foreground/20'
-                }`}
-              >
-                <Tag className="h-4 w-4" />
-                Venda Direta
-              </button>
-              <button
-                onClick={() => setType('auction')}
-                className={`flex items-center justify-center gap-2 px-4 py-3 rounded-md border text-sm font-medium transition-all ${
-                  type === 'auction'
-                    ? 'border-accent bg-accent/10 text-accent'
-                    : 'border-border bg-card text-muted-foreground hover:text-foreground hover:border-foreground/20'
-                }`}
-              >
-                <Gavel className="h-4 w-4" />
-                Modo Lance
-              </button>
-            </div>
+          {/* Taxa única: vale igual para Venda Direta e Modo Lance. */}
+          <div className="flex items-center gap-3 rounded-md border border-primary/20 bg-primary/5 px-4 py-3">
+            <ShieldCheck className="h-4 w-4 shrink-0 text-primary" />
+            <p className="text-xs text-muted-foreground">
+              Taxa única de <strong className="text-foreground">{COMMISSION_LABEL}</strong>, igual para
+              Venda Direta e Modo Lance.
+            </p>
           </div>
 
           {/* Value input */}
@@ -144,7 +118,7 @@ function FeeCalculator() {
           {/* Fixed fee display */}
           <div className="flex items-center justify-between py-3 px-4 rounded-md bg-secondary/50 border border-border">
             <span className="text-xs font-heading uppercase tracking-widest text-muted-foreground">Taxa operacional</span>
-            <span className="font-heading font-bold text-foreground">R$ {fee.operational.toFixed(2)}</span>
+            <span className="font-heading font-bold text-foreground">R$ {OPERATIONAL_FEE.toFixed(2)}</span>
           </div>
         </div>
 
@@ -152,12 +126,12 @@ function FeeCalculator() {
         <div className="space-y-4">
           <div className="space-y-3">
             <div className="flex items-center justify-between py-3 px-4 rounded-md bg-card border border-border">
-              <span className="text-sm text-muted-foreground">Comissão ({(fee.commission * 100).toFixed(0)}%)</span>
+              <span className="text-sm text-muted-foreground">Comissão ({COMMISSION_LABEL})</span>
               <span className="font-heading font-bold text-foreground">R$ {commissionAmount.toFixed(2)}</span>
             </div>
             <div className="flex items-center justify-between py-3 px-4 rounded-md bg-card border border-border">
               <span className="text-sm text-muted-foreground">Taxa operacional</span>
-              <span className="font-heading font-bold text-foreground">R$ {fee.operational.toFixed(2)}</span>
+              <span className="font-heading font-bold text-foreground">R$ {OPERATIONAL_FEE.toFixed(2)}</span>
             </div>
             <div className="line-tech my-1" />
             <div className="flex items-center justify-between py-3 px-4 rounded-md bg-card border border-border">
@@ -205,46 +179,31 @@ export default function FeesPage() {
           </p>
         </section>
 
-        {/* ─── Fee Cards ─── */}
+        {/* ─── Fee Card ───
+            Taxa única: um card só, sem comparar Venda Direta com Modo Lance. */}
         <section className="container mx-auto px-4 pb-16">
-          <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-            {/* Direct Sale */}
-            <div className="rounded-lg border border-border bg-gradient-card p-6 hover:border-primary/30 transition-colors">
-              <div className="flex items-center gap-3 mb-5">
-                <div className="p-2.5 rounded-md bg-primary/10">
-                  <Tag className="h-5 w-5 text-primary" />
-                </div>
-                <h3 className="font-heading text-lg font-bold uppercase tracking-wider">Venda Direta</h3>
-              </div>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between py-3 px-4 rounded-md bg-secondary/50">
-                  <span className="text-sm text-muted-foreground">Comissão do marketplace</span>
-                  <span className="font-heading text-2xl font-extrabold text-primary">12%</span>
-                </div>
-                <div className="flex items-center justify-between py-3 px-4 rounded-md bg-secondary/50">
-                  <span className="text-sm text-muted-foreground">Taxa operacional</span>
-                  <span className="font-heading text-2xl font-extrabold text-foreground">R$ 2,00</span>
-                </div>
-              </div>
+          <div className="max-w-2xl mx-auto rounded-lg border border-primary/30 bg-gradient-card p-6 md:p-8">
+            <div className="flex items-center justify-center gap-3 mb-2">
+              <Tag className="h-5 w-5 text-primary" />
+              <Gavel className="h-5 w-5 text-primary" />
             </div>
+            <h3 className="text-center font-heading text-lg font-bold uppercase tracking-wider">
+              Taxa única
+            </h3>
+            <p className="text-center text-sm text-muted-foreground mt-1 mb-6">
+              A mesma para Venda Direta e Modo Lance. Leiloar não custa mais caro.
+            </p>
 
-            {/* Auction */}
-            <div className="rounded-lg border border-border bg-gradient-card p-6 hover:border-accent/30 transition-colors">
-              <div className="flex items-center gap-3 mb-5">
-                <div className="p-2.5 rounded-md bg-accent/10">
-                  <Gavel className="h-5 w-5 text-accent" />
-                </div>
-                <h3 className="font-heading text-lg font-bold uppercase tracking-wider">Modo Lance</h3>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div className="flex items-center justify-between py-3 px-4 rounded-md bg-secondary/50">
+                <span className="text-sm text-muted-foreground">Comissão</span>
+                <span className="font-heading text-2xl font-extrabold text-primary">{COMMISSION_LABEL}</span>
               </div>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between py-3 px-4 rounded-md bg-secondary/50">
-                  <span className="text-sm text-muted-foreground">Comissão do marketplace</span>
-                  <span className="font-heading text-2xl font-extrabold text-accent">13%</span>
-                </div>
-                <div className="flex items-center justify-between py-3 px-4 rounded-md bg-secondary/50">
-                  <span className="text-sm text-muted-foreground">Taxa operacional</span>
-                  <span className="font-heading text-2xl font-extrabold text-foreground">R$ 2,00</span>
-                </div>
+              <div className="flex items-center justify-between py-3 px-4 rounded-md bg-secondary/50">
+                <span className="text-sm text-muted-foreground">Taxa operacional</span>
+                <span className="font-heading text-2xl font-extrabold text-foreground">
+                  R$ {OPERATIONAL_FEE.toFixed(2).replace('.', ',')}
+                </span>
               </div>
             </div>
           </div>

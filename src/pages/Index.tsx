@@ -201,7 +201,7 @@ function HomeContent() {
             
             <motion.div variants={fadeUp} custom={3} className="flex items-center justify-center gap-1.5 mb-8 text-[11px] text-white/60">
               <ShieldCheck className="h-3.5 w-3.5" />
-              <span>By Artminis · 4 anos no nicho · 15K colecionadores</span>
+              <span>Pagamento protegido · Vendedores verificados</span>
             </motion.div>
 
             <motion.div variants={fadeUp} custom={4} className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -347,7 +347,7 @@ function HomeContent() {
               </div>
               <div>
                 <h3 className="font-heading text-lg font-bold uppercase tracking-wider mb-2">Base qualificada</h3>
-                <p className="text-sm text-muted-foreground">Compradores vindos do ecossistema Artminis — 4 anos e 15K seguidores no nicho.</p>
+                <p className="text-sm text-muted-foreground">Compradores colecionadores, focados no nicho. Quem entra aqui veio pra comprar.</p>
               </div>
             </div>
             

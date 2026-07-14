@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { mockCategories, formatBRL } from '@/lib/mock-data';
 import { trackEvent } from '@/lib/analytics';
+import { COMMISSION_RATE, COMMISSION_LABEL } from '@/lib/fees';
 import { useCreateListing, useUploadImage, useCategories, useAddresses } from '@/hooks/use-api';
 import type { CreateListingPayload } from '@/lib/api';
 
@@ -130,6 +131,12 @@ interface FormData {
   lengthCm: string;
 }
 
+/** 720 -> "30 dias". Prazo do leilão é sempre múltiplo de dias. */
+function durationLabel(hours: string): string {
+  const days = Math.round(Number(hours) / 24);
+  return `${days} ${days === 1 ? 'dia' : 'dias'}`;
+}
+
 const initialForm: FormData = {
   type: null,
   title: '',
@@ -146,7 +153,7 @@ const initialForm: FormData = {
   price: '',
   startingBid: '',
   minIncrement: '10',
-  duration: '48',
+  duration: '336',
   reservePrice: '',
   antiSniper: true,
   weightGrams: '',
@@ -240,7 +247,7 @@ export default function CreateListing() {
       priceInCents: !isAuction && form.price ? toCents(form.price) : undefined,
       // Config de leilão: o backend cria a linha de auction (parada) junto do anúncio.
       startingBidInCents: isAuction && form.startingBid ? toCents(form.startingBid) : undefined,
-      durationHours: isAuction ? Number(form.duration) || 48 : undefined,
+      durationHours: isAuction ? Number(form.duration) || 336 : undefined,
       reservePriceInCents: isAuction && form.reservePrice ? toCents(form.reservePrice) : undefined,
       images: form.photos.length > 0 ? JSON.stringify(form.photos) : undefined,
       // Envio (frete): opcionais — sem eles o backend usa um pacote default.
@@ -967,13 +974,13 @@ function StepPricing({ form, update }: { form: FormData; update: (f: keyof FormD
                   <span>{formatBRL(Number(form.price))}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Comissão Kolecta (10%)</span>
-                  <span className="text-accent">-{formatBRL(Number(form.price) * 0.1)}</span>
+                  <span>Comissão Kolecta ({COMMISSION_LABEL})</span>
+                  <span className="text-accent">-{formatBRL(Number(form.price) * COMMISSION_RATE)}</span>
                 </div>
                 <div className="line-tech my-2" />
                 <div className="flex justify-between font-medium text-foreground">
                   <span>Você recebe</span>
-                  <span className="text-primary">{formatBRL(Number(form.price) * 0.9)}</span>
+                  <span className="text-primary">{formatBRL(Number(form.price) * (1 - COMMISSION_RATE))}</span>
                 </div>
               </div>
             </div>
@@ -1012,10 +1019,12 @@ function StepPricing({ form, update }: { form: FormData; update: (f: keyof FormD
               <Select value={form.duration} onValueChange={(v) => update('duration', v)}>
                 <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="24">24 horas</SelectItem>
-                  <SelectItem value="48">48 horas</SelectItem>
-                  <SelectItem value="72">3 dias</SelectItem>
+                  {/* Plataforma nova tem pouca demanda: leilão curto morre sem
+                      lance. Prazos mínimos de 7 dias dão tempo de juntar gente. */}
                   <SelectItem value="168">7 dias</SelectItem>
+                  <SelectItem value="336">14 dias</SelectItem>
+                  <SelectItem value="504">21 dias</SelectItem>
+                  <SelectItem value="720">30 dias</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1048,12 +1057,12 @@ function StepPricing({ form, update }: { form: FormData; update: (f: keyof FormD
                   <span>{formatBRL(Number(form.startingBid))}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Comissão Kolecta (10%)</span>
+                  <span>Comissão Kolecta ({COMMISSION_LABEL})</span>
                   <span>Sobre o valor final</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Duração</span>
-                  <span>{form.duration}h</span>
+                  <span>{durationLabel(form.duration)}</span>
                 </div>
               </div>
             </div>
@@ -1186,7 +1195,7 @@ function StepReview({ form, categories }: { form: FormData; categories: Category
               </div>
               <div className="flex justify-between">
                 <span>Duração</span>
-                <span>{form.duration}h</span>
+                <span>{durationLabel(form.duration)}</span>
               </div>
               <div className="flex justify-between">
                 <span>Anti-Sniper</span>

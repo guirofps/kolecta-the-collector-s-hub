@@ -1,6 +1,7 @@
 import { createContext, useContext, ReactNode } from 'react';
-import { useUser, useAuth as useClerkAuth } from '@clerk/clerk-react';
+import { useUser } from '@clerk/clerk-react';
 import { useMyProfile } from '@/hooks/use-api';
+import { CLERK_ENABLED } from '@/lib/clerk';
 
 export type Role = 'user' | 'admin';
 
@@ -21,7 +22,31 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+// `CLERK_ENABLED` é constante em runtime (vem de env), então escolher o provider
+// aqui não viola as regras de hooks — o branch nunca muda entre renders.
 export function AuthProvider({ children }: { children: ReactNode }) {
+  return CLERK_ENABLED ? (
+    <ClerkAuthProvider>{children}</ClerkAuthProvider>
+  ) : (
+    <DegradedAuthProvider>{children}</DegradedAuthProvider>
+  );
+}
+
+// Modo degradado: sem chave do Clerk, a auth fica desativada mas o app renderiza
+// (landing, páginas públicas) em vez de quebrar em tela branca.
+function DegradedAuthProvider({ children }: { children: ReactNode }) {
+  const value: AuthContextType = {
+    user: { id: '', name: 'Usuário', email: '', role: 'user', avatar: null },
+    isAuthenticated: false,
+    hasRole: (role: Role) => role !== 'admin',
+    isLoading: false,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+// Provider real: Clerk (sessão) + backend (perfil/role).
+function ClerkAuthProvider({ children }: { children: ReactNode }) {
   const { isSignedIn, user: clerkUser, isLoaded: clerkLoaded } = useUser();
   const { data: profile, isLoading: profileLoading } = useMyProfile();
 
