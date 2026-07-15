@@ -1,5 +1,6 @@
 import { createRoot } from "react-dom/client";
 import { ClerkProvider } from "@clerk/clerk-react";
+import { ptBR } from "@clerk/localizations";
 import App from "./App.tsx";
 import "./index.css";
 import { CLERK_ENABLED, CLERK_PUBLISHABLE_KEY, kolectaClerkAppearance } from "./lib/clerk";
@@ -11,6 +12,7 @@ if (CLERK_ENABLED) {
     <ClerkProvider
       publishableKey={CLERK_PUBLISHABLE_KEY}
       appearance={kolectaClerkAppearance}
+      localization={ptBR}
       afterSignOutUrl="/"
       afterSignInUrl="/conta"
       afterSignUpUrl="/conta"
