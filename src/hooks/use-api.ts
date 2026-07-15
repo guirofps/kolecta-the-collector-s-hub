@@ -24,6 +24,33 @@ export function useMyProfile() {
   });
 }
 
+// ── useFounderBadge ──────────────────────────────────────────────────────────
+
+/** Selo público de um usuário (para render no card/perfil). null se não-fundador. */
+export function useFounderBadge(userId: string | undefined) {
+  return useQuery({
+    queryKey: ['founder-badge', userId],
+    queryFn: () => api.founder.getBadge(userId!),
+    enabled: !!userId,
+    staleTime: 5 * 60_000, // 5 min — número de fundador é permanente
+    retry: 1,
+  });
+}
+
+/** Estado do programa Fundador para o usuário logado. */
+export function useMyFounder() {
+  const { getToken } = useAuth();
+  return useQuery({
+    queryKey: ['my-founder'],
+    queryFn: async () => {
+      const token = await getToken();
+      return api.founder.getMe(token || '');
+    },
+    staleTime: 60_000,
+    retry: 1,
+  });
+}
+
 // ── useListing ─────────────────────────────────────────────────────────────
 
 export function useListing(id: string | undefined) {

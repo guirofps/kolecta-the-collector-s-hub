@@ -10,6 +10,7 @@ import Layout from '@/components/layout/Layout';
 import { cn } from '@/lib/utils';
 import ProductCard from '@/components/ProductCard';
 import VerificationBadge from '@/components/VerificationBadge';
+import { FounderBadgeFor } from '@/components/FounderBadge';
 import ReportListingDialog from '@/components/ReportListingDialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -321,6 +322,7 @@ export default function ProductDetail() {
                 <div className="flex items-center gap-1.5 p-1">
                   <span className="text-sm font-medium text-foreground truncate">{listing.sellerName ?? 'Vendedor Kolecta'}</span>
                   <VerificationBadge verified={true} />
+                  <FounderBadgeFor userId={listing.sellerId} />
                 </div>
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <ShieldCheck className="h-3 w-3 text-emerald-500" />

@@ -54,6 +54,43 @@ export const api = {
   users: {
     getMe: (token: string) =>
       request<{ data: UserProfile }>('/api/users/me', { token }).then(r => r.data),
+
+    /** Registra o aceite de Termos + LGPD do cadastro (idempotente no backend). */
+    recordConsent: (
+      token: string,
+      payload: {
+        termsVersion: string;
+        termsAcceptedAt: string;
+        lgpdAcceptedAt: string;
+      },
+    ) =>
+      request<{ data: UserProfile }>('/api/users/me/consent', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+        token,
+      }).then(r => r.data),
+  },
+
+  // ── Founder (Programa Membro Fundador) ───────────────────────────────────────
+
+  founder: {
+    /** Selo público de um usuário. null se não for fundador. */
+    getBadge: (userId: string) =>
+      request<{ data: FounderBadgeData | null }>(
+        `/api/founder/${userId}/badge`,
+      ).then(r => r.data),
+
+    /** Estado do programa para o usuário logado (avalia qualificação na leitura). */
+    getMe: (token: string) =>
+      request<FounderStatus>('/api/founder/me', { token }),
+
+    /** Resgata um código de convite do evento presencial (#001–#050). */
+    redeem: (token: string, code: string) =>
+      request<unknown>('/api/founder/redeem', {
+        method: 'POST',
+        body: JSON.stringify({ code }),
+        token,
+      }),
   },
 
   // ── Listings (público) ───────────────────────────────────────────────────
@@ -942,6 +979,31 @@ export interface UserProfile {
   role: 'user' | 'admin';
   createdAt: string;
   updatedAt: string;
+}
+
+// ── Founder (Programa Membro Fundador) ───────────────────────────────────────
+
+export type FounderStatusValue = 'none' | 'pending' | 'active' | 'lapsed';
+
+export interface FounderBadgeData {
+  founderNumber: number;
+  founderStatus: FounderStatusValue;
+}
+
+export interface FounderStatus {
+  founderNumber: number | null;
+  founderStatus: FounderStatusValue;
+  founderSince: string | null;
+  listingsSubmitted: number;
+  listingsRequired: number;
+  remaining: number;
+  benefitEndsAt: string | null;
+  credits: {
+    total: number;
+    used: number;
+    available: number;
+    expiresAt: string | null;
+  } | null;
 }
 
 export interface CreateListingPayload {

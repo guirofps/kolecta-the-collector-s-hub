@@ -8,7 +8,9 @@ import ScrollToTop from "./components/ScrollToTop";
 import ProtectedRoute from "./components/ProtectedRoute";
 import LaunchGate from "./components/LaunchGate";
 import DevUserSwitcher from "./components/DevUserSwitcher";
+import ConsentSync from "./components/ConsentSync";
 import { AuthProvider } from "./contexts/AuthContext";
+import { CLERK_ENABLED } from "./lib/clerk";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import SearchPage from "./pages/Search";
@@ -93,6 +95,7 @@ const App = () => (
         <BrowserRouter>
           <CartDrawer />
           <ScrollToTop />
+          {CLERK_ENABLED && <ConsentSync />}
           {showDevUserSwitcher && <DevUserSwitcher />}
           <LaunchGate>
           <Routes>

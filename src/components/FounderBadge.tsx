@@ -7,6 +7,8 @@
 // O número é o do fundador (#001–#100). Os #001–#050 saem no evento presencial;
 // #051–#100 pela landing de captação.
 
+import { useFounderBadge } from '@/hooks/use-api';
+
 const GOLD = '#FFD700';
 const DARK = '#14161F';
 
@@ -107,4 +109,36 @@ export function FounderBadge({
       </span>
     </span>
   );
+}
+
+// ─── Wrappers auto-carregáveis (buscam o selo pelo userId) ───────────────────
+// Renderizam nada quando o usuário não é fundador (founderNumber == null),
+// então podem ser plugados direto no card/perfil sem checagem no chamador.
+
+/** Pill compacto que busca o selo do vendedor por userId. */
+export function FounderBadgeFor({
+  userId,
+  className,
+}: {
+  userId: string | undefined;
+  className?: string;
+}) {
+  const { data } = useFounderBadge(userId);
+  if (!data) return null;
+  return <FounderBadge number={data.founderNumber} className={className} />;
+}
+
+/** Medalha grande que busca o selo do usuário por userId. */
+export function FounderMedalFor({
+  userId,
+  size,
+  className,
+}: {
+  userId: string | undefined;
+  size?: number;
+  className?: string;
+}) {
+  const { data } = useFounderBadge(userId);
+  if (!data) return null;
+  return <FounderMedal number={data.founderNumber} size={size} className={className} />;
 }
