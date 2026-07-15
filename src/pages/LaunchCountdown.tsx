@@ -245,7 +245,7 @@ export default function LaunchCountdown() {
           >
             {[
               { icon: Award, label: 'Selo numerado' },
-              { icon: Percent, label: `Taxa de ${FOUNDER_FEE}` },
+              { icon: Percent, label: 'Taxa reduzida' },
               { icon: Sparkles, label: `${HIGHLIGHT_CREDITS} destaques grátis` },
             ].map((b) => (
               <span
