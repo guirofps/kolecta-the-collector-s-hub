@@ -26,7 +26,7 @@ const FOUNDER_FEE = '9%';
 const FEE_MONTHS = 6;
 const HIGHLIGHT_CREDITS = 5;
 const CREDIT_DAYS = 7;
-const REQUIRED_LISTINGS = 3;
+const REQUIRED_LISTINGS = 5;
 
 const FOUNDER_PERKS = [
   {

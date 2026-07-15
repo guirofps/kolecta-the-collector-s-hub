@@ -12,7 +12,7 @@ Frente de frontend do pré-lançamento já está na `main` (commit da landing de
 ## Regras do programa (números fechados)
 
 - **100 vagas** públicas de fundador. Numeração: **#001 a #050 = evento presencial** (via código de convite), **#051 a #100 = landing**. **#000 = Artminis**. Total 101.
-- **Fundador é benefício de LOJISTA.** Requisito para virar fundador: ter **3 anúncios enviados** antes do lançamento.
+- **Fundador é benefício de LOJISTA.** Requisito para virar fundador: ter **5 anúncios enviados** antes do lançamento.
 - **Grátis.** Sem cobrança/assinatura nesta fase.
 - **Benefícios:**
   - Selo numerado, **permanente** (nunca se perde).
@@ -27,13 +27,13 @@ Frente de frontend do pré-lançamento já está na `main` (commit da landing de
 Estender o perfil do usuário com:
 - `founderNumber: int | null` (0 a 100)
 - `founderStatus: 'none' | 'pending' | 'active' | 'lapsed'`
-  - `pending`: cadastrou mas ainda não tem 3 anúncios enviados
-  - `active`: virou fundador (>= 3 anúncios)
+  - `pending`: cadastrou mas ainda não tem 5 anúncios enviados
+  - `active`: virou fundador (>= 5 anúncios)
   - `lapsed`: perdeu taxa/créditos por inatividade (mas mantém `founderNumber` e o selo)
 - `founderSince: datetime` (quando atingiu `active`; base para os 6 meses e para a taxa de 9%)
 
-### 2. Qualificação (3 anúncios) e atribuição de número  (alta)
-- Quando o usuário atinge **3 anúncios enviados** (status `em_analise` ou aprovado), promover `pending -> active`, gravar `founderSince` e **atribuir o próximo `founderNumber`** livre da faixa da landing (#051+).
+### 2. Qualificação (5 anúncios) e atribuição de número  (alta)
+- Quando o usuário atinge **5 anúncios enviados** (status `em_analise` ou aprovado), promover `pending -> active`, gravar `founderSince` e **atribuir o próximo `founderNumber`** livre da faixa da landing (#051+).
 - **Travar em 100** vagas preenchidas. Ao esgotar, novos cadastros não viram fundador (definir com o time: fila de espera ou simplesmente "vagas encerradas").
 - Concorrência: a atribuição de número precisa ser atômica (evitar dois usuários pegando o mesmo número).
 
