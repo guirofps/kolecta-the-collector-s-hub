@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { PlusCircle, Search, MoreHorizontal, Eye, Pencil, Pause, Play, Trash2, Loader2, Upload } from 'lucide-react';
+import { PlusCircle, Search, MoreHorizontal, Eye, Pencil, Pause, Play, Trash2, Loader2, Upload, Sparkles } from 'lucide-react';
 import SellerLayout from '@/components/layout/SellerLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { formatBRL, conditionLabel } from '@/lib/mock-data';
-import { useMyListings, useDeleteListing, useTogglePauseListing } from '@/hooks/use-api';
+import { isListingFeatured } from '@/lib/api';
+import { useMyListings, useDeleteListing, useTogglePauseListing, useMyFounder, useUseFounderCredit } from '@/hooks/use-api';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -49,6 +50,11 @@ export default function SellerListings() {
   const { data: myProducts, isLoading } = useMyListings();
   const deleteMutation = useDeleteListing();
   const togglePauseMutation = useTogglePauseListing();
+  const { data: founder } = useMyFounder();
+  const useCreditMutation = useUseFounderCredit();
+  // Fundador ativo com créditos disponíveis pode destacar anúncios ativos.
+  const creditsAvailable = founder?.credits?.available ?? 0;
+  const canFeature = founder?.founderStatus === 'active' && creditsAvailable > 0;
 
   const filtered = (myProducts || []).filter((p) => {
     if (activeTab !== 'todos' && p.status !== activeTab) return false;
@@ -151,6 +157,11 @@ export default function SellerListings() {
                         <Badge className={`text-[10px] shrink-0 ${statusColors[product.status] || ''}`}>
                           {statusLabels[product.status] || product.status}
                         </Badge>
+                        {isListingFeatured(product) && (
+                          <Badge className="text-[10px] shrink-0 gap-1 bg-primary/15 text-primary border-primary/30">
+                            <Sparkles className="h-3 w-3" /> Em destaque
+                          </Badge>
+                        )}
                       </div>
                       <div className="flex items-center gap-3 text-xs text-muted-foreground">
                         <span>{product.brand || 'Sem marca'}</span>
@@ -181,6 +192,15 @@ export default function SellerListings() {
                         <DropdownMenuItem className="gap-2 text-sm" onClick={() => navigate(`/painel/anuncios/${product.id}/editar`)}>
                           <Pencil className="h-3.5 w-3.5" /> Editar
                         </DropdownMenuItem>
+                        {canFeature && product.status === 'active' && !isListingFeatured(product) && (
+                          <DropdownMenuItem
+                            className="gap-2 text-sm text-primary"
+                            disabled={useCreditMutation.isPending}
+                            onClick={() => useCreditMutation.mutate(product.id)}
+                          >
+                            <Sparkles className="h-3.5 w-3.5" /> Destacar (usar 1 crédito)
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuItem
                           className="gap-2 text-sm"
                           disabled={togglePauseMutation.isPending}

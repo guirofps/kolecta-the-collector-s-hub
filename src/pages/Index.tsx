@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import type { ProductCondition, Product } from '@/lib/mock-data';
 import type { Listing } from '@/lib/api';
+import { isListingFeatured } from '@/lib/api';
 import { useListings } from '@/hooks/use-api';
 import { useLaunchGate } from '@/hooks/use-launch-gate';
 import { trackEvent } from '@/lib/analytics';
@@ -152,7 +153,7 @@ function HomeContent() {
     },
     description: l.description ?? '',
     details: {},
-    featured: true,
+    featured: isListingFeatured(l),
     tags: [],
     status: l.status,
     createdAt: l.createdAt,

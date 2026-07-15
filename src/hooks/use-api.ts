@@ -51,6 +51,33 @@ export function useMyFounder() {
   });
 }
 
+/** Consome 1 crédito de destaque do fundador em um anúncio. */
+export function useUseFounderCredit() {
+  const queryClient = useQueryClient();
+  const { getToken } = useAuth();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (listingId: string) => {
+      const token = await getToken();
+      return api.founder.useCredit(token || '', listingId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['my-listings'] });
+      queryClient.invalidateQueries({ queryKey: ['my-founder'] });
+      queryClient.invalidateQueries({ queryKey: ['listings'] });
+      toast({ title: 'Anúncio em destaque por 7 dias! ✨' });
+    },
+    onError: (err: Error) => {
+      toast({
+        title: 'Não foi possível destacar',
+        description: err.message,
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
 // ── useListing ─────────────────────────────────────────────────────────────
 
 export function useListing(id: string | undefined) {

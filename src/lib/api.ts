@@ -91,6 +91,13 @@ export const api = {
         body: JSON.stringify({ code }),
         token,
       }),
+
+    /** Consome 1 crédito de destaque em um anúncio (7 dias em destaque). */
+    useCredit: (token: string, listingId: string) =>
+      request<{ listingId: string; featuredUntil: string; creditsAvailable: number }>(
+        '/api/founder/credits/use',
+        { method: 'POST', body: JSON.stringify({ listingId }), token },
+      ),
   },
 
   // ── Listings (público) ───────────────────────────────────────────────────
@@ -883,8 +890,16 @@ export interface Listing {
   widthCm?: number | null;
   heightCm?: number | null;
   lengthCm?: number | null;
+  // Destaque (vitrine): ISO até quando o anúncio fica em destaque. Passado/null = não.
+  featuredUntil?: string | null;
+  featuredSource?: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+/** true se o anúncio está em destaque agora (featuredUntil no futuro). */
+export function isListingFeatured(l: Pick<Listing, 'featuredUntil'>): boolean {
+  return !!l.featuredUntil && new Date(l.featuredUntil).getTime() > Date.now();
 }
 
 export interface ApiCategory {
