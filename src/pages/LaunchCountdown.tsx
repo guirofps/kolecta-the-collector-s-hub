@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   ArrowRight, ShieldCheck, Award, Rocket, Percent,
-  Sparkles, MessagesSquare, Store, ClipboardCheck, Timer, Check,
+  Sparkles, MessagesSquare, Store, ClipboardCheck, Timer, Check, Flame,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -275,8 +275,11 @@ export default function LaunchCountdown() {
             <TimerBlock value={pad(time.seconds)} label="Seg" />
           </motion.div>
 
-          <motion.div variants={fadeUp} custom={6} className="flex flex-col items-center gap-4">
+          <motion.div variants={fadeUp} custom={6} className="flex flex-col items-center gap-3">
             <SignupCta />
+            <p className="font-heading text-xs font-bold uppercase tracking-wider text-primary/90">
+              Vagas limitadas. Não haverá segunda rodada.
+            </p>
             <Link to="/entrar" className="text-sm text-white/50 hover:text-white/80 transition-colors">
               Já tem conta? Entrar
             </Link>
@@ -292,6 +295,16 @@ export default function LaunchCountdown() {
           </motion.div>
         </motion.div>
       </section>
+
+      {/* ─── Faixa de escassez ─────────────────────────── */}
+      <div className="bg-primary text-black">
+        <div className="container mx-auto flex items-center justify-center gap-2.5 px-4 py-3 text-center">
+          <Flame className="h-4 w-4 shrink-0" />
+          <p className="font-heading text-xs font-bold uppercase tracking-wide sm:text-sm">
+            Só 100 fundadores no mundo. Os primeiros levam os números mais baixos.
+          </p>
+        </div>
+      </div>
 
       {/* ─── O SELO (vitrine visual) ───────────────────── */}
       <section className="py-16 lg:py-24 border-t border-white/10">
