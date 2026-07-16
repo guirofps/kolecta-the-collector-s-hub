@@ -1,25 +1,19 @@
-import { useState, useEffect } from 'react';
 import SellerLayout from '@/components/layout/SellerLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select';
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
-} from '@/components/ui/dialog';
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from '@/components/ui/table';
-import { useToast } from '@/hooks/use-toast';
-import { formatBRL } from '@/lib/mock-data';
-import { Check, Star, Zap, Crown, Megaphone, Eye, MousePointerClick } from 'lucide-react';
+import { Check, Star, Zap, Crown, Megaphone, Sparkles } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { useMyListings, useMyFounder } from '@/hooks/use-api';
+import { isListingFeatured } from '@/lib/api';
+import type { Listing } from '@/lib/api';
 
-/* ─── Types & Mock ─── */
+/* ─── Planos de mídia paga (Bronze/Prata/Ouro) ───────────────────────────────
+   Produto de ads pagos ainda NÃO implementado (sem backend). Exibido como
+   "Em breve". O destaque real hoje vem dos créditos do Programa Fundador
+   (listings.featuredUntil), mostrado na aba "Destaques ativos". */
 interface Plan {
   id: string;
   name: string;
@@ -44,57 +38,15 @@ const plans: Plan[] = [
   },
 ];
 
-const periodPrices: Record<string, number> = { '7': 1, '15': 1.8, '30': 3 };
-const periodLabels: Record<string, string> = { '7': '7 dias', '15': '15 dias', '30': '30 dias' };
-
-interface ActiveHighlight {
-  id: string;
-  productName: string;
-  productImage: string;
-  plan: string;
-  startDate: string;
-  endDate: string;
-  impressions: number;
-  clicks: number;
+function firstImage(images: string | null): string {
+  if (!images) return '/placeholder.svg';
+  try {
+    const arr = JSON.parse(images);
+    return Array.isArray(arr) && arr[0] ? arr[0] : '/placeholder.svg';
+  } catch {
+    return '/placeholder.svg';
+  }
 }
-
-interface HistoryItem {
-  id: string;
-  date: string;
-  productName: string;
-  plan: string;
-  amount: number;
-  period: string;
-  status: 'active' | 'completed' | 'cancelled';
-}
-
-const mockActiveHighlights: ActiveHighlight[] = [
-  {
-    id: 'ah-1', productName: 'Capacete Arai RX-7V Racing', productImage: '/placeholder.svg',
-    plan: 'Ouro', startDate: '2025-03-10', endDate: '2025-04-09',
-    impressions: 4520, clicks: 312,
-  },
-  {
-    id: 'ah-2', productName: 'Jaqueta Alpinestars GP Plus', productImage: '/placeholder.svg',
-    plan: 'Bronze', startDate: '2025-03-15', endDate: '2025-03-22',
-    impressions: 890, clicks: 67,
-  },
-];
-
-const mockHistory: HistoryItem[] = [
-  { id: 'h-1', date: '2025-03-10', productName: 'Capacete Arai RX-7V Racing', plan: 'Ouro', amount: 209.70, period: '30 dias', status: 'active' },
-  { id: 'h-2', date: '2025-03-15', productName: 'Jaqueta Alpinestars GP Plus', plan: 'Bronze', amount: 19.90, period: '7 dias', status: 'active' },
-  { id: 'h-3', date: '2025-02-01', productName: 'Slider Procton Racing', plan: 'Prata', amount: 71.82, period: '15 dias', status: 'completed' },
-  { id: 'h-4', date: '2025-01-20', productName: 'Luva Dainese Carbon 3', plan: 'Bronze', amount: 19.90, period: '7 dias', status: 'completed' },
-  { id: 'h-5', date: '2025-01-05', productName: 'Escapamento Akrapovic', plan: 'Ouro', amount: 209.70, period: '30 dias', status: 'cancelled' },
-];
-
-const mockListings = [
-  { id: 'l-1', name: 'Capacete Arai RX-7V Racing' },
-  { id: 'l-2', name: 'Jaqueta Alpinestars GP Plus' },
-  { id: 'l-3', name: 'Slider Procton Racing' },
-  { id: 'l-4', name: 'Luva Dainese Carbon 3 Long' },
-];
 
 function daysLeft(endDate: string) {
   const diff = new Date(endDate).getTime() - Date.now();
@@ -103,38 +55,11 @@ function daysLeft(endDate: string) {
 
 /* ─── Main Component ─── */
 export default function SellerMediaPage() {
-  const { toast } = useToast();
-  const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState('active');
-  const [hireDialog, setHireDialog] = useState(false);
-  const [selectedListing, setSelectedListing] = useState('');
-  const [selectedPlan, setSelectedPlan] = useState('');
-  const [selectedPeriod, setSelectedPeriod] = useState('7');
+  const { data: listings = [], isLoading } = useMyListings();
+  const { data: founder } = useMyFounder();
 
-  useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 500);
-    return () => clearTimeout(t);
-  }, []);
-
-  const planObj = plans.find(p => p.id === selectedPlan);
-  const totalPrice = planObj ? planObj.price * (periodPrices[selectedPeriod] ?? 1) : 0;
-
-  const handleHire = () => {
-    if (!selectedListing || !selectedPlan) return;
-    toast({ title: 'Destaque contratado com sucesso!' });
-    setHireDialog(false);
-    setSelectedListing(''); setSelectedPlan(''); setSelectedPeriod('7');
-  };
-
-  const statusBadge = (status: string) => {
-    const map: Record<string, string> = {
-      active: 'bg-emerald-500/20 text-emerald-600 border-emerald-500/30',
-      completed: 'bg-muted text-muted-foreground',
-      cancelled: 'bg-destructive/20 text-destructive',
-    };
-    const labels: Record<string, string> = { active: 'Ativo', completed: 'Concluído', cancelled: 'Cancelado' };
-    return <Badge className={map[status] ?? ''}>{labels[status] ?? status}</Badge>;
-  };
+  const featured = (listings as Listing[]).filter(isListingFeatured);
+  const creditsAvailable = founder?.credits?.available ?? 0;
 
   return (
     <SellerLayout>
@@ -145,90 +70,98 @@ export default function SellerMediaPage() {
           <p className="text-muted-foreground">Aumente a visibilidade dos seus anúncios</p>
         </div>
 
-        {/* 2. Plan Cards */}
-        {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {[1, 2, 3].map(i => <Skeleton key={i} className="h-72 rounded-lg" />)}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {plans.map((plan) => (
-              <Card
-                key={plan.id}
-                className={`bg-gradient-card relative ${plan.popular ? 'border-[hsl(var(--kolecta-gold)/0.4)] glow-primary' : ''}`}
-              >
-                {plan.popular && (
-                  <Badge className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-[hsl(var(--kolecta-gold))] text-[hsl(var(--kolecta-carbon))] text-[10px]">
-                    Mais popular
-                  </Badge>
-                )}
-                <CardContent className="pt-6 space-y-4 text-center">
-                  <plan.icon className={`h-10 w-10 mx-auto ${plan.popular ? 'text-[hsl(var(--kolecta-gold))]' : 'text-muted-foreground'}`} />
-                  <h3 className="font-heading text-2xl font-bold">{plan.name}</h3>
-                  <p className="font-heading text-3xl font-bold text-[hsl(var(--kolecta-gold))]">
-                    {formatBRL(plan.price)}<span className="text-sm text-muted-foreground font-body">/semana</span>
-                  </p>
-                  <ul className="text-sm space-y-2 text-left">
-                    {plan.benefits.map((b) => (
-                      <li key={b} className="flex items-start gap-2">
-                        <Check className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
-                        <span>{b}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  {/* API: POST /api/seller/media/plans/:planId/subscribe */}
-                  <Button
-                    variant={plan.popular ? 'kolecta' : 'outline'}
-                    className="w-full"
-                    onClick={() => { setSelectedPlan(plan.id); setHireDialog(true); }}
-                  >
-                    Contratar
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+        {/* Créditos de Fundador (destaque real) */}
+        {founder?.founderStatus === 'active' && (
+          <Card className="bg-[hsl(var(--kolecta-gold)/0.08)] border-[hsl(var(--kolecta-gold)/0.3)]">
+            <CardContent className="flex flex-wrap items-center gap-3 p-4">
+              <Sparkles className="h-5 w-5 text-[hsl(var(--kolecta-gold))]" />
+              <div className="flex-1 min-w-0">
+                <p className="font-heading font-bold">
+                  {creditsAvailable} {creditsAvailable === 1 ? 'crédito' : 'créditos'} de destaque disponíveis
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Cada crédito destaca 1 anúncio por 7 dias. Use-os na sua lista de anúncios.
+                </p>
+              </div>
+              <Button variant="outline" size="sm" asChild>
+                <Link to="/painel/anuncios">Ir para anúncios</Link>
+              </Button>
+            </CardContent>
+          </Card>
         )}
 
+        {/* 2. Plan Cards — ads pagos (em breve) */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {plans.map((plan) => (
+            <Card
+              key={plan.id}
+              className={`bg-gradient-card relative opacity-80 ${plan.popular ? 'border-[hsl(var(--kolecta-gold)/0.4)]' : ''}`}
+            >
+              <Badge className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-muted text-muted-foreground text-[10px]">
+                Em breve
+              </Badge>
+              <CardContent className="pt-6 space-y-4 text-center">
+                <plan.icon className={`h-10 w-10 mx-auto ${plan.popular ? 'text-[hsl(var(--kolecta-gold))]' : 'text-muted-foreground'}`} />
+                <h3 className="font-heading text-2xl font-bold">{plan.name}</h3>
+                <ul className="text-sm space-y-2 text-left">
+                  {plan.benefits.map((b) => (
+                    <li key={b} className="flex items-start gap-2">
+                      <Check className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
+                      <span>{b}</span>
+                    </li>
+                  ))}
+                </ul>
+                <Button variant="outline" className="w-full" disabled>
+                  Em breve
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
         {/* 3. Tabs */}
-        <Tabs value={tab} onValueChange={setTab}>
+        <Tabs defaultValue="active">
           <TabsList>
             <TabsTrigger value="active">Destaques ativos</TabsTrigger>
             <TabsTrigger value="history">Histórico</TabsTrigger>
           </TabsList>
 
           <TabsContent value="active">
-            {loading ? (
+            {isLoading ? (
               <div className="space-y-4 mt-4">{[1, 2].map(i => <Skeleton key={i} className="h-28 rounded-lg" />)}</div>
-            ) : mockActiveHighlights.length === 0 ? (
+            ) : featured.length === 0 ? (
               <div className="flex flex-col items-center py-16 text-center">
                 <Megaphone className="h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-muted-foreground mb-4">Nenhum destaque ativo</p>
-                <Button variant="kolecta" onClick={() => setHireDialog(true)}>Contratar um plano</Button>
+                <p className="text-muted-foreground mb-1">Nenhum destaque ativo</p>
+                <p className="text-xs text-muted-foreground max-w-sm">
+                  Use um crédito do Programa Fundador na sua lista de anúncios para destacar um item por 7 dias.
+                </p>
               </div>
             ) : (
               <div className="space-y-4 mt-4">
-                {mockActiveHighlights.map((h) => {
-                  const remaining = daysLeft(h.endDate);
+                {featured.map((l) => {
+                  const remaining = l.featuredUntil ? daysLeft(l.featuredUntil) : 0;
                   return (
-                    <Card key={h.id} className="bg-gradient-card">
+                    <Card key={l.id} className="bg-gradient-card">
                       <CardContent className="flex flex-col sm:flex-row gap-4 p-4">
-                        <img src={h.productImage} alt={h.productName} className="w-20 h-20 rounded object-cover shrink-0" />
+                        <img src={firstImage(l.images)} alt={l.title} className="w-20 h-20 rounded object-cover shrink-0" />
                         <div className="flex-1 min-w-0 space-y-1.5">
-                          <h3 className="font-heading text-lg font-bold truncate">{h.productName}</h3>
+                          <h3 className="font-heading text-lg font-bold truncate">{l.title}</h3>
                           <div className="flex flex-wrap items-center gap-2 text-sm">
-                            <Badge variant="secondary">{h.plan}</Badge>
-                            <span className="text-muted-foreground">
-                              {new Date(h.startDate).toLocaleDateString('pt-BR')} — {new Date(h.endDate).toLocaleDateString('pt-BR')}
-                            </span>
+                            <Badge variant="secondary" className="capitalize">
+                              {l.featuredSource === 'founder_credit' ? 'Fundador' : 'Destaque'}
+                            </Badge>
+                            {l.featuredUntil && (
+                              <span className="text-muted-foreground">
+                                até {new Date(l.featuredUntil).toLocaleDateString('pt-BR')}
+                              </span>
+                            )}
                             <span className="font-heading font-bold text-[hsl(var(--kolecta-gold))]">{remaining}d restantes</span>
                           </div>
-                          <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                            <span className="flex items-center gap-1"><Eye className="h-3.5 w-3.5" /> {h.impressions.toLocaleString('pt-BR')} impressões</span>
-                            <span className="flex items-center gap-1"><MousePointerClick className="h-3.5 w-3.5" /> {h.clicks} cliques</span>
-                          </div>
                         </div>
-                        <Button variant="ghost" size="sm" className="self-start shrink-0">Renovar</Button>
+                        <Button variant="ghost" size="sm" className="self-start shrink-0" asChild>
+                          <Link to={`/produto/${l.id}`}>Ver anúncio</Link>
+                        </Button>
                       </CardContent>
                     </Card>
                   );
@@ -238,95 +171,13 @@ export default function SellerMediaPage() {
           </TabsContent>
 
           <TabsContent value="history">
-            {loading ? (
-              <Skeleton className="h-48 rounded-lg mt-4" />
-            ) : (
-              <div className="mt-4">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Data</TableHead>
-                      <TableHead>Produto</TableHead>
-                      <TableHead>Plano</TableHead>
-                      <TableHead className="text-right">Valor</TableHead>
-                      <TableHead>Período</TableHead>
-                      <TableHead>Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {mockHistory.map((h) => (
-                      <TableRow key={h.id}>
-                        <TableCell className="text-sm">{new Date(h.date).toLocaleDateString('pt-BR')}</TableCell>
-                        <TableCell className="font-heading font-medium text-sm">{h.productName}</TableCell>
-                        <TableCell><Badge variant="secondary">{h.plan}</Badge></TableCell>
-                        <TableCell className="text-right font-heading font-bold">{formatBRL(h.amount)}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{h.period}</TableCell>
-                        <TableCell>{statusBadge(h.status)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
+            <div className="flex flex-col items-center py-16 text-center mt-4">
+              <Megaphone className="h-12 w-12 text-muted-foreground mb-4" />
+              <p className="text-muted-foreground">Histórico de destaques em breve</p>
+            </div>
           </TabsContent>
         </Tabs>
       </div>
-
-      {/* Hire Dialog */}
-      <Dialog open={hireDialog} onOpenChange={setHireDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="font-heading">Contratar destaque</DialogTitle>
-            <DialogDescription className="sr-only">Formulário de contratação de destaque</DialogDescription>
-          </DialogHeader>
-          {/* API: POST /api/seller/media/highlights
-              Body: { listingId, plan, period }
-              Debita do saldo disponível do vendedor */}
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Escolha o anúncio</label>
-              <Select value={selectedListing} onValueChange={setSelectedListing}>
-                <SelectTrigger><SelectValue placeholder="Selecione um anúncio" /></SelectTrigger>
-                <SelectContent>
-                  {mockListings.map(l => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Plano</label>
-              <Select value={selectedPlan} onValueChange={setSelectedPlan}>
-                <SelectTrigger><SelectValue placeholder="Selecione um plano" /></SelectTrigger>
-                <SelectContent>
-                  {plans.map(p => (
-                    <SelectItem key={p.id} value={p.id}>{p.name} — {formatBRL(p.price)}/semana</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Período</label>
-              <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {Object.entries(periodLabels).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <Separator className="line-tech" />
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Valor total</span>
-              <span className="font-heading text-2xl font-bold text-[hsl(var(--kolecta-gold))]">{formatBRL(totalPrice)}</span>
-            </div>
-            <p className="text-xs text-muted-foreground">O valor será debitado do seu saldo disponível</p>
-          </div>
-          <DialogFooter className="mt-4">
-            <Button variant="ghost" onClick={() => setHireDialog(false)}>Cancelar</Button>
-            <Button variant="kolecta" onClick={handleHire} disabled={!selectedListing || !selectedPlan}>
-              Confirmar destaque
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </SellerLayout>
   );
 }

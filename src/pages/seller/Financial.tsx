@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import {
@@ -26,65 +26,24 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { formatBRL } from '@/lib/mock-data';
-import { useWallet, useWithdrawals, useWalletDeposit, useWalletTransactions } from '@/hooks/use-api';
+import { formatBRL } from '@/lib/currency';
+import { useWallet, useWithdrawals, useWalletDeposit, useSellerOrders, useConnect } from '@/hooks/use-api';
 import { isValidCpf } from '@/lib/cpf';
+import type { Order } from '@/lib/api';
 
-// ── Mock data ────────────────────────────────────────────
-
-const mockFinancialSummary = {
-  available: 8450.0,
-  pending: 11290.0,
-  monthTotal: 19740.0,
-  totalWithdrawn: 34200.0,
-  stripeConnected: true,
-};
-
-const mockChartData = [
-  { month: 'Out', gross: 12400, net: 10540, orders: 8 },
-  { month: 'Nov', gross: 15800, net: 13430, orders: 11 },
-  { month: 'Dez', gross: 22100, net: 18785, orders: 16 },
-  { month: 'Jan', gross: 18600, net: 15810, orders: 13 },
-  { month: 'Fev', gross: 14200, net: 12070, orders: 9 },
-  { month: 'Mar', gross: 19740, net: 16779, orders: 14 },
-];
+// ── Tipos derivados de dados reais ───────────────────────
 
 interface Transfer {
-  id: string; date: string; order: string; gross: number; commission: number; net: number;
+  id: string; date: string; order: string; gross: number; commission: number | null; net: number | null;
   status: 'transferido' | 'em_processamento' | 'aguardando_entrega';
 }
-
-const mockTransfers: Transfer[] = [
-  { id: 't1', date: '2025-03-15', order: 'KL-000195', gross: 6500, commission: 975, net: 5525, status: 'transferido' },
-  { id: 't2', date: '2025-03-12', order: 'KL-000188', gross: 2400, commission: 360, net: 2040, status: 'transferido' },
-  { id: 't3', date: '2025-03-10', order: 'KL-000185', gross: 7200, commission: 1080, net: 6120, status: 'em_processamento' },
-  { id: 't4', date: '2025-03-08', order: 'KL-000201', gross: 4890, commission: 733.5, net: 4156.5, status: 'aguardando_entrega' },
-  { id: 't5', date: '2025-03-05', order: 'KL-000198', gross: 4090, commission: 613.5, net: 3476.5, status: 'em_processamento' },
-];
 
 interface Commission {
   id: string; date: string; order: string; saleValue: number; percent: number; charged: number;
 }
 
-const mockCommissions: Commission[] = [
-  { id: 'c1', date: '2025-03-15', order: 'KL-000195', saleValue: 6500, percent: 15, charged: 975 },
-  { id: 'c2', date: '2025-03-12', order: 'KL-000188', saleValue: 2400, percent: 15, charged: 360 },
-  { id: 'c3', date: '2025-03-10', order: 'KL-000185', saleValue: 7200, percent: 15, charged: 1080 },
-  { id: 'c4', date: '2025-03-08', order: 'KL-000201', saleValue: 4890, percent: 15, charged: 733.5 },
-  { id: 'c5', date: '2025-03-05', order: 'KL-000198', saleValue: 4090, percent: 15, charged: 613.5 },
-];
-
-interface Withdrawal {
-  id: string; requestDate: string; amount: number; account: string;
-  status: 'concluido' | 'em_processamento' | 'solicitado' | 'recusado';
-  settleDate?: string;
-}
-
-const mockWithdrawals: Withdrawal[] = [
-  { id: 'w1', requestDate: '2025-03-01', amount: 12000, account: 'Nubank •••• 4521', status: 'concluido', settleDate: '2025-03-03' },
-  { id: 'w2', requestDate: '2025-03-10', amount: 8500, account: 'Nubank •••• 4521', status: 'em_processamento' },
-  { id: 'w3', requestDate: '2025-03-16', amount: 5000, account: 'Nubank •••• 4521', status: 'solicitado' },
-];
+// Status de pedido que representam uma venda efetiva (excluem pending/cancelled).
+const SALE_STATUSES = ['paid', 'processing', 'shipped', 'delivered'] as const;
 
 // ── Helpers ──────────────────────────────────────────────
 
@@ -93,17 +52,27 @@ function fmtDate(d: string) {
 }
 
 const transferStatusConfig: Record<Transfer['status'], { label: string; cls: string }> = {
-  transferido: { label: 'Transferido', cls: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30' },
+  transferido: { label: 'Liberado', cls: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30' },
   em_processamento: { label: 'Em processamento', cls: 'bg-amber-500/10 text-amber-500 border-amber-500/30' },
-  aguardando_entrega: { label: 'Aguardando entrega', cls: 'bg-muted text-muted-foreground border-border' },
+  aguardando_entrega: { label: 'Aguardando confirmação', cls: 'bg-muted text-muted-foreground border-border' },
 };
 
-const withdrawalStatusConfig: Record<Withdrawal['status'], { label: string; cls: string }> = {
-  concluido: { label: 'Concluído', cls: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30' },
-  em_processamento: { label: 'Em processamento', cls: 'bg-amber-500/10 text-amber-500 border-amber-500/30' },
-  solicitado: { label: 'Solicitado', cls: 'bg-blue-500/10 text-blue-500 border-blue-500/30' },
-  recusado: { label: 'Recusado', cls: 'bg-kolecta-red/10 text-kolecta-red border-kolecta-red/30' },
-};
+/** Deriva a linha de repasse a partir de um pedido de venda. */
+function orderToTransfer(o: Order): Transfer {
+  const gross = o.totalInCents / 100;
+  const hasFee = o.platformFeeInCents != null && o.sellerNetInCents != null;
+  const commission = hasFee ? o.platformFeeInCents! / 100 : null;
+  const net = hasFee ? o.sellerNetInCents! / 100 : null;
+  // Repasse é liberado quando o comprador confirma o recebimento.
+  const status: Transfer['status'] = o.buyerConfirmedAt
+    ? 'transferido'
+    : o.status === 'delivered'
+      ? 'aguardando_entrega'
+      : 'em_processamento';
+  return { id: o.id, date: o.createdAt, order: `#${o.id.slice(0, 8)}`, gross, commission, net, status };
+}
+
+const MONTH_LABELS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
 type ChartMetric = 'gross' | 'net' | 'orders';
 const chartMetricLabels: Record<ChartMetric, string> = {
@@ -140,14 +109,91 @@ export default function SellerFinancialPage() {
   const { requestMutation } = useWithdrawals();
   const { statusQuery, bankAccountQuery } = useConnect();
   const depositMutation = useWalletDeposit();
+  const { data: sales = [], isLoading: salesLoading } = useSellerOrders();
 
-  const loading = walletLoading;
+  const loading = walletLoading || salesLoading;
+
+  // Vendas efetivas (exclui pending/cancelled), mais recentes primeiro.
+  const saleOrders = useMemo(
+    () =>
+      sales
+        .filter((o) => (SALE_STATUSES as readonly string[]).includes(o.status))
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+    [sales],
+  );
+
+  const transfers = useMemo(() => saleOrders.map(orderToTransfer), [saleOrders]);
+
+  // Comissões: só pedidos com taxa já calculada (definida na confirmação).
+  const commissions: Commission[] = useMemo(
+    () =>
+      saleOrders
+        .filter((o) => o.platformFeeInCents != null)
+        .map((o) => {
+          const saleValue = o.totalInCents / 100;
+          const charged = o.platformFeeInCents! / 100;
+          return {
+            id: o.id,
+            date: o.createdAt,
+            order: `#${o.id.slice(0, 8)}`,
+            saleValue,
+            percent: saleValue > 0 ? Math.round((charged / saleValue) * 100) : 0,
+            charged,
+          };
+        }),
+    [saleOrders],
+  );
+
+  // Gráfico: últimos 6 meses (bruto, líquido, nº de vendas).
+  const chartData = useMemo(() => {
+    const now = new Date();
+    const buckets: { key: string; month: string; gross: number; net: number; orders: number }[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      buckets.push({
+        key: `${d.getFullYear()}-${d.getMonth()}`,
+        month: MONTH_LABELS[d.getMonth()],
+        gross: 0,
+        net: 0,
+        orders: 0,
+      });
+    }
+    const idx = new Map(buckets.map((b, i) => [b.key, i]));
+    for (const o of saleOrders) {
+      const d = new Date(o.createdAt);
+      const k = `${d.getFullYear()}-${d.getMonth()}`;
+      const i = idx.get(k);
+      if (i === undefined) continue;
+      buckets[i].gross += o.totalInCents / 100;
+      buckets[i].net += (o.sellerNetInCents ?? o.totalInCents) / 100;
+      buckets[i].orders += 1;
+    }
+    return buckets;
+  }, [saleOrders]);
+
+  const monthTotal = useMemo(() => {
+    const now = new Date();
+    return saleOrders.reduce((sum, o) => {
+      const d = new Date(o.createdAt);
+      return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()
+        ? sum + o.totalInCents / 100
+        : sum;
+    }, 0);
+  }, [saleOrders]);
+
+  const totalWithdrawn = useMemo(
+    () =>
+      withdrawals
+        .filter((w) => w.status === 'paid')
+        .reduce((sum, w) => sum + w.amountInCents / 100, 0),
+    [withdrawals],
+  );
 
   const summary = {
     available:      (wallet?.balanceInCents ?? 0) / 100,
     pending:        (wallet?.pendingInCents ?? 0) / 100,
-    monthTotal:     mockFinancialSummary.monthTotal,     // ainda mock
-    totalWithdrawn: mockFinancialSummary.totalWithdrawn, // ainda mock
+    monthTotal,
+    totalWithdrawn,
     stripeConnected: statusQuery.data?.status === 'active',
   };
 
@@ -344,7 +390,7 @@ export default function SellerFinancialPage() {
                 Retorna: { month: string, gross: number, net: number, orders: number }[] */}
             <CardContent className="pt-0">
               <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={mockChartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                <BarChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                   <XAxis dataKey="month" tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
                   <YAxis
@@ -385,9 +431,13 @@ export default function SellerFinancialPage() {
 
             {/* TAB REPASSES */}
             <TabsContent value="repasses">
-              {/* API: GET /api/seller/financial/transfers?period= */}
               <Card className="bg-gradient-card">
                 <CardContent className="p-0">
+                  {transfers.length === 0 ? (
+                    <div className="p-8 text-center text-sm text-muted-foreground">
+                      Nenhuma venda ainda. Os repasses aparecem aqui quando você vende.
+                    </div>
+                  ) : (
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -400,15 +450,19 @@ export default function SellerFinancialPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {mockTransfers.map((t) => {
+                      {transfers.map((t) => {
                         const sc = transferStatusConfig[t.status];
                         return (
                           <TableRow key={t.id}>
                             <TableCell className="text-sm">{fmtDate(t.date)}</TableCell>
                             <TableCell className="font-heading font-semibold">{t.order}</TableCell>
                             <TableCell className="text-right text-sm">{formatBRL(t.gross)}</TableCell>
-                            <TableCell className="text-right text-sm text-kolecta-red">-{formatBRL(t.commission)}</TableCell>
-                            <TableCell className="text-right font-heading font-bold text-kolecta-gold">{formatBRL(t.net)}</TableCell>
+                            <TableCell className="text-right text-sm text-kolecta-red">
+                              {t.commission != null ? `-${formatBRL(t.commission)}` : '—'}
+                            </TableCell>
+                            <TableCell className="text-right font-heading font-bold text-kolecta-gold">
+                              {t.net != null ? formatBRL(t.net) : '—'}
+                            </TableCell>
                             <TableCell><Badge variant="outline" className={sc.cls}>{sc.label}</Badge></TableCell>
                           </TableRow>
                         );
@@ -418,27 +472,32 @@ export default function SellerFinancialPage() {
                       <TableRow>
                         <TableCell colSpan={2} className="font-heading font-bold">Total</TableCell>
                         <TableCell className="text-right font-heading font-bold">
-                          {formatBRL(mockTransfers.reduce((s, t) => s + t.gross, 0))}
+                          {formatBRL(transfers.reduce((s, t) => s + t.gross, 0))}
                         </TableCell>
                         <TableCell className="text-right font-heading font-bold text-kolecta-red">
-                          -{formatBRL(mockTransfers.reduce((s, t) => s + t.commission, 0))}
+                          -{formatBRL(transfers.reduce((s, t) => s + (t.commission ?? 0), 0))}
                         </TableCell>
                         <TableCell className="text-right font-heading font-bold text-kolecta-gold">
-                          {formatBRL(mockTransfers.reduce((s, t) => s + t.net, 0))}
+                          {formatBRL(transfers.reduce((s, t) => s + (t.net ?? 0), 0))}
                         </TableCell>
                         <TableCell />
                       </TableRow>
                     </TableFooter>
                   </Table>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
 
             {/* TAB COMISSÕES */}
             <TabsContent value="comissoes">
-              {/* API: GET /api/seller/financial/commissions?period= */}
               <Card className="bg-gradient-card">
                 <CardContent className="p-0">
+                  {commissions.length === 0 ? (
+                    <div className="p-8 text-center text-sm text-muted-foreground">
+                      Nenhuma comissão cobrada ainda. A comissão é calculada quando a venda é confirmada.
+                    </div>
+                  ) : (
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -450,7 +509,7 @@ export default function SellerFinancialPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {mockCommissions.map((c) => (
+                      {commissions.map((c) => (
                         <TableRow key={c.id}>
                           <TableCell className="text-sm">{fmtDate(c.date)}</TableCell>
                           <TableCell className="font-heading font-semibold">{c.order}</TableCell>
@@ -464,11 +523,12 @@ export default function SellerFinancialPage() {
                       <TableRow>
                         <TableCell colSpan={4} className="font-heading font-bold">Total de comissões</TableCell>
                         <TableCell className="text-right font-heading font-bold text-kolecta-red">
-                          {formatBRL(mockCommissions.reduce((s, c) => s + c.charged, 0))}
+                          {formatBRL(commissions.reduce((s, c) => s + c.charged, 0))}
                         </TableCell>
                       </TableRow>
                     </TableFooter>
                   </Table>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>

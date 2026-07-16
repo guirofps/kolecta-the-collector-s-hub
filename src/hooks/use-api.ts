@@ -78,6 +78,77 @@ export function useUseFounderCredit() {
   });
 }
 
+// ── Seller self profile (loja / políticas / notificações) ────────────────────
+
+export function useSellerSelfProfile() {
+  const { getToken } = useAuth();
+  return useQuery({
+    queryKey: ['seller-self-profile'],
+    queryFn: async () => {
+      const token = await getToken();
+      return api.sellerSelf.getProfile(token || '');
+    },
+    staleTime: 60_000,
+  });
+}
+
+export function useUpdateSellerProfile() {
+  const queryClient = useQueryClient();
+  const { getToken } = useAuth();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (body: import('@/lib/api').UpdateSellerProfileBody) => {
+      const token = await getToken();
+      return api.sellerSelf.updateProfile(token || '', body);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['seller-self-profile'] });
+      toast({ title: 'Perfil salvo' });
+    },
+    onError: (err: Error) => {
+      toast({ title: 'Erro ao salvar perfil', description: err.message, variant: 'destructive' });
+    },
+  });
+}
+
+export function useUpdateSellerPolicies() {
+  const queryClient = useQueryClient();
+  const { getToken } = useAuth();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (body: import('@/lib/api').UpdateSellerPoliciesBody) => {
+      const token = await getToken();
+      return api.sellerSelf.updatePolicies(token || '', body);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['seller-self-profile'] });
+      toast({ title: 'Políticas salvas' });
+    },
+    onError: (err: Error) => {
+      toast({ title: 'Erro ao salvar políticas', description: err.message, variant: 'destructive' });
+    },
+  });
+}
+
+export function useUpdateNotificationPrefs() {
+  const queryClient = useQueryClient();
+  const { getToken } = useAuth();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (prefs: Record<string, { email?: boolean; push?: boolean }>) => {
+      const token = await getToken();
+      return api.sellerSelf.updateNotificationPrefs(token || '', prefs);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['seller-self-profile'] });
+      toast({ title: 'Preferências salvas' });
+    },
+    onError: (err: Error) => {
+      toast({ title: 'Erro ao salvar preferências', description: err.message, variant: 'destructive' });
+    },
+  });
+}
+
 // ── useListing ─────────────────────────────────────────────────────────────
 
 export function useListing(id: string | undefined) {
@@ -481,6 +552,85 @@ export function useCreateReview() {
     },
     onError: (err: Error) => {
       toast({ title: 'Erro ao enviar avaliação', description: err.message, variant: 'destructive' });
+    },
+  });
+}
+
+// ── Disputes (comprador) ─────────────────────────────────────────────────────
+
+export function useDisputes() {
+  const { getToken } = useAuth();
+  return useQuery({
+    queryKey: ['disputes', 'mine'],
+    queryFn: async () => {
+      const token = await getToken();
+      return api.disputes.getMine(token!);
+    },
+    staleTime: 30_000,
+  });
+}
+
+export function useDisputeEligibleOrders(enabled = true) {
+  const { getToken } = useAuth();
+  return useQuery({
+    queryKey: ['disputes', 'eligible-orders'],
+    queryFn: async () => {
+      const token = await getToken();
+      return api.disputes.getEligibleOrders(token!);
+    },
+    enabled,
+    staleTime: 30_000,
+  });
+}
+
+export function useDispute(id: string | undefined) {
+  const { getToken } = useAuth();
+  return useQuery({
+    queryKey: ['disputes', id],
+    queryFn: async () => {
+      const token = await getToken();
+      return api.disputes.getById(token!, id!);
+    },
+    enabled: !!id,
+    staleTime: 15_000,
+  });
+}
+
+export function useCreateDispute() {
+  const { getToken } = useAuth();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (body: { orderId: string; reason: string; description: string }) => {
+      const token = await getToken();
+      return api.disputes.create(token!, body);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['disputes'] });
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      toast({ title: 'Disputa aberta', description: 'Acompanhe pelo painel de disputas.' });
+    },
+    onError: (err: Error) => {
+      toast({ title: 'Erro ao abrir disputa', description: err.message, variant: 'destructive' });
+    },
+  });
+}
+
+export function useAddDisputeMessage() {
+  const { getToken } = useAuth();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async ({ id, content }: { id: string; content: string }) => {
+      const token = await getToken();
+      return api.disputes.addMessage(token!, id, content);
+    },
+    onSuccess: (_data, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['disputes', id] });
+      queryClient.invalidateQueries({ queryKey: ['disputes', 'mine'] });
+    },
+    onError: (err: Error) => {
+      toast({ title: 'Erro ao enviar resposta', description: err.message, variant: 'destructive' });
     },
   });
 }

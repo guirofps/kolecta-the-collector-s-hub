@@ -551,6 +551,36 @@ export const api = {
       request<{ data: BlingStatus }>('/api/bling/disconnect', { method: 'DELETE', token }).then(r => r.data),
   },
 
+  // ── Seller (self, autenticado) ───────────────────────────────────────────────
+  sellerSelf: {
+    getProfile: (token: string) =>
+      request<{ data: SellerSelfProfile }>('/api/seller/profile', { token }).then(r => r.data),
+
+    updateProfile: (token: string, body: UpdateSellerProfileBody) =>
+      request<{ data: SellerSelfProfile }>('/api/seller/profile', {
+        method: 'PUT',
+        body: JSON.stringify(body),
+        token,
+      }).then(r => r.data),
+
+    updatePolicies: (token: string, body: UpdateSellerPoliciesBody) =>
+      request<{ data: SellerSelfProfile }>('/api/seller/policies', {
+        method: 'PUT',
+        body: JSON.stringify(body),
+        token,
+      }).then(r => r.data),
+
+    updateNotificationPrefs: (
+      token: string,
+      prefs: Record<string, { email?: boolean; push?: boolean }>,
+    ) =>
+      request<{ data: SellerSelfProfile }>('/api/seller/notification-preferences', {
+        method: 'PUT',
+        body: JSON.stringify({ prefs }),
+        token,
+      }).then(r => r.data),
+  },
+
   // ── Sellers ────────────────────────────────────────────────────────────────
   sellers: {
     getProfile: (id: string) =>
@@ -602,6 +632,32 @@ export const api = {
         body: JSON.stringify(body),
         token,
       }),
+  },
+
+  // ── Disputes (comprador) ─────────────────────────────────────────────────────
+  disputes: {
+    getMine: (token: string) =>
+      request<{ data: UserDispute[] }>('/api/disputes', { token }).then(r => r.data),
+
+    getEligibleOrders: (token: string) =>
+      request<{ data: DisputeEligibleOrder[] }>('/api/disputes/eligible-orders', { token }).then(r => r.data),
+
+    getById: (token: string, id: string) =>
+      request<{ data: UserDispute }>(`/api/disputes/${id}`, { token }).then(r => r.data),
+
+    create: (token: string, body: { orderId: string; reason: string; description: string }) =>
+      request<{ data: UserDispute }>('/api/disputes', {
+        method: 'POST',
+        body: JSON.stringify(body),
+        token,
+      }).then(r => r.data),
+
+    addMessage: (token: string, id: string, content: string) =>
+      request<{ data: UserDispute }>(`/api/disputes/${id}/messages`, {
+        method: 'POST',
+        body: JSON.stringify({ content }),
+        token,
+      }).then(r => r.data),
   },
 
   // ── Reviews ────────────────────────────────────────────────────────────────
@@ -670,6 +726,46 @@ export interface SellerProfile {
   totalSales: number;
   totalReviews: number;
   averageRating: number;
+}
+
+export interface SellerSelfProfile {
+  storeName: string | null;
+  bio: string | null;
+  city: string | null;
+  state: string | null;
+  website: string | null;
+  categories: string[];
+  isVerified: boolean;
+  policies: {
+    shipping: string | null;
+    returns: string | null;
+    payment: string | null;
+    acceptOffers: boolean;
+    maxDiscountPercent: number | null;
+  };
+  notificationPrefs: Record<string, { email?: boolean; push?: boolean }>;
+  account: {
+    name: string | null;
+    email: string | null;
+    createdAt: string | null;
+  };
+}
+
+export interface UpdateSellerProfileBody {
+  storeName?: string;
+  bio?: string;
+  city?: string;
+  state?: string;
+  website?: string;
+  categories?: string[];
+}
+
+export interface UpdateSellerPoliciesBody {
+  shipping?: string;
+  returns?: string;
+  payment?: string;
+  acceptOffers?: boolean;
+  maxDiscountPercent?: number;
 }
 
 export interface SellerReview {
@@ -1137,6 +1233,46 @@ export interface AdminSellerProfile {
 export interface BlingStatus {
   connected: boolean;
   expired?: boolean;
+}
+
+// ── Disputes (comprador) ──────────────────────────────────────────────────────
+
+export interface DisputeOrderRef {
+  id: string;
+  listingTitle: string;
+  listingImage: string | null;
+  sellerId: string | null;
+  sellerName: string;
+  totalInCents: number;
+}
+
+export interface DisputeTimelineEvent {
+  id: string;
+  type: 'message' | 'system';
+  senderRole: 'buyer' | 'seller' | 'admin' | 'system';
+  senderName: string | null;
+  content: string;
+  createdAt: string;
+}
+
+export type UserDisputeStatus = 'open' | 'under_review' | 'resolved' | 'closed';
+
+export interface UserDispute {
+  id: string;
+  orderId: string;
+  reason: string;
+  description: string | null;
+  status: UserDisputeStatus;
+  resolution: 'buyer_favor' | 'seller_favor' | 'no_resolution' | null;
+  createdAt: string;
+  resolvedAt: string | null;
+  order: DisputeOrderRef;
+  timeline?: DisputeTimelineEvent[];
+}
+
+export interface DisputeEligibleOrder {
+  id: string;
+  title: string;
 }
 
 export interface AdminDispute {
