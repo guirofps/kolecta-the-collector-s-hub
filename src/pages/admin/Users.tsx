@@ -23,7 +23,9 @@ const roleColors: Record<string, string> = {
 };
 
 export default function AdminUsers() {
-  const { data: users = [], isLoading } = useAdminUsers();
+  // Carrega todos os usuários (a tela não pagina; busca/filtro cobrem o conjunto).
+  // Limite alto o suficiente para o volume atual — trocar por paginação real se escalar.
+  const { data: users = [], isLoading } = useAdminUsers(1000);
   const updateRole = useUpdateUserRole();
   const [activeTab, setActiveTab] = useState('todos');
   const [search, setSearch] = useState('');
@@ -41,7 +43,11 @@ export default function AdminUsers() {
         <div className="mb-6">
           <h1 className="font-heading text-2xl font-extrabold italic uppercase">Usuários</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {isLoading ? 'Carregando...' : `${users.length} usuários cadastrados`}
+            {isLoading
+              ? 'Carregando...'
+              : filtered.length === users.length
+                ? `${users.length} usuários cadastrados`
+                : `${filtered.length} de ${users.length} usuários`}
           </p>
         </div>
 
