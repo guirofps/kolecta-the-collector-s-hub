@@ -162,6 +162,13 @@ const initialForm: FormData = {
   lengthCm: '',
 };
 
+// ─── Travas do wizard ────────────────────────────────────────
+// Mínimos exigidos para avançar de passo. Anúncio raso não vende e suja o
+// catálogo, então o wizard bloqueia em vez de só "recomendar".
+const MIN_TITLE = 10;
+const MIN_DESCRIPTION = 30;
+const MIN_PHOTOS = 3;
+
 const steps = [
   { id: 1, label: 'Tipo' },
   { id: 2, label: 'Detalhes' },
@@ -200,24 +207,44 @@ export default function CreateListing() {
     setForm((prev) => ({ ...prev, [field]: value })); 
   };
 
-  const canNext = () => {
+  // Campos obrigatórios por categoria (além dos comuns).
+  const missingCategoryField = (): string | null => {
+    const slug = slugOf(form.category);
+    const f = form.categoryFields ?? {};
+    if (slug === 'miniaturas-diecast' && (!f.brand || !f.scale)) return 'Preencha marca e escala';
+    if (slug === 'cards-colecionaveis' && !f.jogo) return 'Escolha o jogo/universo';
+    if (slug === 'action-figures' && (!f.brand || !f.line || !f.personagem)) return 'Preencha marca, linha e personagem';
+    if (slug === 'funko-pop' && (!f.numero || !f.line)) return 'Preencha o número do Pop e a linha';
+    if (slug === 'mangas-hqs' && !f.tituloObra) return 'Preencha o título da obra';
+    return null;
+  };
+
+  // O que falta no passo atual. `null` = pode avançar.
+  // Devolve texto para o vendedor saber por que o botão está travado.
+  const missingForStep = (): string | null => {
     switch (step) {
-      case 1: return form.type !== null;
+      case 1:
+        return form.type === null ? 'Escolha o tipo de anúncio' : null;
       case 2: {
-        if (!form.title || !form.category || !form.condition) return false;
-        const slug = slugOf(form.category);
-        if (slug === 'miniaturas-diecast') return !!form.categoryFields?.brand && !!form.categoryFields?.scale;
-        if (slug === 'cards-colecionaveis') return !!form.categoryFields?.jogo;
-        if (slug === 'action-figures') return !!form.categoryFields?.brand && !!form.categoryFields?.line && !!form.categoryFields?.personagem;
-        if (slug === 'funko-pop') return !!form.categoryFields?.numero && !!form.categoryFields?.line;
-        if (slug === 'mangas-hqs') return !!form.categoryFields?.tituloObra;
-        return true;
+        if (form.title.trim().length < MIN_TITLE) return `O título precisa de pelo menos ${MIN_TITLE} caracteres`;
+        if (!form.category) return 'Escolha a categoria';
+        if (!form.condition) return 'Escolha a condição do item';
+        if (form.description.trim().length < MIN_DESCRIPTION) return `A descrição precisa de pelo menos ${MIN_DESCRIPTION} caracteres`;
+        return missingCategoryField();
       }
-      case 3: return true; // photos optional for MVP
-      case 4: return form.type === 'direct' ? !!form.price : !!form.startingBid;
-      default: return true;
+      case 3:
+        return form.photos.length < MIN_PHOTOS
+          ? `Envie pelo menos ${MIN_PHOTOS} fotos (${form.photos.length} de ${MIN_PHOTOS})`
+          : null;
+      case 4:
+        if (form.type === 'direct') return form.price ? null : 'Defina o preço de venda';
+        return form.startingBid ? null : 'Defina o lance inicial';
+      default:
+        return null;
     }
   };
+
+  const canNext = () => missingForStep() === null;
 
   const handleSubmit = () => {
     // Sem endereço de origem o backend rejeita (BadRequest); trava aqui para dar
@@ -363,13 +390,22 @@ export default function CreateListing() {
           </Button>
 
           {step < 5 ? (
-            <Button
-              variant="kolecta"
-              onClick={() => setStep((s) => s + 1)}
-              disabled={!canNext()}
-            >
-              Próximo <ArrowRight className="h-4 w-4" />
-            </Button>
+            <div className="flex items-center gap-3">
+              {/* Diz o que falta, senão o vendedor trava sem saber o motivo. */}
+              {missingForStep() && (
+                <span className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <AlertCircle className="h-3.5 w-3.5 text-accent shrink-0" />
+                  {missingForStep()}
+                </span>
+              )}
+              <Button
+                variant="kolecta"
+                onClick={() => setStep((s) => s + 1)}
+                disabled={!canNext()}
+              >
+                Próximo <ArrowRight className="h-4 w-4" />
+              </Button>
+            </div>
           ) : (
             <Button
               variant="kolecta"
@@ -549,7 +585,12 @@ function StepDetails({ form, update, categories }: { form: FormData; update: (f:
             maxLength={80}
             className="mt-1.5"
           />
-          <div className="text-right mt-1">
+          <div className="flex items-center justify-between mt-1">
+            <span className="text-[10px] text-accent">
+              {form.title.trim().length > 0 && form.title.trim().length < MIN_TITLE
+                ? `Mínimo ${MIN_TITLE} caracteres`
+                : ''}
+            </span>
             <span className="text-[10px] text-muted-foreground">{form.title.length}/80</span>
           </div>
         </div>
@@ -581,7 +622,7 @@ function StepDetails({ form, update, categories }: { form: FormData; update: (f:
         </div>
 
         <div>
-          <Label htmlFor="description">Descrição</Label>
+          <Label htmlFor="description">Descrição *</Label>
           <Textarea
             id="description"
             placeholder="Descreva detalhes, histórico, defeitos..."
@@ -591,7 +632,12 @@ function StepDetails({ form, update, categories }: { form: FormData; update: (f:
             rows={5}
             className="mt-1.5"
           />
-          <div className="text-right mt-1">
+          <div className="flex items-center justify-between mt-1">
+            <span className="text-[10px] text-accent">
+              {form.description.trim().length < MIN_DESCRIPTION
+                ? `Faltam ${MIN_DESCRIPTION - form.description.trim().length} caracteres (mínimo ${MIN_DESCRIPTION})`
+                : ''}
+            </span>
             <span className="text-[10px] text-muted-foreground">{form.description.length}/4000</span>
           </div>
         </div>
@@ -887,8 +933,27 @@ function StepPhotos({
 
   return (
     <div>
-      <h2 className="font-heading text-lg font-bold uppercase mb-1">Fotos do Item</h2>
-      <p className="text-sm text-muted-foreground mb-2">Mínimo 3 fotos recomendadas. Máximo 8.</p>
+      <h2 className="font-heading text-lg font-bold uppercase mb-1">Fotos do Item *</h2>
+      <p className="text-sm text-muted-foreground mb-2">
+        Mínimo {MIN_PHOTOS} fotos, máximo 8.
+      </p>
+
+      {/* Progresso do mínimo obrigatório */}
+      {form.photos.length < MIN_PHOTOS ? (
+        <div className="flex items-center gap-2 mb-3 p-3 rounded-md bg-accent/5 border border-accent/30">
+          <AlertCircle className="h-4 w-4 text-accent shrink-0" />
+          <span className="text-xs text-foreground">
+            Faltam <strong>{MIN_PHOTOS - form.photos.length}</strong> foto
+            {MIN_PHOTOS - form.photos.length > 1 ? 's' : ''} para poder avançar
+            ({form.photos.length} de {MIN_PHOTOS}).
+          </span>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 mb-3 p-3 rounded-md bg-primary/5 border border-primary/30">
+          <Check className="h-4 w-4 text-primary shrink-0" />
+          <span className="text-xs text-foreground">Mínimo de fotos atingido.</span>
+        </div>
+      )}
 
       <div className="flex items-center gap-2 mb-6 p-3 rounded-md bg-primary/5 border border-primary/20">
         <AlertCircle className="h-4 w-4 text-primary shrink-0" />
@@ -999,6 +1064,9 @@ function StepPricing({ form, update }: { form: FormData; update: (f: keyof FormD
                 onChange={(e) => update('startingBid', e.target.value)}
                 className="mt-1.5"
               />
+              <p className="mt-1.5 text-[11px] text-muted-foreground">
+                Valor em que os lances começam. Todo mundo vê.
+              </p>
             </div>
             <div>
               <Label htmlFor="minIncrement">Incremento Mínimo (R$)</Label>
@@ -1010,6 +1078,9 @@ function StepPricing({ form, update }: { form: FormData; update: (f: keyof FormD
                 onChange={(e) => update('minIncrement', e.target.value)}
                 className="mt-1.5"
               />
+              <p className="mt-1.5 text-[11px] text-muted-foreground">
+                De quanto em quanto os lances sobem.
+              </p>
             </div>
           </div>
 
@@ -1029,15 +1100,20 @@ function StepPricing({ form, update }: { form: FormData; update: (f: keyof FormD
               </Select>
             </div>
             <div>
-              <Label htmlFor="reservePrice">Preço de Reserva (opcional)</Label>
+              <Label htmlFor="reservePrice">Preço mínimo para vender (opcional)</Label>
               <Input
                 id="reservePrice"
                 type="number"
-                placeholder="Mínimo para vender"
+                placeholder="Deixe vazio para vender a qualquer valor"
                 value={form.reservePrice}
                 onChange={(e) => update('reservePrice', e.target.value)}
                 className="mt-1.5"
               />
+              <p className="mt-1.5 text-[11px] text-muted-foreground">
+                Valor <strong className="text-foreground">secreto</strong>: ninguém vê. Se o leilão
+                terminar abaixo dele, o item não é vendido. Deixe vazio para vender pelo maior lance,
+                seja ele qual for.
+              </p>
             </div>
           </div>
 
