@@ -26,11 +26,14 @@ function getImages(raw: string | null): string[] {
 }
 
 function getBidStatus(bid: MyBid): BidStatus {
+  // `findMyBids` retorna apenas o MAIOR lance do usuário por leilão, então
+  // se ele bate o lance atual do leilão, este usuário é quem lidera/venceu.
+  const isTopBid = bid.currentBidInCents === bid.amountInCents;
   if (bid.auctionStatus === 'active') {
-    return bid.currentBidInCents === bid.amountInCents ? 'leading' : 'outbid';
+    return isTopBid ? 'leading' : 'outbid';
   }
   if (bid.auctionStatus === 'ended') {
-    return bid.currentWinnerId === bid.auctionId ? 'won_pending' : 'lost';
+    return isTopBid ? 'won_pending' : 'lost';
   }
   return 'lost';
 }

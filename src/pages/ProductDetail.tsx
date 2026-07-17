@@ -297,7 +297,7 @@ export default function ProductDetail() {
                   </div>
                 </div>
               ) : (
-                // Leilão — placeholder para MVP (leilões ainda não têm endpoint real)
+                // Leilão — o lance acontece na página do Modo Lance (por auctionId)
                 <div className="space-y-4">
                   <div>
                     <span className="text-xs text-muted-foreground uppercase tracking-wider">Lance inicial</span>
@@ -307,8 +307,13 @@ export default function ProductDetail() {
                   </div>
                   <div className="rounded-md bg-accent/5 border border-accent/20 p-3 text-xs text-accent flex items-start gap-2">
                     <Gavel className="h-4 w-4 shrink-0 mt-0.5" />
-                    <p>Sistema de lances em desenvolvimento. Em breve.</p>
+                    <p>Este item é vendido no Modo Lance.</p>
                   </div>
+                  <Button variant="accent" size="lg" className="w-full" asChild>
+                    <Link to="/modo-lance">
+                      <Gavel className="h-5 w-5 mr-2" /> Ver leilões ativos
+                    </Link>
+                  </Button>
                 </div>
               )}
             </div>

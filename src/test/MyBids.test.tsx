@@ -239,7 +239,9 @@ describe('MyBidsPage', () => {
     it('exibe badge "Perdido" quando leilão encerrado sem vencer', () => {
       const bid = makeMyBid({
         auctionStatus: 'ended',
-        currentWinnerId: 'outro_usuario', // não é o auctionId → lost
+        amountInCents: 10000,
+        currentBidInCents: 12000, // alguém deu lance maior → não é o top → lost
+        currentWinnerId: 'outro_usuario',
       });
       mockUseMyBids.mockReturnValue({
         data: [bid],
@@ -256,6 +258,8 @@ describe('MyBidsPage', () => {
     it('não exibe botões de ação quando perdido', () => {
       const bid = makeMyBid({
         auctionStatus: 'ended',
+        amountInCents: 10000,
+        currentBidInCents: 12000,
         currentWinnerId: 'outro_usuario',
       });
       mockUseMyBids.mockReturnValue({

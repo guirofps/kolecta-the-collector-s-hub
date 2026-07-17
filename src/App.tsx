@@ -16,6 +16,7 @@ import NotFound from "./pages/NotFound";
 import SearchPage from "./pages/Search";
 import ProductDetail from "./pages/ProductDetail";
 import AuctionsPage from "./pages/Auctions";
+import AuctionDetail from "./pages/AuctionDetail";
 import CommunityPage from "./pages/Community";
 import CategoriesPage from "./pages/Categories";
 import CategoryPage from "./pages/CategoryPage";
@@ -107,7 +108,7 @@ const App = () => (
             <Route path="/busca" element={<SearchPage />} />
             <Route path="/produto/:id" element={<ProductDetail />} />
             <Route path="/modo-lance" element={<AuctionsPage />} />
-            <Route path="/modo-lance/:id" element={<ProductDetail />} />
+            <Route path="/modo-lance/:id" element={<AuctionDetail />} />
             <Route path="/comunidade" element={<CommunityPage />} />
             <Route path="/categorias" element={<CategoriesPage />} />
             <Route path="/categoria/:slug" element={<CategoryPage />} />

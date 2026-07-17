@@ -961,6 +961,17 @@ export function useAuctions() {
   });
 }
 
+export function useAuctionDetail(id: string | undefined) {
+  return useQuery({
+    queryKey: ['auction', id],
+    queryFn: () => api.auctions.getById(id!),
+    enabled: !!id,
+    staleTime: 10_000,
+    // Leilão é ao vivo: reflete lances de outros e a contagem regressiva.
+    refetchInterval: 15_000,
+  });
+}
+
 export function useMyBids() {
   const { getToken } = useAuth();
   return useQuery({
@@ -998,6 +1009,7 @@ export function usePlaceBid() {
     onSuccess: (_, { auctionId }) => {
       queryClient.invalidateQueries({ queryKey: ['auctions'] });
       queryClient.invalidateQueries({ queryKey: ['auction', auctionId] });
+      queryClient.invalidateQueries({ queryKey: ['auctions', 'bids', 'mine'] });
       toast({ title: 'Lance registrado!', description: 'Você está liderando o leilão.' });
     },
     onError: (err: Error) => {
