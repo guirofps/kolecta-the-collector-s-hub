@@ -304,6 +304,21 @@ export const api = {
     getStats: (token: string) =>
       request<{ data: AdminStats }>('/api/admin/stats', { token }).then(r => r.data),
 
+    getOverview: (token: string) =>
+      request<{ data: AdminOverview }>('/api/admin/overview', { token }).then(r => r.data),
+
+    getReports: (token: string) =>
+      request<{ data: AdminReports }>('/api/admin/reports', { token }).then(r => r.data),
+
+    getFinancial: (token: string) =>
+      request<{ data: AdminFinancial }>('/api/admin/financial', { token }).then(r => r.data),
+
+    getAuctionsMonitor: (token: string) =>
+      request<{ data: AdminAuctionItem[] }>('/api/admin/auctions', { token }).then(r => r.data),
+
+    getSellersDetailed: (token: string) =>
+      request<{ data: AdminSellerDetailed[] }>('/api/admin/sellers/detailed', { token }).then(r => r.data),
+
     getUsers: (token: string, limit = 50, offset = 0) => {
       const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
       return request<{ data: AdminUser[] }>(`/api/admin/users?${params}`, { token }).then(r => r.data);
@@ -858,6 +873,7 @@ export type OrderStatus =
   | 'processing'
   | 'shipped'
   | 'delivered'
+  | 'completed'
   | 'cancelled'
   | 'disputed';
 
@@ -1206,6 +1222,66 @@ export interface AdminStats {
   totalOrders: number;
   totalRevenueInCents: number;
   openDisputes: number;
+  activeAuctions: number;
+}
+
+export interface AdminOverview {
+  salesByMonth: { month: string; vendas: number; comissao: number }[];
+  topSellers: { sellerId: string; name: string; sales: number; gmv: number; verified: boolean }[];
+  categoryBreakdown: { name: string; value: number }[];
+  pendingActions: { pendingListings: number; pendingVerifications: number; openDisputes: number };
+  activeAuctions: number;
+}
+
+export interface AdminReports {
+  gmvByMonth: { month: string; gmv: number }[];
+  auctionMetrics: { month: string; modoLance: number; lances: number }[];
+  topCategories: { name: string; gmv: number; items: number }[];
+}
+
+export interface AdminFinancialTransaction {
+  id: string;
+  orderId: string;
+  date: string;
+  buyer: string;
+  gross: number;
+  commission: number;
+  commissionPct: number | null;
+  net: number | null;
+  status: string;
+}
+
+export interface AdminFinancial {
+  summary: { revenue: number; volume: number; payouts: number; pendingWithdrawals: number };
+  transactions: AdminFinancialTransaction[];
+  pendingWithdrawals: { id: string; date: string; seller: string; amount: number }[];
+}
+
+export interface AdminAuctionItem {
+  id: string;
+  listingId: string;
+  productName: string;
+  productImage: string | null;
+  sellerName: string;
+  currentBid: number | null;
+  startingBid: number;
+  totalBids: number;
+  startedAt: string;
+  endsAt: string | null;
+  status: 'active' | 'ended' | 'cancelled';
+  winnerName: string | null;
+}
+
+export interface AdminSellerDetailed {
+  id: string;
+  userId: string;
+  name: string | null;
+  email: string | null;
+  cpfCnpj: string | null;
+  isVerified: boolean;
+  recipientStatus: string | null;
+  createdAt: string;
+  previousOrders: number;
 }
 
 export interface AdminUser {

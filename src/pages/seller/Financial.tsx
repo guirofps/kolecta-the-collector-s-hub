@@ -43,7 +43,7 @@ interface Commission {
 }
 
 // Status de pedido que representam uma venda efetiva (excluem pending/cancelled).
-const SALE_STATUSES = ['paid', 'processing', 'shipped', 'delivered'] as const;
+const SALE_STATUSES = ['paid', 'processing', 'shipped', 'delivered', 'completed'] as const;
 
 // ── Helpers ──────────────────────────────────────────────
 

@@ -1040,6 +1040,66 @@ export function useAdminStats() {
   });
 }
 
+export function useAdminOverview() {
+  const { getToken } = useAuth();
+  return useQuery({
+    queryKey: ['admin', 'overview'],
+    queryFn: async () => {
+      const token = await getToken();
+      return api.admin.getOverview(token!);
+    },
+    staleTime: 60_000,
+  });
+}
+
+export function useAdminReports() {
+  const { getToken } = useAuth();
+  return useQuery({
+    queryKey: ['admin', 'reports'],
+    queryFn: async () => {
+      const token = await getToken();
+      return api.admin.getReports(token!);
+    },
+    staleTime: 60_000,
+  });
+}
+
+export function useAdminFinancial() {
+  const { getToken } = useAuth();
+  return useQuery({
+    queryKey: ['admin', 'financial'],
+    queryFn: async () => {
+      const token = await getToken();
+      return api.admin.getFinancial(token!);
+    },
+    staleTime: 60_000,
+  });
+}
+
+export function useAdminAuctionsMonitor() {
+  const { getToken } = useAuth();
+  return useQuery({
+    queryKey: ['admin', 'auctions-monitor'],
+    queryFn: async () => {
+      const token = await getToken();
+      return api.admin.getAuctionsMonitor(token!);
+    },
+    staleTime: 30_000,
+  });
+}
+
+export function useAdminSellersDetailed() {
+  const { getToken } = useAuth();
+  return useQuery({
+    queryKey: ['admin', 'sellers-detailed'],
+    queryFn: async () => {
+      const token = await getToken();
+      return api.admin.getSellersDetailed(token!);
+    },
+    staleTime: 30_000,
+  });
+}
+
 export function useAdminUsers(limit = 50, offset = 0) {
   const { getToken } = useAuth();
   return useQuery({
@@ -1096,6 +1156,7 @@ export function useVerifySeller() {
     },
     onSuccess: (_, { verified }) => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'sellers'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'sellers-detailed'] });
       toast({ title: verified ? 'Vendedor verificado!' : 'Verificação removida.' });
     },
     onError: (err: Error) => {

@@ -15,13 +15,14 @@ import { useWallet, useSellerOrders, useMyListings, useSellerAuctions } from '@/
 import type { Order, OrderStatus } from '@/lib/api';
 
 // Status de pedido que representam uma venda efetiva (excluem pending/cancelled).
-const SALE_STATUSES: OrderStatus[] = ['paid', 'processing', 'shipped', 'delivered'];
+const SALE_STATUSES: OrderStatus[] = ['paid', 'processing', 'shipped', 'delivered', 'completed'];
 
 const statusColors: Record<string, string> = {
   paid: 'bg-blue-500/10 text-blue-400',
   processing: 'bg-primary/10 text-primary',
   shipped: 'bg-blue-500/10 text-blue-400',
   delivered: 'bg-green-500/10 text-green-400',
+  completed: 'bg-green-500/10 text-green-400',
   pending: 'bg-accent/10 text-accent',
 };
 
@@ -30,6 +31,7 @@ const statusLabels: Record<string, string> = {
   processing: 'Preparar Envio',
   shipped: 'Enviado',
   delivered: 'Entregue',
+  completed: 'Concluído',
   pending: 'Aguardando Pgto',
 };
 
