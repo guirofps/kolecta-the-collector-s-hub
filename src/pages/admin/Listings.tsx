@@ -42,7 +42,7 @@ function parseImages(images: string | null): string[] {
 
 
 export default function AdminListings() {
-  const { data: listings = [], isLoading, isError } = useAdminListings('draft');
+  const { data: listings = [], isLoading, isError } = useAdminListings('draft', 500);
   const updateStatus = useUpdateListingStatus();
 
   const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
