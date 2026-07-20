@@ -17,6 +17,7 @@ import { Switch } from '@/components/ui/switch';
 import { mockCategories, formatBRL } from '@/lib/mock-data';
 import { trackEvent } from '@/lib/analytics';
 import { COMMISSION_RATE, COMMISSION_LABEL } from '@/lib/fees';
+import { categoryArt } from '@/lib/category-art';
 import { useCreateListing, useUploadImage, useCategories, useAddresses } from '@/hooks/use-api';
 import type { CreateListingPayload } from '@/lib/api';
 
@@ -510,27 +511,54 @@ function StepDetails({ form, update, categories }: { form: FormData; update: (f:
           <p className="text-sm text-muted-foreground">Escolha a categoria do seu item</p>
         </div>
 
+        {/* Botões com a arte da categoria (mesma da landing, via category-art). */}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           {categories.map((c) => {
             const isSelected = tempCategory === c.id;
+            const art = categoryArt(c.slug);
             return (
               <button
                 type="button"
                 key={c.id}
                 onClick={() => setTempCategory(c.id)}
-                className={`relative text-left p-4 rounded-xl border transition-all flex flex-col items-start gap-3
-                  ${isSelected ? 'border-[#FFD700] bg-[#FFD700]/5' : 'border-border bg-card hover:border-primary/30'}
+                aria-pressed={isSelected}
+                className={`group relative aspect-[4/3] overflow-hidden rounded-xl border transition-all
+                  ${isSelected
+                    ? 'border-[#FFD700] ring-2 ring-[#FFD700]/40'
+                    : 'border-border hover:border-primary/40'}
                 `}
               >
+                {art ? (
+                  <>
+                    <img
+                      src={art}
+                      alt=""
+                      aria-hidden="true"
+                      className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/25" />
+                  </>
+                ) : (
+                  // Categoria sem arte própria: cai no ícone antigo.
+                  <div className="absolute inset-0 flex items-center justify-center bg-card">
+                    <CategoryIcon slug={c.slug} size={40} />
+                  </div>
+                )}
+
                 {isSelected && (
-                  <div className="absolute top-2 right-2 bg-[#FFD700] text-black p-1 rounded-full">
+                  <div className="absolute top-2 right-2 z-10 rounded-full bg-[#FFD700] p-1 text-black">
                     <Check className="h-3 w-3" />
                   </div>
                 )}
-                <CategoryIcon slug={c.slug} size={32} />
-                <div>
-                  <h3 className="font-heading text-sm font-bold">{c.name}</h3>
-                  {c.description && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{c.description}</p>}
+
+                <div className="absolute inset-x-0 bottom-0 p-3">
+                  <h3
+                    className={`font-heading text-sm font-bold uppercase tracking-wide text-center leading-tight
+                      ${art ? 'text-white drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]' : 'text-foreground'}
+                    `}
+                  >
+                    {c.name}
+                  </h3>
                 </div>
               </button>
             );
