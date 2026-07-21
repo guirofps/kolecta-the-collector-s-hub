@@ -17,6 +17,8 @@ import { Switch } from '@/components/ui/switch';
 import { mockCategories, formatBRL } from '@/lib/mock-data';
 import { trackEvent } from '@/lib/analytics';
 import { COMMISSION_RATE, COMMISSION_LABEL } from '@/lib/fees';
+import { categoryArt } from '@/lib/category-art';
+import { CONDITIONS } from '@/lib/conditions';
 import { useCreateListing, useUploadImage, useCategories, useAddresses } from '@/hooks/use-api';
 import type { CreateListingPayload } from '@/lib/api';
 
@@ -168,6 +170,7 @@ const initialForm: FormData = {
 const MIN_TITLE = 10;
 const MIN_DESCRIPTION = 30;
 const MIN_PHOTOS = 3;
+const MAX_PHOTOS = 8;
 
 const steps = [
   { id: 1, label: 'Tipo' },
@@ -177,16 +180,14 @@ const steps = [
   { id: 5, label: 'Revisão' },
 ];
 
-const conditions = [
-  { value: 'novo-lacrado', label: 'Novo lacrado', desc: 'Embalagem original intacta, nunca aberto' },
-  { value: 'novo-sem-caixa', label: 'Novo sem caixa', desc: 'Item novo, sem embalagem original' },
-  { value: 'usado-conservado', label: 'Usado conservado', desc: 'Sem danos visíveis, bem mantido' },
-  { value: 'usado-com-marcas', label: 'Usado com marcas', desc: 'Com desgastes ou danos visíveis' },
-];
+// Condições vêm da fonte única (src/lib/conditions.ts).
+const conditions = CONDITIONS;
 
 export default function CreateListing() {
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<FormData>(initialForm);
+  // Quantos uploads estão em voo (o wizard aceita vários arquivos de uma vez).
+  const [uploadingCount, setUploadingCount] = useState(0);
   const navigate = useNavigate();
   const createListing = useCreateListing();
   const uploadImage = useUploadImage();
@@ -289,12 +290,26 @@ export default function CreateListing() {
     });
   };
 
-  const handleFileSelect = (file: File) => {
-    if (form.photos.length >= 8) return;
-    uploadImage.mutate(file, {
-      onSuccess: (data) => {
-        update('photos', [...form.photos, data.url]);
-      },
+  // Append seguro: uploads em paralelo terminam fora de ordem, então cada um
+  // precisa somar em cima do estado mais recente (e não do capturado no closure).
+  const appendPhoto = (url: string) => {
+    setForm((prev) =>
+      prev.photos.length >= MAX_PHOTOS ? prev : { ...prev, photos: [...prev.photos, url] },
+    );
+  };
+
+  const handleFilesSelect = (files: File[]) => {
+    const free = MAX_PHOTOS - form.photos.length;
+    if (free <= 0) return;
+
+    const batch = files.slice(0, free);
+    setUploadingCount((n) => n + batch.length);
+
+    batch.forEach((file) => {
+      uploadImage.mutate(file, {
+        onSuccess: (data) => appendPhoto(data.url),
+        onSettled: () => setUploadingCount((n) => Math.max(0, n - 1)),
+      });
     });
   };
 
@@ -354,7 +369,7 @@ export default function CreateListing() {
           >
             {step === 1 && <StepType form={form} update={update} />}
             {step === 2 && <StepDetails form={form} update={update} categories={categories} />}
-            {step === 3 && <StepPhotos form={form} onFileSelect={handleFileSelect} removePhoto={removePhoto} isUploading={uploadImage.isPending} />}
+            {step === 3 && <StepPhotos form={form} onFilesSelect={handleFilesSelect} removePhoto={removePhoto} uploadingCount={uploadingCount} />}
             {step === 4 && <StepPricing form={form} update={update} />}
             {step === 5 && <StepReview form={form} categories={categories} />}
           </motion.div>
@@ -510,27 +525,56 @@ function StepDetails({ form, update, categories }: { form: FormData; update: (f:
           <p className="text-sm text-muted-foreground">Escolha a categoria do seu item</p>
         </div>
 
+        {/* Botões com a arte da categoria (mesma da landing, via category-art). */}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           {categories.map((c) => {
             const isSelected = tempCategory === c.id;
+            const art = categoryArt(c.slug);
             return (
               <button
                 type="button"
                 key={c.id}
                 onClick={() => setTempCategory(c.id)}
-                className={`relative text-left p-4 rounded-xl border transition-all flex flex-col items-start gap-3
-                  ${isSelected ? 'border-[#FFD700] bg-[#FFD700]/5' : 'border-border bg-card hover:border-primary/30'}
+                aria-pressed={isSelected}
+                // aspect-square casa com a arte (1:1): em 4:3 o object-cover
+                // cortava a altura e dava efeito de zoom exagerado.
+                className={`group relative aspect-square overflow-hidden rounded-xl border transition-all
+                  ${isSelected
+                    ? 'border-[#FFD700] ring-2 ring-[#FFD700]/40'
+                    : 'border-border hover:border-primary/40'}
                 `}
               >
+                {art ? (
+                  <>
+                    <img
+                      src={art}
+                      alt=""
+                      aria-hidden="true"
+                      className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/25" />
+                  </>
+                ) : (
+                  // Categoria sem arte própria: cai no ícone antigo.
+                  <div className="absolute inset-0 flex items-center justify-center bg-card">
+                    <CategoryIcon slug={c.slug} size={40} />
+                  </div>
+                )}
+
                 {isSelected && (
-                  <div className="absolute top-2 right-2 bg-[#FFD700] text-black p-1 rounded-full">
+                  <div className="absolute top-2 right-2 z-10 rounded-full bg-[#FFD700] p-1 text-black">
                     <Check className="h-3 w-3" />
                   </div>
                 )}
-                <CategoryIcon slug={c.slug} size={32} />
-                <div>
-                  <h3 className="font-heading text-sm font-bold">{c.name}</h3>
-                  {c.description && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{c.description}</p>}
+
+                <div className="absolute inset-x-0 bottom-0 p-3">
+                  <h3
+                    className={`font-heading text-sm font-bold uppercase tracking-wide text-center leading-tight
+                      ${art ? 'text-white drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]' : 'text-foreground'}
+                    `}
+                  >
+                    {c.name}
+                  </h3>
                 </div>
               </button>
             );
@@ -910,24 +954,26 @@ function StepDetails({ form, update, categories }: { form: FormData; update: (f:
 
 function StepPhotos({
   form,
-  onFileSelect,
+  onFilesSelect,
   removePhoto,
-  isUploading,
+  uploadingCount,
 }: {
   form: FormData;
-  onFileSelect: (file: File) => void;
+  onFilesSelect: (files: File[]) => void;
   removePhoto: (i: number) => void;
-  isUploading: boolean;
+  uploadingCount: number;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const isUploading = uploadingCount > 0;
 
   const handleClick = () => {
-    if (!isUploading && form.photos.length < 8) inputRef.current?.click();
+    if (!isUploading && form.photos.length < MAX_PHOTOS) inputRef.current?.click();
   };
 
+  // Aceita seleção múltipla: manda todos os arquivos de uma vez.
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) onFileSelect(file);
+    const files = Array.from(e.target.files ?? []);
+    if (files.length > 0) onFilesSelect(files);
     e.target.value = '';
   };
 
@@ -935,7 +981,7 @@ function StepPhotos({
     <div>
       <h2 className="font-heading text-lg font-bold uppercase mb-1">Fotos do Item *</h2>
       <p className="text-sm text-muted-foreground mb-2">
-        Mínimo {MIN_PHOTOS} fotos, máximo 8.
+        Mínimo {MIN_PHOTOS} fotos, máximo {MAX_PHOTOS}. Você pode selecionar várias de uma vez.
       </p>
 
       {/* Progresso do mínimo obrigatório */}
@@ -964,6 +1010,7 @@ function StepPhotos({
         ref={inputRef}
         type="file"
         accept="image/jpeg,image/png,image/webp"
+        multiple
         className="hidden"
         onChange={handleChange}
       />
@@ -984,8 +1031,9 @@ function StepPhotos({
           </div>
         ))}
 
-        {form.photos.length < 8 && (
+        {form.photos.length < MAX_PHOTOS && (
           <button
+            type="button"
             onClick={handleClick}
             disabled={isUploading}
             className="aspect-square rounded-lg border-2 border-dashed border-border hover:border-primary/40 bg-secondary/50 flex flex-col items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -995,13 +1043,15 @@ function StepPhotos({
             ) : (
               <ImagePlus className="h-6 w-6 text-muted-foreground" />
             )}
-            <span className="text-[10px] text-muted-foreground">
-              {isUploading ? 'Enviando…' : 'Adicionar'}
+            <span className="text-[10px] text-muted-foreground text-center px-1">
+              {isUploading
+                ? `Enviando ${uploadingCount}…`
+                : 'Adicionar fotos'}
             </span>
           </button>
         )}
       </div>
-      <p className="text-[10px] text-muted-foreground mt-3">{form.photos.length}/8 fotos · Formatos: JPG, PNG, WebP · Máx 5MB cada</p>
+      <p className="text-[10px] text-muted-foreground mt-3">{form.photos.length}/{MAX_PHOTOS} fotos · Formatos: JPG, PNG, WebP · Máx 5MB cada</p>
     </div>
   );
 }

@@ -10,18 +10,15 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { mockCategories } from '@/lib/mock-data';
+import { CONDITIONS } from '@/lib/conditions';
 import { useListing, useUpdateListing, useUploadImage, useCategories } from '@/hooks/use-api';
 import type { CreateListingPayload } from '@/lib/api';
 import { toast } from 'sonner';
 
 const MAX_PHOTOS = 8;
 
-const conditions = [
-  { value: 'novo-lacrado', label: 'Novo / Lacrado' },
-  { value: 'novo-sem-caixa', label: 'Novo / Sem caixa' },
-  { value: 'usado-conservado', label: 'Usado / Conservado' },
-  { value: 'usado-com-marcas', label: 'Usado / Com marcas' },
-];
+// Condições vêm da fonte única (src/lib/conditions.ts).
+const conditions = CONDITIONS;
 
 interface EditForm {
   title: string;

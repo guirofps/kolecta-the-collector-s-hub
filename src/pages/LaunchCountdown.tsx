@@ -12,11 +12,7 @@ import { getCountdown, getLaunchDate, type Countdown } from '@/lib/launch';
 import kolectaLogo from '@/assets/kolecta-logo.png';
 import heroBg from '@/assets/hero-bg.jpg';
 import miniGtNsx from '@/assets/mini-gt-nsx.webp';
-import photoDiecast from '@/assets/categories/photo-diecast.webp';
-import photoCards from '@/assets/categories/photo-cards.webp';
-import photoActionFigures from '@/assets/categories/photo-action-figures.webp';
-import photoFunko from '@/assets/categories/photo-funko.webp';
-import photoMangas from '@/assets/categories/photo-mangas.webp';
+import { CATEGORY_ART } from '@/lib/category-art';
 
 // ─── Config da campanha de Fundador ──────────────────────────
 // Números da oferta em um só lugar. Ajuste aqui, o layout acompanha.
@@ -83,11 +79,11 @@ const HOW_IT_WORKS = [
 // o nome escrito POR CIMA em duas linhas: `line1` branca, `line2` dourada.
 // `name` é o texto alternativo completo (leitor de tela / SEO).
 const CATEGORIES = [
-  { name: 'Miniaturas Diecast', line1: 'Miniaturas', line2: 'Diecast', photo: photoDiecast },
-  { name: 'Cards Colecionáveis', line1: 'Cards', line2: 'Colecionáveis', photo: photoCards },
-  { name: 'Action Figures', line1: 'Action', line2: 'Figures', photo: photoActionFigures },
-  { name: 'Funko Pop', line1: 'Funko', line2: 'Pop', photo: photoFunko },
-  { name: 'Mangás & HQs', line1: 'Mangás', line2: '& HQs', photo: photoMangas },
+  { name: 'Miniaturas Diecast', line1: 'Miniaturas', line2: 'Diecast', photo: CATEGORY_ART['miniaturas-diecast'] },
+  { name: 'Cards Colecionáveis', line1: 'Cards', line2: 'Colecionáveis', photo: CATEGORY_ART['cards-colecionaveis'] },
+  { name: 'Action Figures', line1: 'Action', line2: 'Figures', photo: CATEGORY_ART['action-figures'] },
+  { name: 'Funko Pop', line1: 'Funko', line2: 'Pop', photo: CATEGORY_ART['funko-pop'] },
+  { name: 'Mangás & HQs', line1: 'Mangás', line2: '& HQs', photo: CATEGORY_ART['mangas-hqs'] },
 ];
 
 const fadeUp = {
