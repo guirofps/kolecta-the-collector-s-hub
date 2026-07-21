@@ -169,6 +169,7 @@ const initialForm: FormData = {
 const MIN_TITLE = 10;
 const MIN_DESCRIPTION = 30;
 const MIN_PHOTOS = 3;
+const MAX_PHOTOS = 8;
 
 const steps = [
   { id: 1, label: 'Tipo' },
@@ -188,6 +189,8 @@ const conditions = [
 export default function CreateListing() {
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<FormData>(initialForm);
+  // Quantos uploads estão em voo (o wizard aceita vários arquivos de uma vez).
+  const [uploadingCount, setUploadingCount] = useState(0);
   const navigate = useNavigate();
   const createListing = useCreateListing();
   const uploadImage = useUploadImage();
@@ -290,12 +293,26 @@ export default function CreateListing() {
     });
   };
 
-  const handleFileSelect = (file: File) => {
-    if (form.photos.length >= 8) return;
-    uploadImage.mutate(file, {
-      onSuccess: (data) => {
-        update('photos', [...form.photos, data.url]);
-      },
+  // Append seguro: uploads em paralelo terminam fora de ordem, então cada um
+  // precisa somar em cima do estado mais recente (e não do capturado no closure).
+  const appendPhoto = (url: string) => {
+    setForm((prev) =>
+      prev.photos.length >= MAX_PHOTOS ? prev : { ...prev, photos: [...prev.photos, url] },
+    );
+  };
+
+  const handleFilesSelect = (files: File[]) => {
+    const free = MAX_PHOTOS - form.photos.length;
+    if (free <= 0) return;
+
+    const batch = files.slice(0, free);
+    setUploadingCount((n) => n + batch.length);
+
+    batch.forEach((file) => {
+      uploadImage.mutate(file, {
+        onSuccess: (data) => appendPhoto(data.url),
+        onSettled: () => setUploadingCount((n) => Math.max(0, n - 1)),
+      });
     });
   };
 
@@ -355,7 +372,7 @@ export default function CreateListing() {
           >
             {step === 1 && <StepType form={form} update={update} />}
             {step === 2 && <StepDetails form={form} update={update} categories={categories} />}
-            {step === 3 && <StepPhotos form={form} onFileSelect={handleFileSelect} removePhoto={removePhoto} isUploading={uploadImage.isPending} />}
+            {step === 3 && <StepPhotos form={form} onFilesSelect={handleFilesSelect} removePhoto={removePhoto} uploadingCount={uploadingCount} />}
             {step === 4 && <StepPricing form={form} update={update} />}
             {step === 5 && <StepReview form={form} categories={categories} />}
           </motion.div>
@@ -522,7 +539,9 @@ function StepDetails({ form, update, categories }: { form: FormData; update: (f:
                 key={c.id}
                 onClick={() => setTempCategory(c.id)}
                 aria-pressed={isSelected}
-                className={`group relative aspect-[4/3] overflow-hidden rounded-xl border transition-all
+                // aspect-square casa com a arte (1:1): em 4:3 o object-cover
+                // cortava a altura e dava efeito de zoom exagerado.
+                className={`group relative aspect-square overflow-hidden rounded-xl border transition-all
                   ${isSelected
                     ? 'border-[#FFD700] ring-2 ring-[#FFD700]/40'
                     : 'border-border hover:border-primary/40'}
@@ -938,24 +957,26 @@ function StepDetails({ form, update, categories }: { form: FormData; update: (f:
 
 function StepPhotos({
   form,
-  onFileSelect,
+  onFilesSelect,
   removePhoto,
-  isUploading,
+  uploadingCount,
 }: {
   form: FormData;
-  onFileSelect: (file: File) => void;
+  onFilesSelect: (files: File[]) => void;
   removePhoto: (i: number) => void;
-  isUploading: boolean;
+  uploadingCount: number;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const isUploading = uploadingCount > 0;
 
   const handleClick = () => {
-    if (!isUploading && form.photos.length < 8) inputRef.current?.click();
+    if (!isUploading && form.photos.length < MAX_PHOTOS) inputRef.current?.click();
   };
 
+  // Aceita seleção múltipla: manda todos os arquivos de uma vez.
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) onFileSelect(file);
+    const files = Array.from(e.target.files ?? []);
+    if (files.length > 0) onFilesSelect(files);
     e.target.value = '';
   };
 
@@ -963,7 +984,7 @@ function StepPhotos({
     <div>
       <h2 className="font-heading text-lg font-bold uppercase mb-1">Fotos do Item *</h2>
       <p className="text-sm text-muted-foreground mb-2">
-        Mínimo {MIN_PHOTOS} fotos, máximo 8.
+        Mínimo {MIN_PHOTOS} fotos, máximo {MAX_PHOTOS}. Você pode selecionar várias de uma vez.
       </p>
 
       {/* Progresso do mínimo obrigatório */}
@@ -992,6 +1013,7 @@ function StepPhotos({
         ref={inputRef}
         type="file"
         accept="image/jpeg,image/png,image/webp"
+        multiple
         className="hidden"
         onChange={handleChange}
       />
@@ -1012,8 +1034,9 @@ function StepPhotos({
           </div>
         ))}
 
-        {form.photos.length < 8 && (
+        {form.photos.length < MAX_PHOTOS && (
           <button
+            type="button"
             onClick={handleClick}
             disabled={isUploading}
             className="aspect-square rounded-lg border-2 border-dashed border-border hover:border-primary/40 bg-secondary/50 flex flex-col items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -1023,13 +1046,15 @@ function StepPhotos({
             ) : (
               <ImagePlus className="h-6 w-6 text-muted-foreground" />
             )}
-            <span className="text-[10px] text-muted-foreground">
-              {isUploading ? 'Enviando…' : 'Adicionar'}
+            <span className="text-[10px] text-muted-foreground text-center px-1">
+              {isUploading
+                ? `Enviando ${uploadingCount}…`
+                : 'Adicionar fotos'}
             </span>
           </button>
         )}
       </div>
-      <p className="text-[10px] text-muted-foreground mt-3">{form.photos.length}/8 fotos · Formatos: JPG, PNG, WebP · Máx 5MB cada</p>
+      <p className="text-[10px] text-muted-foreground mt-3">{form.photos.length}/{MAX_PHOTOS} fotos · Formatos: JPG, PNG, WebP · Máx 5MB cada</p>
     </div>
   );
 }
