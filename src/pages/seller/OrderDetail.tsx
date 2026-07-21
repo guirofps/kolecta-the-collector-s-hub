@@ -34,7 +34,7 @@ import { cn } from '@/lib/utils';
 
 // ── Types ────────────────────────────────────────────────
 
-type LocalStatus = 'pagamento_confirmado' | 'em_separacao' | 'enviado' | 'entregue' | 'cancelado';
+type LocalStatus = 'aguardando_pagamento' | 'pagamento_confirmado' | 'em_separacao' | 'enviado' | 'entregue' | 'cancelado';
 
 interface TimelineEvent {
   key: string;
@@ -47,6 +47,7 @@ interface TimelineEvent {
 // ── Status config ────────────────────────────────────────
 
 const statusConfig: Record<LocalStatus, { label: string; cls: string }> = {
+  aguardando_pagamento: { label: 'Aguardando pagamento', cls: 'bg-kolecta-gold/10 text-kolecta-gold border-kolecta-gold/30' },
   pagamento_confirmado: { label: 'Pagamento confirmado', cls: 'bg-blue-500/10 text-blue-500 border-blue-500/30' },
   em_separacao: { label: 'Em separação', cls: 'bg-blue-500/10 text-blue-500 border-blue-500/30' },
   enviado: { label: 'Enviado', cls: 'bg-kolecta-gold/10 text-kolecta-gold border-kolecta-gold/30' },
@@ -54,8 +55,10 @@ const statusConfig: Record<LocalStatus, { label: string; cls: string }> = {
   cancelado: { label: 'Cancelado', cls: 'bg-kolecta-red/10 text-kolecta-red border-kolecta-red/30' },
 };
 
+// `pending` NAO pode virar "pagamento confirmado": pedido sem pagamento
+// aparecia como pago e liberava etiqueta/envio (risco de despachar sem receber).
 const apiToLocalStatus: Record<ApiOrderStatus, LocalStatus> = {
-  pending: 'pagamento_confirmado',
+  pending: 'aguardando_pagamento',
   paid: 'pagamento_confirmado',
   processing: 'em_separacao',
   shipped: 'enviado',
@@ -73,6 +76,7 @@ const timelineSteps: TimelineEvent[] = [
 
 function getActiveIndex(status: LocalStatus) {
   const map: Record<string, number> = {
+    aguardando_pagamento: -1,
     pagamento_confirmado: 0,
     em_separacao: 1,
     enviado: 2,
@@ -283,7 +287,18 @@ export default function SellerOrderDetailPage() {
                   <span className="text-sm text-muted-foreground">Status atual:</span>
                   <Badge variant="outline" className={sc.cls}>{sc.label}</Badge>
                 </div>
-                {(order.status === 'paid' || order.status === 'pending' || order.status === 'processing') && (
+                {order.status === 'pending' && (
+                  // Sem pagamento, sem envio: nada de etiqueta aqui.
+                  <div className="flex items-start gap-2 rounded-md border border-kolecta-gold/30 bg-kolecta-gold/5 p-3">
+                    <Clock className="h-4 w-4 text-kolecta-gold shrink-0 mt-0.5" />
+                    <p className="text-xs text-muted-foreground">
+                      O comprador ainda não pagou. As opções de etiqueta e envio
+                      liberam automaticamente quando o pagamento for confirmado.
+                      <strong className="block mt-1 text-foreground">Não envie o produto antes disso.</strong>
+                    </p>
+                  </div>
+                )}
+                {(order.status === 'paid' || order.status === 'processing') && (
                   <>
                     <Button className="w-full" variant="outline-gold" onClick={() => setLabelDialogOpen(true)}>
                       <Tag className="h-4 w-4 mr-2" /> Gerar etiqueta

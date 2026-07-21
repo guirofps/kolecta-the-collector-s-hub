@@ -18,6 +18,7 @@ import { mockCategories, formatBRL } from '@/lib/mock-data';
 import { trackEvent } from '@/lib/analytics';
 import { COMMISSION_RATE, COMMISSION_LABEL } from '@/lib/fees';
 import { categoryArt } from '@/lib/category-art';
+import { parsePriceToCents } from '@/lib/currency';
 import { CONDITIONS } from '@/lib/conditions';
 import { useCreateListing, useUploadImage, useCategories, useAddresses } from '@/hooks/use-api';
 import type { CreateListingPayload } from '@/lib/api';
@@ -237,9 +238,15 @@ export default function CreateListing() {
         return form.photos.length < MIN_PHOTOS
           ? `Envie pelo menos ${MIN_PHOTOS} fotos (${form.photos.length} de ${MIN_PHOTOS})`
           : null;
-      case 4:
-        if (form.type === 'direct') return form.price ? null : 'Defina o preço de venda';
-        return form.startingBid ? null : 'Defina o lance inicial';
+      case 4: {
+        // Valida via parser: bloqueia vazio, zero e negativo (não só string vazia).
+        if (form.type === 'direct') {
+          const cents = parsePriceToCents(form.price);
+          return cents && cents > 0 ? null : 'Defina um preço de venda maior que zero';
+        }
+        const bid = parsePriceToCents(form.startingBid);
+        return bid && bid > 0 ? null : 'Defina um lance inicial maior que zero';
+      }
       default:
         return null;
     }
@@ -253,8 +260,7 @@ export default function CreateListing() {
     if (!hasAddress) return;
     trackEvent('submit_listing', { type: form.type });
 
-    const toCents = (v: string) =>
-      Math.round(Number(v.replace(/\./g, '').replace(',', '.')) * 100);
+    const toCents = (v: string) => parsePriceToCents(v);
     const toInt = (v: string) => {
       const n = parseInt(v.replace(/\D/g, ''), 10);
       return Number.isFinite(n) && n > 0 ? n : undefined;
