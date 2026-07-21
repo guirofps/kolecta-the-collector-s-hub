@@ -1,5 +1,7 @@
 // ─── Types ───────────────────────────────────────────────
 
+import { conditionLabel as sharedConditionLabel } from './conditions';
+
 export interface Subcategory {
   id: string
   name: string
@@ -502,12 +504,10 @@ export function getProductById(id: string): Product | undefined {
   return mockProducts.find((p) => p.id === id);
 }
 
-export function conditionLabel(c: ProductCondition): string {
-  const map: Record<ProductCondition, string> = {
-    novo: 'Novo',
-    usado: 'Usado',
-    mint: 'Mint',
-    lacrado: 'Lacrado',
-  };
-  return map[c];
+// Delega para a fonte única (src/lib/conditions.ts), que entende tanto o
+// vocabulário real do anúncio (`novo-lacrado`...) quanto o antigo do mock.
+// Antes este mapa só conhecia o vocabulário do mock e devolvia `undefined`
+// para anúncios reais, deixando a condição vazia nas telas de compra.
+export function conditionLabel(c: ProductCondition | string): string {
+  return sharedConditionLabel(c);
 }

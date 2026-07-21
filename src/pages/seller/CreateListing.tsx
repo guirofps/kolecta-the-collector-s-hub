@@ -18,6 +18,7 @@ import { mockCategories, formatBRL } from '@/lib/mock-data';
 import { trackEvent } from '@/lib/analytics';
 import { COMMISSION_RATE, COMMISSION_LABEL } from '@/lib/fees';
 import { categoryArt } from '@/lib/category-art';
+import { CONDITIONS } from '@/lib/conditions';
 import { useCreateListing, useUploadImage, useCategories, useAddresses } from '@/hooks/use-api';
 import type { CreateListingPayload } from '@/lib/api';
 
@@ -179,12 +180,8 @@ const steps = [
   { id: 5, label: 'Revisão' },
 ];
 
-const conditions = [
-  { value: 'novo-lacrado', label: 'Novo lacrado', desc: 'Embalagem original intacta, nunca aberto' },
-  { value: 'novo-sem-caixa', label: 'Novo sem caixa', desc: 'Item novo, sem embalagem original' },
-  { value: 'usado-conservado', label: 'Usado conservado', desc: 'Sem danos visíveis, bem mantido' },
-  { value: 'usado-com-marcas', label: 'Usado com marcas', desc: 'Com desgastes ou danos visíveis' },
-];
+// Condições vêm da fonte única (src/lib/conditions.ts).
+const conditions = CONDITIONS;
 
 export default function CreateListing() {
   const [step, setStep] = useState(1);
