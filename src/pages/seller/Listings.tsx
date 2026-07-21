@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { PlusCircle, Search, MoreHorizontal, Eye, Pencil, Pause, Play, Trash2, Loader2, Upload, Sparkles } from 'lucide-react';
+import { PlusCircle, Search, MoreHorizontal, Eye, Pencil, Pause, Play, Trash2, Loader2, Upload, Sparkles, Rocket } from 'lucide-react';
 import SellerLayout from '@/components/layout/SellerLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { formatBRL, conditionLabel } from '@/lib/mock-data';
 import { isListingFeatured } from '@/lib/api';
-import { useMyListings, useDeleteListing, useTogglePauseListing, useMyFounder, useUseFounderCredit } from '@/hooks/use-api';
+import { useMyListings, useDeleteListing, useTogglePauseListing, usePublishListing, useMyFounder, useUseFounderCredit } from '@/hooks/use-api';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,8 +17,8 @@ import {
 
 const statusTabs = [
   { label: 'Todos', value: 'todos' },
-  { label: 'Aprovados', value: 'active' },
-  { label: 'Em Análise', value: 'draft' },
+  { label: 'Ativos', value: 'active' },
+  { label: 'Rascunhos', value: 'draft' },
   { label: 'Reprovados', value: 'rejected' },
   { label: 'Pausados', value: 'paused' },
   { label: 'Vendidos', value: 'sold' },
@@ -34,8 +34,8 @@ const statusColors: Record<string, string> = {
 };
 
 const statusLabels: Record<string, string> = {
-  active: 'Aprovado',
-  draft: 'Em Análise',
+  active: 'Ativo',
+  draft: 'Rascunho',
   rejected: 'Reprovado',
   paused: 'Pausado',
   sold: 'Vendido',
@@ -50,6 +50,7 @@ export default function SellerListings() {
   const { data: myProducts, isLoading } = useMyListings();
   const deleteMutation = useDeleteListing();
   const togglePauseMutation = useTogglePauseListing();
+  const publishMutation = usePublishListing();
   const { data: founder } = useMyFounder();
   const useCreditMutation = useUseFounderCredit();
   // Fundador ativo com créditos disponíveis pode destacar anúncios ativos.
@@ -192,6 +193,15 @@ export default function SellerListings() {
                         <DropdownMenuItem className="gap-2 text-sm" onClick={() => navigate(`/painel/anuncios/${product.id}/editar`)}>
                           <Pencil className="h-3.5 w-3.5" /> Editar
                         </DropdownMenuItem>
+                        {(product.status === 'draft' || product.status === 'pending_review') && (
+                          <DropdownMenuItem
+                            className="gap-2 text-sm text-primary"
+                            disabled={publishMutation.isPending}
+                            onClick={() => publishMutation.mutate(product.id)}
+                          >
+                            <Rocket className="h-3.5 w-3.5" /> Publicar
+                          </DropdownMenuItem>
+                        )}
                         {canFeature && product.status === 'active' && !isListingFeatured(product) && (
                           <DropdownMenuItem
                             className="gap-2 text-sm text-primary"

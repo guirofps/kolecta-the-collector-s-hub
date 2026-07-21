@@ -132,6 +132,12 @@ export const api = {
     remove: (token: string, id: string) =>
       request<void>(`/api/listings/${id}`, { method: 'DELETE', token }),
 
+    publish: (token: string, id: string) =>
+      request<{ data: Listing }>(`/api/listings/${id}/publish`, {
+        method: 'POST',
+        token,
+      }).then(r => r.data),
+
     togglePause: (token: string, id: string) =>
       request<{ data: Listing }>(`/api/listings/${id}/toggle-pause`, {
         method: 'PATCH',

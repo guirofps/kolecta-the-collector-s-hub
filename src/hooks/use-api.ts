@@ -343,6 +343,37 @@ export function useTogglePauseListing() {
   });
 }
 
+// ── usePublishListing (peneira de requisitos) ──────────────────────────────
+
+export function usePublishListing() {
+  const queryClient = useQueryClient();
+  const { getToken } = useAuth();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const token = await getToken();
+      return api.listings.publish(token || '', id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['my-listings'] });
+      queryClient.invalidateQueries({ queryKey: ['listings'] });
+      toast({
+        title: 'Anúncio publicado',
+        description: 'Seu anúncio está no ar no marketplace.',
+      });
+    },
+    onError: (err: Error) => {
+      // A mensagem já traz o que falta (descrição, fotos, frete...).
+      toast({
+        title: 'Não foi possível publicar',
+        description: err.message,
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
 // ── useWallet ──────────────────────────────────────────────────────────────
 
 export function useWallet() {
