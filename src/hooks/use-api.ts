@@ -6,7 +6,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@clerk/clerk-react';
 import { api } from '@/lib/api';
-import type { OrderStatus } from '@/lib/api';
+import type { OrderStatus, CreateRecipientPayload } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 
 // ── useMyProfile ───────────────────────────────────────────────────────────
@@ -411,7 +411,7 @@ export function useOrders(status?: string, page = 1) {
   });
 }
 
-export function useOrderById(id: string) {
+export function useOrderById(id: string, opts?: { pollWhilePending?: boolean }) {
   const { getToken } = useAuth();
 
   return useQuery({
@@ -422,6 +422,11 @@ export function useOrderById(id: string) {
     },
     enabled: Boolean(id),
     staleTime: 30_000,
+    // Pagamento PIX é assíncrono: enquanto o pedido está 'pending', refaz a
+    // busca a cada 4s até o webhook confirmar (status vira 'paid').
+    refetchInterval: opts?.pollWhilePending
+      ? (query) => (query.state.data?.status === 'pending' ? 4000 : false)
+      : false,
   });
 }
 
@@ -867,6 +872,61 @@ export function useConnect() {
   return { statusQuery, onboardMutation, loginLinkMutation, bankAccountQuery };
 }
 
+// ── useRecipient (Pagar.me — split nativo) ──────────────────────────────────
+
+export function useRecipient() {
+  const { getToken } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const statusQuery = useQuery({
+    queryKey: ['recipient', 'status'],
+    queryFn: async () => {
+      const token = await getToken();
+      return api.recipients.getStatus(token!);
+    },
+    staleTime: 30_000,
+  });
+
+  const onboardMutation = useMutation({
+    mutationFn: async (payload: CreateRecipientPayload) => {
+      const token = await getToken();
+      return api.recipients.onboard(token!, payload);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['recipient', 'status'] });
+      toast({
+        title: 'Cadastro enviado',
+        description:
+          'Recebedor criado. Conclua a prova de vida para ativar recebimentos e saques.',
+      });
+    },
+    onError: (err: any) => {
+      toast({
+        title: 'Erro ao cadastrar recebedor',
+        description: err.message ?? 'Não foi possível criar o recebedor.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const kycLinkMutation = useMutation({
+    mutationFn: async () => {
+      const token = await getToken();
+      return api.recipients.getKycLink(token!);
+    },
+    onError: (err: any) => {
+      toast({
+        title: 'Erro ao gerar link de verificação',
+        description: err.message ?? 'Tente novamente em instantes.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  return { statusQuery, onboardMutation, kycLinkMutation };
+}
+
 // ── useCreateCheckout ──────────────────────────────────────────────────────
 
 export function useCreateCheckout() {
@@ -874,7 +934,7 @@ export function useCreateCheckout() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (body: { items: { listingId: string }[]; addressId?: string; useWalletBalance?: boolean; buyerCpf?: string }) => {
+    mutationFn: async (body: { items: { listingId: string }[]; addressId?: string; useWalletBalance?: boolean; buyerCpf?: string; buyerPhone?: string }) => {
       const token = await getToken();
       return api.orders.createCheckout(token!, body);
     },

@@ -427,8 +427,19 @@ export const api = {
         token,
       }).then(r => r.data),
 
-    createCheckout: (token: string, body: { items: { listingId: string }[]; addressId?: string; useWalletBalance?: boolean; buyerCpf?: string }) =>
-      request<{ clientSecret?: string; orderId: string; totalInCents: number; walletDeducted?: number; chargeAmount?: number; paidViaWallet?: boolean }>(
+    createCheckout: (token: string, body: { items: { listingId: string }[]; addressId?: string; useWalletBalance?: boolean; buyerCpf?: string; buyerPhone?: string }) =>
+      request<{
+        orderId: string;
+        totalInCents: number;
+        walletDeducted?: number;
+        chargeAmount?: number;
+        paidViaWallet?: boolean;
+        // Cobrança PIX (quando não é 100% saldo de wallet)
+        pagarmeOrderId?: string;
+        qrCode?: string; // copia-e-cola
+        qrCodeUrl?: string; // imagem do QR
+        expiresAt?: string;
+      }>(
         '/api/orders/checkout',
         { method: 'POST', body: JSON.stringify(body), token },
       ),
@@ -520,6 +531,25 @@ export const api = {
 
     getBankAccount: (token: string) =>
       request<{ data: { bankName: string; last4: string; status: string } | null }>('/api/connect/bank-account', { token }).then((r) => r.data),
+  },
+
+  // ── Recipients (Pagar.me — split nativo) ─────────────────────────────────────
+
+  recipients: {
+    onboard: (token: string, payload: CreateRecipientPayload) =>
+      request<{ data: { recipientId: string; status: string; kyc: RecipientKycLink } }>(
+        '/api/recipients/onboard',
+        { method: 'POST', body: JSON.stringify(payload), token },
+      ).then((r) => r.data),
+
+    getStatus: (token: string) =>
+      request<{ data: RecipientStatusData }>('/api/recipients/status', { token }).then((r) => r.data),
+
+    getKycLink: (token: string) =>
+      request<{ data: RecipientKycLink }>('/api/recipients/kyc-link', {
+        method: 'POST',
+        token,
+      }).then((r) => r.data),
   },
 
   messages: {
@@ -1097,6 +1127,93 @@ export interface ConnectStatus {
   status: ConnectAccountStatus;
   chargesEnabled: boolean;
   payoutsEnabled: boolean;
+}
+
+// ── Recipients (Pagar.me) ────────────────────────────────────────────────────
+
+/** Estados do recebedor na Pagar.me (só `active` recebe split e saca). */
+export type RecipientStatus =
+  | 'not_started'
+  | 'registration'
+  | 'affiliation'
+  | 'active'
+  | 'refused'
+  | 'suspended'
+  | 'blocked'
+  | 'inactive';
+
+export interface RecipientStatusData {
+  onboarded: boolean;
+  status: RecipientStatus | string;
+  canReceive: boolean;
+  canWithdraw: boolean;
+  recipientId?: string;
+  document?: string | null;
+}
+
+/** Link/QR de prova de vida (expira em ~20min). */
+export interface RecipientKycLink {
+  url: string;
+  qrCodeBase64: string | null;
+  expiresAt: string | null;
+}
+
+export interface RecipientAddress {
+  street: string;
+  streetNumber: string;
+  neighborhood: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  complementary?: string;
+  referencePoint?: string;
+}
+
+export interface RecipientBankAccount {
+  holderName: string;
+  holderType: 'individual' | 'company';
+  holderDocument: string;
+  bank: string;
+  branchNumber: string;
+  branchCheckDigit?: string;
+  accountNumber: string;
+  accountCheckDigit: string;
+  accountType: 'checking' | 'savings';
+}
+
+export interface RecipientManagingPartner {
+  name: string;
+  email: string;
+  document: string;
+  motherName?: string;
+  birthdate: string;
+  monthlyIncomeInCents: number;
+  professionalOccupation: string;
+  selfDeclaredLegalRepresentative: boolean;
+  phone?: string;
+  address: RecipientAddress;
+}
+
+export interface CreateRecipientPayload {
+  type: 'individual' | 'company';
+  name: string;
+  document: string;
+  email: string;
+  siteUrl?: string;
+  phone?: string;
+  // Pessoa Física
+  motherName?: string;
+  birthdate?: string;
+  monthlyIncomeInCents?: number;
+  professionalOccupation?: string;
+  address?: RecipientAddress;
+  // Pessoa Jurídica
+  annualRevenueInCents?: number;
+  corporationType?: string;
+  foundingDate?: string;
+  mainAddress?: RecipientAddress;
+  managingPartners?: RecipientManagingPartner[];
+  bankAccount: RecipientBankAccount;
 }
 
 export interface UserProfile {

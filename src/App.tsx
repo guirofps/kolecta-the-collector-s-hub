@@ -44,6 +44,7 @@ import ReviewsPage from "./pages/account/Reviews";
 import AccountDisputesPage from "./pages/account/Disputes";
 import SellerDashboard from "./pages/seller/Dashboard";
 import StripeOnboardingPage from "./pages/seller/StripeOnboarding";
+import RecipientOnboardingPage from "./pages/seller/RecipientOnboarding";
 import SellerListings from "./pages/seller/Listings";
 import CreateListing from "./pages/seller/CreateListing";
 import EditListing from "./pages/seller/EditListing";
@@ -152,6 +153,7 @@ const App = () => (
             <Route path="/painel/integracoes" element={<ProtectedRoute><IntegrationsPage /></ProtectedRoute>} />
             <Route path="/painel/financeiro" element={<ProtectedRoute><SellerFinancialPage /></ProtectedRoute>} />
             <Route path="/painel/stripe-onboarding" element={<ProtectedRoute><StripeOnboardingPage /></ProtectedRoute>} />
+            <Route path="/painel/recebedor" element={<ProtectedRoute><RecipientOnboardingPage /></ProtectedRoute>} />
             <Route path="/painel/mensagens" element={<ProtectedRoute><SellerMessagesPage /></ProtectedRoute>} />
             <Route path="/painel/configuracoes" element={<ProtectedRoute><SellerSettingsPage /></ProtectedRoute>} />
             <Route path="/painel/midia" element={<ProtectedRoute><SellerMediaPage /></ProtectedRoute>} />
