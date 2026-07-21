@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { Navigate } from 'react-router-dom';
-import { Shield, MapPin, Truck, CreditCard, ChevronRight, Loader2, AlertTriangle } from 'lucide-react';
+import { Shield, MapPin, Truck, CreditCard, ChevronRight, Loader2, AlertTriangle, Copy } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
 import { useCart, CartItem } from '@/contexts/CartContext';
 import { Card, CardContent } from '@/components/ui/card';
@@ -10,18 +10,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Separator } from '@/components/ui/separator';
-import { loadStripe } from '@stripe/stripe-js';
-import { Elements } from '@stripe/react-stripe-js';
-import StripePaymentForm from '@/components/checkout/StripePaymentForm';
 import { useCreateCheckout, useWallet } from '@/hooks/use-api';
 import { useAddresses } from '@/hooks/use-api';
 import { api } from '@/lib/api';
 import { formatBRL } from '@/lib/currency';
 import { isValidCpf } from '@/lib/cpf';
-
-// ── Stripe singleton — inicializa uma vez ─────────────────────────────────
-
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY!);
+import { useToast } from '@/hooks/use-toast';
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -37,6 +31,14 @@ function maskCPF(v: string) {
   if (digits.length <= 6) return `${digits.slice(0, 3)}.${digits.slice(3)}`;
   if (digits.length <= 9) return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`;
   return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
+}
+
+function maskPhone(v: string) {
+  const d = v.replace(/\D/g, '').slice(0, 11);
+  if (d.length <= 10) {
+    return d.replace(/(\d{2})(\d)/, '($1) $2').replace(/(\d{4})(\d)/, '$1-$2');
+  }
+  return d.replace(/(\d{2})(\d)/, '($1) $2').replace(/(\d{5})(\d)/, '$1-$2');
 }
 
 // ── Shipping ──────────────────────────────────────────────────────────────
@@ -78,11 +80,15 @@ function FieldError({ msg }: { msg?: string }) {
 type Stage = 'address-shipping' | 'payment';
 
 interface CheckoutSession {
-  clientSecret?: string;
   orderId: string;
   totalInCents: number;
   walletDeducted?: number;
+  chargeAmount?: number;
   paidViaWallet?: boolean;
+  // Cobrança PIX (Pagar.me)
+  qrCode?: string;
+  qrCodeUrl?: string;
+  expiresAt?: string;
   sellerGroup: ReturnType<typeof groupBySeller>[0];
 }
 
@@ -107,6 +113,7 @@ export default function CheckoutPage() {
   const [selectedAddressId, setSelectedAddressId] = useState<string | 'custom'>('custom');
   const [nome, setNome] = useState('');
   const [cpf, setCpf] = useState('');
+  const [phone, setPhone] = useState('');
   const [cep, setCep] = useState('');
   const [rua, setRua] = useState('');
   const [numero, setNumero] = useState('');
@@ -131,6 +138,14 @@ export default function CheckoutPage() {
   // ── Wallet balance toggle ─────────────────────────────────────────────
   const [useWalletBalance, setUseWalletBalance] = useState(false);
   const { data: wallet } = useWallet();
+  const { toast } = useToast();
+
+  // ── Copiar código PIX ─────────────────────────────────────────────────
+  async function handleCopyPix(code?: string) {
+    if (!code) return;
+    await navigator.clipboard.writeText(code);
+    toast({ title: 'Código PIX copiado!' });
+  }
 
   // ── ViaCEP ────────────────────────────────────────────────────────────
   const fetchCep = useCallback(async (rawCep: string) => {
@@ -235,9 +250,12 @@ export default function CheckoutPage() {
   // ── Validate stage 1 ─────────────────────────────────────────────────
   function validate() {
     const e: Record<string, string> = {};
+    // CPF + telefone exigidos sempre (Pagar.me exige para o PIX), independente
+    // de endereço salvo ou manual.
+    if (!isValidCpf(cpf)) e.cpf = 'CPF inválido';
+    if (phone.replace(/\D/g, '').length < 10) e.phone = 'Telefone inválido';
     if (selectedAddressId === 'custom') {
       if (!nome.trim()) e.nome = 'Nome é obrigatório';
-      if (!isValidCpf(cpf)) e.cpf = 'CPF inválido';
       if (cep.replace(/\D/g, '').length !== 8) e.cep = 'CEP inválido';
       if (!rua.trim()) e.rua = 'Rua é obrigatória';
       if (!numero.trim()) e.numero = 'Número é obrigatório';
@@ -260,10 +278,11 @@ export default function CheckoutPage() {
     // Um listingId por item do grupo (MVP: 1 item por seller)
     const listingItems = group.items.map(i => ({ listingId: i.product.id }));
     const addressId = selectedAddressId !== 'custom' ? selectedAddressId : undefined;
-    // CPF do comprador (só dígitos) — exigido pela Pagar.me na transação.
+    // CPF + telefone do comprador (só dígitos) — exigidos pela Pagar.me na transação.
     const buyerCpf = cpf.replace(/\D/g, '') || undefined;
+    const buyerPhone = phone.replace(/\D/g, '') || undefined;
 
-    const result = await createCheckout.mutateAsync({ items: listingItems, addressId, useWalletBalance, buyerCpf });
+    const result = await createCheckout.mutateAsync({ items: listingItems, addressId, useWalletBalance, buyerCpf, buyerPhone });
 
     // Se pagou integralmente via wallet, redireciona direto para confirmação
     if (result.paidViaWallet) {
@@ -285,19 +304,6 @@ export default function CheckoutPage() {
   };
 
   const activeSession = sessions[sessions.length - 1];
-
-  // ── Appearance para o Elements ────────────────────────────────────────
-  const stripeAppearance = {
-    theme: 'night' as const,
-    variables: {
-      colorPrimary: '#E5C547',
-      colorBackground: 'hsl(222 47% 11%)',
-      colorText: 'hsl(210 40% 96%)',
-      colorDanger: 'hsl(0 84% 60%)',
-      fontFamily: '"Inter", system-ui, sans-serif',
-      borderRadius: '8px',
-    },
-  };
 
   // ══════════════════════════════════════════════════════════════════════
   // RENDER
@@ -328,6 +334,23 @@ export default function CheckoutPage() {
                       <h2 className="font-heading text-xl font-bold uppercase tracking-wide">
                         Endereço de Entrega
                       </h2>
+                    </div>
+
+                    {/* Dados de cobrança (PIX) — sempre exigidos, independente do
+                        endereço escolhido; a Pagar.me exige CPF + telefone. */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-3 rounded-md border border-primary/20 bg-primary/5">
+                      <div>
+                        <Label htmlFor="cpf">CPF *</Label>
+                        <Input id="cpf" className={inputCls('cpf')} value={cpf}
+                          onChange={e => setCpf(maskCPF(e.target.value))} placeholder="000.000.000-00" />
+                        <FieldError msg={submitted ? errors.cpf : undefined} />
+                      </div>
+                      <div>
+                        <Label htmlFor="phone">Telefone (com DDD) *</Label>
+                        <Input id="phone" className={inputCls('phone')} value={phone}
+                          onChange={e => setPhone(maskPhone(e.target.value))} placeholder="(11) 99999-9999" />
+                        <FieldError msg={submitted ? errors.phone : undefined} />
+                      </div>
                     </div>
 
                     {/* Endereços salvos */}
@@ -377,14 +400,7 @@ export default function CheckoutPage() {
                           <FieldError msg={submitted ? errors.nome : undefined} />
                         </div>
 
-                        <div>
-                          <Label htmlFor="cpf">CPF *</Label>
-                          <Input id="cpf" className={inputCls('cpf')} value={cpf}
-                            onChange={e => setCpf(maskCPF(e.target.value))} placeholder="000.000.000-00" />
-                          <FieldError msg={submitted ? errors.cpf : undefined} />
-                        </div>
-
-                        <div>
+                        <div className="sm:col-span-2">
                           <Label htmlFor="cep">CEP *</Label>
                           <Input id="cep" className={inputCls('cep')} value={cep}
                             onChange={e => {
@@ -526,34 +542,64 @@ export default function CheckoutPage() {
               </>
             )}
 
-            {/* ── STAGE 2: Stripe Payment Element ─────────────────── */}
+            {/* ── STAGE 2: Pagamento via PIX (Pagar.me) ───────────── */}
             {stage === 'payment' && activeSession && (
               <Card className="bg-gradient-card">
                 <CardContent className="p-6 space-y-4">
                   <div className="flex items-center gap-2 mb-2">
                     <CreditCard className="h-5 w-5 text-primary" />
                     <h2 className="font-heading text-xl font-bold uppercase tracking-wide">
-                      Pagamento
+                      Pague com PIX
                     </h2>
                   </div>
 
-                  <div className="text-sm text-muted-foreground mb-4">
+                  <div className="text-sm text-muted-foreground">
                     Vendedor: <span className="text-foreground font-medium">{activeSession.sellerGroup.sellerName}</span>
                   </div>
 
-                  <Elements
-                    stripe={stripePromise}
-                    options={{
-                      clientSecret: activeSession.clientSecret,
-                      appearance: stripeAppearance,
-                      locale: 'pt-BR',
+                  {activeSession.walletDeducted ? (
+                    <div className="text-xs rounded-md border border-primary/20 bg-primary/5 p-3">
+                      Abatido do saldo: <span className="text-primary font-bold">{formatBRL((activeSession.walletDeducted ?? 0) / 100)}</span>.
+                      Falta pagar via PIX: <span className="text-primary font-bold">{formatBRL((activeSession.chargeAmount ?? 0) / 100)}</span>.
+                    </div>
+                  ) : null}
+
+                  <div className="flex flex-col items-center gap-4 py-2">
+                    {activeSession.qrCodeUrl && (
+                      <img
+                        src={activeSession.qrCodeUrl}
+                        alt="QR Code PIX"
+                        className="h-52 w-52 rounded-lg border border-border bg-white p-2"
+                      />
+                    )}
+                    <div className="w-full space-y-1">
+                      <label className="text-xs font-heading uppercase tracking-widest text-muted-foreground">
+                        PIX copia e cola
+                      </label>
+                      <div className="flex gap-2">
+                        <Input readOnly value={activeSession.qrCode ?? ''} className="font-mono text-xs" />
+                        <Button type="button" variant="outline" size="icon" onClick={() => handleCopyPix(activeSession.qrCode)}>
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                    <p className="text-sm text-muted-foreground text-center">
+                      Escaneie o QR Code ou copie o código no app do seu banco.
+                      Assim que o pagamento for confirmado, seu pedido é processado automaticamente.
+                    </p>
+                  </div>
+
+                  <Button
+                    variant="kolecta"
+                    size="lg"
+                    className="w-full glow-primary"
+                    onClick={() => {
+                      window.location.href = `/pedido/confirmacao?order_id=${activeSession.orderId}`;
                     }}
                   >
-                    <StripePaymentForm
-                      orderId={activeSession.orderId}
-                      totalInCents={activeSession.totalInCents}
-                    />
-                  </Elements>
+                    Já paguei — acompanhar pedido
+                    <ChevronRight className="ml-1 h-4 w-4" />
+                  </Button>
 
                   <Button
                     variant="ghost"
@@ -672,7 +718,7 @@ export default function CheckoutPage() {
 
                   <div className="flex items-center justify-center gap-2 text-muted-foreground">
                     <Shield className="h-4 w-4" />
-                    <span className="text-sm font-body">Pagamento seguro via Stripe</span>
+                    <span className="text-sm font-body">Pagamento seguro via PIX · Pagar.me</span>
                   </div>
                 </CardContent>
               </Card>

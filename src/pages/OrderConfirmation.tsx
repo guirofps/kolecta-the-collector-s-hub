@@ -3,24 +3,28 @@ import { useSearchParams, Link } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
 import { useOrderById } from '@/hooks/use-api';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, Package, ArrowRight, Loader2 } from 'lucide-react';
+import { CheckCircle, Package, ArrowRight, Loader2, Clock } from 'lucide-react';
 import { formatBRL } from '@/lib/mock-data';
 import { trackEvent } from '@/lib/analytics';
 
 export default function OrderConfirmation() {
   const [searchParams] = useSearchParams();
   const orderId = searchParams.get('order_id');
-  
-  // Pegando infos de status de pagamento do Stripe caso redirecione via web form (payment_intent_status)
-  const paymentStatus = searchParams.get('redirect_status'); 
 
-  const { data: order, isLoading } = useOrderById(orderId ?? '');
+  // Pagamento PIX é assíncrono: o pedido chega aqui 'pending' e só vira 'paid'
+  // quando o webhook da Pagar.me confirma. Fazemos polling até confirmar.
+  const { data: order, isLoading } = useOrderById(orderId ?? '', {
+    pollWhilePending: true,
+  });
+
+  // 'pending' = aguardando confirmação do PIX; qualquer outro = pago/processado.
+  const isPending = order?.status === 'pending';
 
   useEffect(() => {
-    if (orderId && paymentStatus === 'succeeded') {
+    if (orderId && order && order.status !== 'pending') {
       trackEvent('purchase_complete', { orderId });
     }
-  }, [orderId, paymentStatus]);
+  }, [orderId, order]);
 
   if (!orderId) {
     return (
@@ -54,17 +58,36 @@ export default function OrderConfirmation() {
         ) : (
           <div className="max-w-2xl w-full">
             <div className="text-center mb-10">
-              <div className="mx-auto w-20 h-20 bg-kolecta-green/10 text-kolecta-green rounded-full flex items-center justify-center mb-6">
-                <CheckCircle className="w-10 h-10" />
-              </div>
-              
-              <h1 className="font-heading text-4xl sm:text-5xl font-extrabold italic uppercase text-foreground mb-4">
-                Pagamento Aprovado!
-              </h1>
-              
-              <p className="text-muted-foreground text-lg">
-                Seu pedido foi processado com sucesso. O vendedor será notificado para preparar o envio.
-              </p>
+              {isPending ? (
+                <>
+                  <div className="mx-auto w-20 h-20 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-6">
+                    <Clock className="w-10 h-10 animate-pulse" />
+                  </div>
+                  <h1 className="font-heading text-4xl sm:text-5xl font-extrabold italic uppercase text-foreground mb-4">
+                    Aguardando pagamento
+                  </h1>
+                  <p className="text-muted-foreground text-lg">
+                    Assim que o PIX for confirmado, seu pedido é processado automaticamente.
+                    Esta página atualiza sozinha — pode deixar aberta.
+                  </p>
+                  <div className="flex items-center justify-center gap-2 mt-4 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Verificando o pagamento...
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="mx-auto w-20 h-20 bg-kolecta-green/10 text-kolecta-green rounded-full flex items-center justify-center mb-6">
+                    <CheckCircle className="w-10 h-10" />
+                  </div>
+                  <h1 className="font-heading text-4xl sm:text-5xl font-extrabold italic uppercase text-foreground mb-4">
+                    Pagamento Aprovado!
+                  </h1>
+                  <p className="text-muted-foreground text-lg">
+                    Seu pedido foi processado com sucesso. O vendedor será notificado para preparar o envio.
+                  </p>
+                </>
+              )}
             </div>
 
             <div className="rounded-xl border border-border bg-card p-6 sm:p-8 space-y-6">
