@@ -429,14 +429,14 @@ export function useWalletDeposit() {
 
 // ── useOrders ──────────────────────────────────────────────────────────────
 
-export function useOrders(status?: string, page = 1) {
+export function useOrders(status?: string, page = 1, limit = 10) {
   const { getToken } = useAuth();
 
   return useQuery({
-    queryKey: ['orders', 'buyer', status, page],
+    queryKey: ['orders', 'buyer', status, page, limit],
     queryFn: async () => {
       const token = await getToken();
-      return api.orders.getMyOrders(token!, status, page);
+      return api.orders.getMyOrders(token!, status, page, limit);
     },
     staleTime: 60_000,
   });

@@ -188,6 +188,22 @@ export default function SellerOrdersPage() {
     // Status dropdown
     if (statusFilter !== 'todos') list = list.filter((o) => o.status === statusFilter);
 
+    // Period filter (F24: o estado era setado mas nunca aplicado no filtro).
+    if (period !== 'todos') {
+      if (period === 'hoje') {
+        const start = new Date();
+        start.setHours(0, 0, 0, 0);
+        list = list.filter((o) => new Date(o.date).getTime() >= start.getTime());
+      } else {
+        const days: Record<string, number> = { '7d': 7, '30d': 30, '3m': 90 };
+        const n = days[period];
+        if (n) {
+          const since = Date.now() - n * 24 * 60 * 60 * 1000;
+          list = list.filter((o) => new Date(o.date).getTime() >= since);
+        }
+      }
+    }
+
     // Search
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -201,7 +217,7 @@ export default function SellerOrdersPage() {
     else list.sort((a, b) => b.date.localeCompare(a.date));
 
     return list;
-  }, [sellerOrders, activeTab, statusFilter, search, sort]);
+  }, [sellerOrders, activeTab, statusFilter, period, search, sort]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
   const paged = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);

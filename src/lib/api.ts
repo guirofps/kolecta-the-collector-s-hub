@@ -1273,6 +1273,9 @@ export interface CreateListingPayload {
   minIncrementInCents?: number;
   reservePriceInCents?: number;
   durationHours?: number;
+  antiSniper?: boolean;
+  // Atributos específicos por categoria (JSON stringificado: '{"jogo":"Pokémon"}').
+  attributes?: string;
   images?: string; // JSON array stringificado
   // Dados de envio (frete): peso em gramas, dimensões em cm.
   weightGrams?: number;
@@ -1315,6 +1318,9 @@ export interface AuctionWithListing {
   images: string | null;
   condition: string;
   sellerId: string;
+  // Presentes em GET /api/auctions/seller/mine (painel do vendedor):
+  totalBids?: number;
+  winnerName?: string | null;
 }
 
 export interface Bid {

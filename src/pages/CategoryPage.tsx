@@ -1,7 +1,7 @@
 import { useParams, Navigate, Link } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
 import ProductCard from '@/components/ProductCard';
-import { useListings } from '@/hooks/use-api';
+import { useListings, useCategories } from '@/hooks/use-api';
 import { Button } from '@/components/ui/button';
 import type { ProductCondition, Product } from '@/lib/mock-data';
 import type { Listing } from '@/lib/api';
@@ -78,14 +78,23 @@ function CategoryIcon({ slug, size = 32 }: { slug: string; size?: number }) {
 
 export default function CategoryPage() {
   const { slug } = useParams<{ slug: string }>();
+  // F29: antes passava o slug como `q` (busca de TEXTO), então procurava itens
+  // com "funko-pop" no título → sempre vazio. Agora buscamos os anúncios e
+  // filtramos pela CATEGORIA real (id resolvido pelo slug via API).
+  // Hooks ficam antes de qualquer return condicional (regras dos hooks).
+  const { data: apiCategories, isLoading: catsLoading } = useCategories();
+  const { data: listingsData, isLoading: listingsLoading } = useListings(40, 0);
 
   if (slug && REMOVED_CATEGORY_SLUGS.includes(slug)) {
     return <Navigate to="/categorias" replace />;
   }
 
   const category = CATEGORIES.find((c) => c.slug === slug);
-  const { data: listingsData, isLoading } = useListings(40, 0, slug);
-  const products = listingsData ?? [];
+  const isLoading = listingsLoading || catsLoading;
+  const realCategoryId = (apiCategories ?? []).find((c) => c.slug === slug)?.id;
+  const products = realCategoryId
+    ? (listingsData ?? []).filter((l) => l.categoryId === realCategoryId)
+    : [];
 
   if (!category) {
     return (
@@ -124,9 +133,10 @@ export default function CategoryPage() {
       name: l.sellerName ?? 'Vendedor Kolecta',
       slug: l.sellerId,
       avatar: '/placeholder.svg',
-      verified: true,
-      rating: 5,
-      totalSales: 10,
+      // F30: sem dado real de verificação/reputação, não inventamos selo nem nota.
+      verified: false,
+      rating: 0,
+      totalSales: 0,
       location: '',
       since: '',
     },

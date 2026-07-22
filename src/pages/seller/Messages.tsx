@@ -262,7 +262,7 @@ export default function SellerMessagesPage() {
             <span className="font-heading font-bold text-sm block truncate">{buyerName}</span>
           </div>
           {conv?.listingId && (
-            <Link to={`/anuncio/${conv.listingId}`}>
+            <Link to={`/produto/${conv.listingId}`}>
               <Badge variant="outline" className="text-xs hover:bg-muted cursor-pointer">
                 Ver Anúncio
               </Badge>
@@ -336,12 +336,8 @@ export default function SellerMessagesPage() {
       <div className="p-4 space-y-4 shrink-0">
         <h1 className="font-heading text-2xl font-bold uppercase tracking-wide">Mensagens</h1>
 
-        <Tabs value={filter} onValueChange={setFilter}>
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="all">Todas</TabsTrigger>
-            <TabsTrigger value="dispute">Com Disputa</TabsTrigger>
-          </TabsList>
-        </Tabs>
+        {/* F23: o filtro "Com Disputa" sempre voltava vazio (o backend não marca
+            disputa na conversa). Removido até existir suporte no servidor. */}
 
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

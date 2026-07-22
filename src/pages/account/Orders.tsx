@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
-import { Package, ChevronLeft, ChevronRight, MessageCircle } from 'lucide-react';
+import { Package, ChevronLeft, ChevronRight, MessageCircle, Star, Loader2 } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,9 +8,13 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from '@/components/ui/dialog';
 import EmptyState from '@/components/EmptyState';
-import { useOrders, useStartConversationFromOrder } from '@/hooks/use-api';
-import type { Order } from '@/lib/api';
+import { useOrders, useStartConversationFromOrder, useConfirmDelivery, useCreateReview } from '@/hooks/use-api';
+import type { Order, OrderStatus } from '@/lib/api';
 import { formatBRL } from '@/lib/currency';
 
 function formatDate(iso: string) {
@@ -18,6 +22,7 @@ function formatDate(iso: string) {
 }
 
 // ── Status config ────────────────────────────────────────
+// F11: `completed` passa a ter rótulo e cor (antes vazava "completed" cru).
 
 const statusMap: Record<string, { label: string; cls: string }> = {
   pending:    { label: 'Aguardando pagamento', cls: 'bg-amber-500/10 text-amber-500 border-amber-500/30' },
@@ -25,17 +30,20 @@ const statusMap: Record<string, { label: string; cls: string }> = {
   processing: { label: 'Em separação',        cls: 'bg-blue-500/10 text-blue-500 border-blue-500/30' },
   shipped:    { label: 'Enviado',              cls: 'bg-kolecta-gold/10 text-kolecta-gold border-kolecta-gold/30' },
   delivered:  { label: 'Entregue',            cls: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30' },
+  completed:  { label: 'Concluído',           cls: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30' },
   cancelled:  { label: 'Cancelado',           cls: 'bg-kolecta-red/10 text-kolecta-red border-kolecta-red/30' },
   disputed:   { label: 'Disputa aberta',      cls: 'bg-destructive/10 text-destructive border-destructive/30' },
 };
 
 type TabKey = 'todos' | 'em-andamento' | 'entregues' | 'cancelados';
 
-const tabStatusParam: Record<TabKey, string | undefined> = {
-  todos: undefined,
-  'em-andamento': 'active',
-  entregues: 'delivered',
-  cancelados: 'cancelled',
+// F9: a aba filtrava pelo status 'active', que não existe → sempre vazia.
+// Cada aba agora agrupa os status reais que fazem sentido nela.
+const TAB_STATUSES: Record<TabKey, OrderStatus[] | null> = {
+  todos: null,
+  'em-andamento': ['pending', 'paid', 'processing', 'shipped', 'disputed'],
+  entregues: ['delivered', 'completed'],
+  cancelados: ['cancelled'],
 };
 
 const emptyMessages: Record<TabKey, { title: string; showCta: boolean }> = {
@@ -46,21 +54,31 @@ const emptyMessages: Record<TabKey, { title: string; showCta: boolean }> = {
 };
 
 const ITEMS_PER_PAGE = 10;
+// Buscamos uma página ampla e paginamos/filtramos no cliente. Interino: enquanto
+// o backend não devolve total nem filtro multi-status (ver decisão D6), isto dá
+// paginação e abas corretas no volume atual da plataforma.
+const FETCH_LIMIT = 200;
 
 // ═════════════════════════════════════════════════════════
 
 export default function OrdersPage() {
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const activeTab = (searchParams.get('status') as TabKey) || 'todos';
+  const activeTab = (searchParams.get('status') as TabKey) in TAB_STATUSES
+    ? (searchParams.get('status') as TabKey)
+    : 'todos';
   const currentPage = Number(searchParams.get('page') || '1');
 
-  const statusParam = tabStatusParam[activeTab];
-  const { data: orders = [], isLoading } = useOrders(statusParam, currentPage);
+  const { data: allOrders = [], isLoading } = useOrders(undefined, 1, FETCH_LIMIT);
 
-  const totalPages = Math.max(1, Math.ceil(orders.length / ITEMS_PER_PAGE));
-  const safePage = Math.min(currentPage, totalPages);
-  const paged = orders.slice((safePage - 1) * ITEMS_PER_PAGE, safePage * ITEMS_PER_PAGE);
+  const filtered = useMemo(() => {
+    const wanted = TAB_STATUSES[activeTab];
+    return wanted ? allOrders.filter((o) => wanted.includes(o.status)) : allOrders;
+  }, [allOrders, activeTab]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
+  const safePage = Math.min(Math.max(1, currentPage), totalPages);
+  const paged = filtered.slice((safePage - 1) * ITEMS_PER_PAGE, safePage * ITEMS_PER_PAGE);
 
   function setTab(tab: string) {
     setSearchParams({ status: tab, page: '1' });
@@ -79,7 +97,10 @@ export default function OrdersPage() {
         <div className="mb-6">
           <h1 className="font-heading text-3xl font-bold uppercase tracking-tight">Meus Pedidos</h1>
           {!isLoading && (
-            <p className="text-sm text-muted-foreground mt-1">{orders.length} pedidos no total</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              {filtered.length} {filtered.length === 1 ? 'pedido' : 'pedidos'}
+              {activeTab !== 'todos' ? ' nesta aba' : ' no total'}
+            </p>
           )}
         </div>
 
@@ -185,6 +206,14 @@ function OrderCard({ order }: { order: Order }) {
   const listing = order.listing;
   const navigate = useNavigate();
   const startChat = useStartConversationFromOrder();
+  const confirmDelivery = useConfirmDelivery();
+  const [reviewOpen, setReviewOpen] = useState(false);
+
+  // F12: comprador confirma recebimento (libera saldo retido ao vendedor).
+  const alreadyConfirmed = !!order.buyerConfirmedAt;
+  const canConfirm = (order.status === 'shipped' || order.status === 'delivered') && !alreadyConfirmed;
+  // "Avaliar compra" só depois de recebido/concluído.
+  const canReview = order.status === 'delivered' || order.status === 'completed';
 
   async function handleChat() {
     const result = await startChat.mutateAsync(order.id);
@@ -228,11 +257,21 @@ function OrderCard({ order }: { order: Order }) {
             {formatBRL(order.totalInCents / 100)}
           </span>
           <div className="flex gap-2 flex-wrap justify-end">
-            {order.status === 'delivered' && (
-              <Button variant="outline-gold" size="sm">Avaliar compra</Button>
+            {canReview && (
+              <Button variant="outline-gold" size="sm" onClick={() => setReviewOpen(true)}>
+                Avaliar compra
+              </Button>
             )}
-            {order.status === 'shipped' && (
-              <Button variant="outline-gold" size="sm">Confirmar recebimento</Button>
+            {canConfirm && (
+              <Button
+                variant="outline-gold"
+                size="sm"
+                disabled={confirmDelivery.isPending}
+                onClick={() => confirmDelivery.mutate(order.id)}
+              >
+                {confirmDelivery.isPending && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}
+                Confirmar recebimento
+              </Button>
             )}
             {CHAT_ELIGIBLE.includes(order.status) && (
               <Button
@@ -251,6 +290,71 @@ function OrderCard({ order }: { order: Order }) {
           </div>
         </div>
       </CardContent>
+
+      <ReviewDialog order={order} open={reviewOpen} onOpenChange={setReviewOpen} />
     </Card>
+  );
+}
+
+// ── ReviewDialog (F12: "Avaliar compra") ─────────────────
+
+function ReviewDialog({
+  order, open, onOpenChange,
+}: { order: Order; open: boolean; onOpenChange: (v: boolean) => void }) {
+  const createReview = useCreateReview();
+  const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState('');
+
+  function submit() {
+    if (rating < 1) return;
+    createReview.mutate(
+      { orderId: order.id, rating, comment: comment.trim() || undefined },
+      { onSuccess: () => { onOpenChange(false); setRating(0); setComment(''); } },
+    );
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="font-heading">Avaliar compra</DialogTitle>
+          <DialogDescription>
+            {order.listing?.title
+              ? <>Como foi sua experiência com <strong>{order.listing.title}</strong>?</>
+              : 'Como foi sua experiência com esta compra?'}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex items-center gap-1 py-2">
+          {[1, 2, 3, 4, 5].map((n) => (
+            <button
+              key={n}
+              type="button"
+              onClick={() => setRating(n)}
+              aria-label={`${n} ${n === 1 ? 'estrela' : 'estrelas'}`}
+              className="p-1"
+            >
+              <Star className={`h-7 w-7 ${n <= rating ? 'fill-kolecta-gold text-kolecta-gold' : 'text-muted-foreground'}`} />
+            </button>
+          ))}
+        </div>
+
+        <Textarea
+          placeholder="Conte como foi (opcional)"
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+          rows={4}
+          maxLength={1000}
+        />
+
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancelar</Button>
+          <Button variant="kolecta" onClick={submit} disabled={rating < 1 || createReview.isPending}>
+            {createReview.isPending && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+            Enviar avaliação
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

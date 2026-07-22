@@ -69,6 +69,9 @@ export default function CartDrawer() {
                           size="icon"
                           className="h-6 w-6"
                           onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
+                          // D1: 1 unidade por anúncio enquanto o checkout não aceita quantidade.
+                          disabled={item.quantity >= 1}
+                          title="1 unidade por anúncio"
                         >
                           <Plus className="h-3 w-3" />
                         </Button>

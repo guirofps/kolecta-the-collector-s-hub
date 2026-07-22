@@ -34,7 +34,7 @@ import { cn } from '@/lib/utils';
 
 // ── Types ────────────────────────────────────────────────
 
-type LocalStatus = 'pagamento_confirmado' | 'em_separacao' | 'enviado' | 'entregue' | 'cancelado';
+type LocalStatus = 'aguardando_pagamento' | 'pagamento_confirmado' | 'em_separacao' | 'enviado' | 'entregue' | 'cancelado';
 
 interface TimelineEvent {
   key: string;
@@ -47,6 +47,8 @@ interface TimelineEvent {
 // ── Status config ────────────────────────────────────────
 
 const statusConfig: Record<LocalStatus, { label: string; cls: string }> = {
+  // F20: 'pending' (PIX ainda não confirmado) NÃO é pagamento confirmado.
+  aguardando_pagamento: { label: 'Aguardando pagamento', cls: 'bg-amber-500/10 text-amber-500 border-amber-500/30' },
   pagamento_confirmado: { label: 'Pagamento confirmado', cls: 'bg-blue-500/10 text-blue-500 border-blue-500/30' },
   em_separacao: { label: 'Em separação', cls: 'bg-blue-500/10 text-blue-500 border-blue-500/30' },
   enviado: { label: 'Enviado', cls: 'bg-kolecta-gold/10 text-kolecta-gold border-kolecta-gold/30' },
@@ -55,7 +57,7 @@ const statusConfig: Record<LocalStatus, { label: string; cls: string }> = {
 };
 
 const apiToLocalStatus: Record<ApiOrderStatus, LocalStatus> = {
-  pending: 'pagamento_confirmado',
+  pending: 'aguardando_pagamento',
   paid: 'pagamento_confirmado',
   processing: 'em_separacao',
   shipped: 'enviado',
@@ -73,6 +75,7 @@ const timelineSteps: TimelineEvent[] = [
 
 function getActiveIndex(status: LocalStatus) {
   const map: Record<string, number> = {
+    aguardando_pagamento: -1,
     pagamento_confirmado: 0,
     em_separacao: 1,
     enviado: 2,
@@ -283,7 +286,15 @@ export default function SellerOrderDetailPage() {
                   <span className="text-sm text-muted-foreground">Status atual:</span>
                   <Badge variant="outline" className={sc.cls}>{sc.label}</Badge>
                 </div>
-                {(order.status === 'paid' || order.status === 'pending' || order.status === 'processing') && (
+                {/* F20: pedido só libera etiqueta/envio DEPOIS de pago. 'pending'
+                    (PIX não confirmado) não pode gerar etiqueta nem despachar. */}
+                {order.status === 'pending' && (
+                  <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-sm text-amber-600">
+                    Aguardando confirmação do pagamento. As ações de envio ficam
+                    liberadas assim que o pagamento for confirmado.
+                  </div>
+                )}
+                {(order.status === 'paid' || order.status === 'processing') && (
                   <>
                     <Button className="w-full" variant="outline-gold" onClick={() => setLabelDialogOpen(true)}>
                       <Tag className="h-4 w-4 mr-2" /> Gerar etiqueta

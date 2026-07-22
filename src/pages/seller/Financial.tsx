@@ -607,7 +607,7 @@ export default function SellerFinancialPage() {
                   onChange={(e) => handleWithdrawAmountChange(e.target.value)}
                 />
               </div>
-              <p className="text-xs text-muted-foreground">Mínimo R$ 20,00 · Máximo {formatBRL(summary.available)}</p>
+              <p className="text-xs text-muted-foreground">Mínimo R$ 50,00 · Máximo {formatBRL(summary.available)}</p>
             </div>
 
             <Separator />

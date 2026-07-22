@@ -17,13 +17,14 @@ const conditionOptions: { value: ProductCondition; label: string }[] = [
   { value: 'lacrado', label: 'Lacrado' },
 ];
 
+// F28: "Terminando em breve" e "Mais lances" dependem de dados de leilão
+// (fim/nº de lances) que o endpoint de listings não devolve — ficavam
+// esvaziando a lista ou sem efeito. Removidos até a busca consumir esses dados.
 const sortOptions = [
   { value: 'relevance', label: 'Relevância' },
   { value: 'price_asc', label: 'Menor preço' },
   { value: 'price_desc', label: 'Maior preço' },
   { value: 'recent', label: 'Mais recentes' },
-  { value: 'ending_soon', label: 'Terminando em breve' },
-  { value: 'most_bids', label: 'Mais lances' },
 ];
 
 export default function SearchPage() {
@@ -50,9 +51,18 @@ export default function SearchPage() {
     }
   };
 
+  // F27: o filtro de categoria compara SLUG (dos checkboxes e da URL) com o
+  // valor do produto. Antes o produto guardava o categoryId, então nunca batia.
+  // Mapeamos id→slug para o produto carregar o slug correto.
+  const catSlugById = useMemo(() => {
+    const m: Record<string, string> = {};
+    (categories ?? []).forEach((c) => { m[c.id] = c.slug; });
+    return m;
+  }, [categories]);
+
   const filtered = useMemo(() => {
     const rawListings = listingsData || [];
-    
+
     // Converte de Listing para Product (frontend mock format)
     let results = rawListings.map(l => ({
       id: l.id,
@@ -60,7 +70,7 @@ export default function SearchPage() {
       slug: l.id,
       images: parseImages(l.images),
       category: '',
-      categorySlug: l.categoryId ?? '',
+      categorySlug: (l.categoryId && catSlugById[l.categoryId]) || '',
       subcategorySlug: '',
       condition: (l.condition as ProductCondition) ?? 'novo',
       type: l.type,
@@ -70,9 +80,10 @@ export default function SearchPage() {
         name: l.sellerName ?? 'Vendedor Kolecta',
         slug: l.sellerId,
         avatar: '/placeholder.svg',
-        verified: true,
-        rating: 5,
-        totalSales: 10,
+        // F30: sem dado real de verificação/reputação, não inventamos selo nem nota.
+        verified: false,
+        rating: 0,
+        totalSales: 0,
         location: '',
         since: '',
       },
@@ -110,17 +121,10 @@ export default function SearchPage() {
       case 'recent':
         results.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         break;
-      case 'ending_soon':
-        results = results.filter((p) => p.auctionEndsAt);
-        results.sort((a, b) => new Date(a.auctionEndsAt!).getTime() - new Date(b.auctionEndsAt!).getTime());
-        break;
-      case 'most_bids':
-        results.sort((a, b) => (b.bidsCount || 0) - (a.bidsCount || 0));
-        break;
     }
 
     return results;
-  }, [listingsData, selectedCategories, selectedConditions, selectedType, sortBy]);
+  }, [listingsData, catSlugById, selectedCategories, selectedConditions, selectedType, sortBy]);
 
   const toggleCategory = (slug: string) => {
     setSelectedCategories((prev) =>

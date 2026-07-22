@@ -139,6 +139,19 @@ function durationLabel(hours: string): string {
   return `${days} ${days === 1 ? 'dia' : 'dias'}`;
 }
 
+// Converte o texto de um valor monetário em número de reais.
+// Aceita o formato do input `type=number` ("10.5" → 10.5) E o formato BR
+// digitado ("1.234,56" → 1234.56). O bug antigo tratava o ponto do input
+// numérico como separador de milhar, então "10.5" (R$10,50) virava R$105.
+function parseAmount(v: string): number {
+  const s = (v ?? '').trim();
+  if (!s) return NaN;
+  // Só é formato BR (ponto = milhar) quando existe vírgula decimal.
+  const normalized = s.includes(',') ? s.replace(/\./g, '').replace(',', '.') : s;
+  const n = Number(normalized);
+  return Number.isFinite(n) ? n : NaN;
+}
+
 const initialForm: FormData = {
   type: null,
   title: '',
@@ -237,9 +250,22 @@ export default function CreateListing() {
         return form.photos.length < MIN_PHOTOS
           ? `Envie pelo menos ${MIN_PHOTOS} fotos (${form.photos.length} de ${MIN_PHOTOS})`
           : null;
-      case 4:
-        if (form.type === 'direct') return form.price ? null : 'Defina o preço de venda';
-        return form.startingBid ? null : 'Defina o lance inicial';
+      case 4: {
+        const raw = form.type === 'direct' ? form.price : form.startingBid;
+        const label = form.type === 'direct' ? 'o preço de venda' : 'o lance inicial';
+        if (!raw) return `Defina ${label}`;
+        const value = parseAmount(raw);
+        // F4: não deixa avançar com valor 0, negativo ou inválido.
+        if (!(value > 0)) return `Defina ${label} maior que zero`;
+        // F5: reserva abaixo do lance inicial não faz sentido (nunca vende).
+        if (form.type === 'auction' && form.reservePrice) {
+          const reserve = parseAmount(form.reservePrice);
+          if (reserve > 0 && reserve < value) {
+            return 'O preço mínimo para vender não pode ser menor que o lance inicial';
+          }
+        }
+        return null;
+      }
       default:
         return null;
     }
@@ -253,30 +279,42 @@ export default function CreateListing() {
     if (!hasAddress) return;
     trackEvent('submit_listing', { type: form.type });
 
-    const toCents = (v: string) =>
-      Math.round(Number(v.replace(/\./g, '').replace(',', '.')) * 100);
+    const toCents = (v: string) => Math.round(parseAmount(v) * 100);
     const toInt = (v: string) => {
       const n = parseInt(v.replace(/\D/g, ''), 10);
       return Number.isFinite(n) && n > 0 ? n : undefined;
     };
     const isAuction = form.type === 'auction';
 
+    // F2: a UI dos detalhes por categoria grava em `categoryFields.*`. As chaves
+    // com coluna própria (brand/line/scale/year/edition) vão para o topo; o mapa
+    // completo (jogo, raridade, personagem, número, grading…) vai em `attributes`
+    // (coluna JSON no backend).
+    const cf = form.categoryFields ?? {};
+    const hasAttributes = Object.keys(cf).length > 0;
+
     const payload: CreateListingPayload = {
       title: form.title,
       description: form.description || undefined,
       categoryId: form.category || undefined,
-      brand: form.brand || undefined,
-      line: form.line || undefined,
-      scale: form.scale || undefined,
-      year: form.year || undefined,
-      edition: form.edition || undefined,
+      brand: cf.brand || form.brand || undefined,
+      line: cf.line || form.line || undefined,
+      scale: cf.scale || form.scale || undefined,
+      year: cf.year || form.year || undefined,
+      edition: cf.edition || form.edition || undefined,
       condition: form.condition,
       type: form.type as 'direct' | 'auction',
       priceInCents: !isAuction && form.price ? toCents(form.price) : undefined,
       // Config de leilão: o backend cria a linha de auction (parada) junto do anúncio.
       startingBidInCents: isAuction && form.startingBid ? toCents(form.startingBid) : undefined,
+      // F3: incremento mínimo era coletado mas nunca enviado.
+      minIncrementInCents: isAuction && form.minIncrement ? toCents(form.minIncrement) : undefined,
       durationHours: isAuction ? Number(form.duration) || 336 : undefined,
       reservePriceInCents: isAuction && form.reservePrice ? toCents(form.reservePrice) : undefined,
+      // Anti-sniper do wizard (só faz sentido em leilão).
+      antiSniper: isAuction ? form.antiSniper : undefined,
+      // Atributos por categoria em JSON.
+      attributes: hasAttributes ? JSON.stringify(cf) : undefined,
       images: form.photos.length > 0 ? JSON.stringify(form.photos) : undefined,
       // Envio (frete): opcionais — sem eles o backend usa um pacote default.
       weightGrams: toInt(form.weightGrams),
@@ -425,14 +463,17 @@ export default function CreateListing() {
             <Button
               variant="kolecta"
               onClick={handleSubmit}
-              disabled={createListing.isPending || addressBlocking}
+              // F6: enquanto o endereço não carregou, o submit não tem como
+              // funcionar (o backend rejeita sem origem). Trava o botão e mostra
+              // o estado em vez de "clicar e nada acontecer".
+              disabled={createListing.isPending || addressBlocking || addressQuery.isLoading}
             >
-              {createListing.isPending ? (
+              {createListing.isPending || addressQuery.isLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <Check className="h-4 w-4" />
               )}
-              Enviar para Aprovação
+              {addressQuery.isLoading ? 'Verificando endereço…' : 'Enviar para Aprovação'}
             </Button>
           )}
         </div>
