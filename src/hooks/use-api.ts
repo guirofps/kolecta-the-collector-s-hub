@@ -484,9 +484,9 @@ export function useUpdateOrderStatus() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (vars: { id: string; status: OrderStatus; trackingCode?: string }) => {
+    mutationFn: async (vars: { id: string; status: OrderStatus; trackingCode?: string; deliveryMethod?: 'shipping' | 'pickup' }) => {
       const token = await getToken();
-      return api.orders.updateStatus(token!, vars.id, vars.status, vars.trackingCode);
+      return api.orders.updateStatus(token!, vars.id, vars.status, vars.trackingCode, vars.deliveryMethod);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['orders'] });

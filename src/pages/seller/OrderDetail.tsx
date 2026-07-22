@@ -122,9 +122,16 @@ export default function SellerOrderDetailPage() {
   }
 
   async function handleShip(order: Order) {
-    if (!trackingCode) return;
-    // carrier/estimatedDate são apenas UX — o backend persiste só o trackingCode.
-    await updateStatus.mutateAsync({ id: order.id, status: 'shipped', trackingCode });
+    // Retirada pessoal não tem rastreio; marca deliveryMethod='pickup' para o
+    // backend liberar o saldo na hora quando o comprador confirmar.
+    const isPickup = carrier === 'retirada';
+    if (!isPickup && !trackingCode) return;
+    await updateStatus.mutateAsync({
+      id: order.id,
+      status: 'shipped',
+      trackingCode: trackingCode || undefined,
+      deliveryMethod: isPickup ? 'pickup' : 'shipping',
+    });
     setShipDialogOpen(false);
   }
 
@@ -414,19 +421,28 @@ export default function SellerOrderDetailPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label>Código de rastreamento *</Label>
-              <Input value={trackingCode} onChange={(e) => setTrackingCode(e.target.value)} placeholder="Ex: BR123456789" />
-            </div>
-            <div className="space-y-2">
-              <Label>Data estimada de entrega</Label>
-              <Input type="date" value={estimatedDate} onChange={(e) => setEstimatedDate(e.target.value)} />
-            </div>
+            {carrier === 'retirada' ? (
+              <div className="rounded-md border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground">
+                Retirada pessoal (em mãos). Sem código de rastreamento. Quando o
+                comprador confirmar o recebimento, o valor é <strong className="text-foreground">liberado na hora</strong> (sem os 48h).
+              </div>
+            ) : (
+              <>
+                <div className="space-y-2">
+                  <Label>Código de rastreamento *</Label>
+                  <Input value={trackingCode} onChange={(e) => setTrackingCode(e.target.value)} placeholder="Ex: BR123456789" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Data estimada de entrega</Label>
+                  <Input type="date" value={estimatedDate} onChange={(e) => setEstimatedDate(e.target.value)} />
+                </div>
+              </>
+            )}
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setShipDialogOpen(false)}>Cancelar</Button>
-            <Button variant="kolecta" className="glow-primary" disabled={!carrier || !trackingCode || updateStatus.isPending} onClick={() => handleShip(order)}>
-              Confirmar envio
+            <Button variant="kolecta" className="glow-primary" disabled={!carrier || (carrier !== 'retirada' && !trackingCode) || updateStatus.isPending} onClick={() => handleShip(order)}>
+              {carrier === 'retirada' ? 'Confirmar retirada' : 'Confirmar envio'}
             </Button>
           </DialogFooter>
         </DialogContent>

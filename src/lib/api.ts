@@ -441,10 +441,10 @@ export const api = {
     getById: (token: string, id: string) =>
       request<{ data: Order }>(`/api/orders/${id}`, { token }).then(r => r.data),
 
-    updateStatus: (token: string, id: string, status: OrderStatus, trackingCode?: string) =>
+    updateStatus: (token: string, id: string, status: OrderStatus, trackingCode?: string, deliveryMethod?: 'shipping' | 'pickup') =>
       request<{ data: Order }>(`/api/orders/${id}/status`, {
         method: 'PATCH',
-        body: JSON.stringify({ status, ...(trackingCode ? { trackingCode } : {}) }),
+        body: JSON.stringify({ status, ...(trackingCode ? { trackingCode } : {}), ...(deliveryMethod ? { deliveryMethod } : {}) }),
         token,
       }).then(r => r.data),
 
