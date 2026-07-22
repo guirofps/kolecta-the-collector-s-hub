@@ -282,7 +282,14 @@ export default function CheckoutPage() {
     const buyerCpf = cpf.replace(/\D/g, '') || undefined;
     const buyerPhone = phone.replace(/\D/g, '') || undefined;
 
-    const result = await createCheckout.mutateAsync({ items: listingItems, addressId, useWalletBalance, buyerCpf, buyerPhone });
+    // Frete escolhido para ESTE vendedor (opt.price já está em centavos). Antes
+    // não era enviado, então o comprador via o total com frete mas só o item
+    // era cobrado.
+    const selectedShipId = selectedShipping[group.sellerSlug];
+    const shipOpt = (shippingOptions[group.sellerSlug] ?? []).find(o => o.id === selectedShipId);
+    const shippingInCents = shipOpt ? Math.round(shipOpt.price) : 0;
+
+    const result = await createCheckout.mutateAsync({ items: listingItems, addressId, shippingInCents, useWalletBalance, buyerCpf, buyerPhone });
 
     // Se pagou integralmente via wallet, redireciona direto para confirmação
     if (result.paidViaWallet) {
