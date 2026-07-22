@@ -138,10 +138,12 @@ export default function EditListing() {
     }
 
     const isAuction = listing?.type === 'auction';
-    const priceLabel = isAuction ? 'lance inicial' : 'preço';
-    const priceInCents = form.price ? Math.round(Number(form.price) * 100) : undefined;
-    if (form.price && (priceInCents === undefined || Number.isNaN(priceInCents) || priceInCents < 0)) {
-      toast.error(`Informe um ${priceLabel} válido.`);
+    // F7: em leilão, `priceInCents` é sempre null e o lance inicial mora na
+    // tabela de auction (editável no gerenciador de leilões). Editar preço aqui
+    // gravava no campo errado, então só validamos/enviamos preço em venda direta.
+    const priceInCents = !isAuction && form.price ? Math.round(Number(form.price) * 100) : undefined;
+    if (!isAuction && form.price && (priceInCents === undefined || Number.isNaN(priceInCents) || priceInCents < 0)) {
+      toast.error('Informe um preço válido.');
       return;
     }
 
@@ -362,20 +364,30 @@ export default function EditListing() {
           </CardHeader>
           <CardContent className="space-y-4">
             <Badge variant="outline">{isAuction ? 'Modo Lance' : 'Preço fixo'}</Badge>
-            <div className="max-w-xs">
-              <Label>{isAuction ? 'Lance inicial (R$)' : 'Preço (R$)'}</Label>
-              <Input
-                type="number"
-                min="0"
-                step="0.01"
-                value={form.price}
-                onChange={(e) => updateField('price', e.target.value)}
-              />
-            </div>
-            {isAuction && (
-              <p className="text-xs text-muted-foreground">
-                Os parâmetros do leilão (duração, incremento, reserva) são gerenciados na página de leilões.
-              </p>
+            {isAuction ? (
+              // F7/F8: lance inicial, incremento, reserva e duração vivem na
+              // tabela de auction. Editar aqui gravava no campo errado, então
+              // remetemos ao gerenciador de leilões em vez de mostrar um campo
+              // que carrega vazio e salva errado.
+              <div className="rounded-lg border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
+                O lance inicial e os parâmetros do leilão (duração, incremento e reserva)
+                são gerenciados na página de{' '}
+                <Link to="/painel/leiloes" className="text-primary underline underline-offset-2">
+                  leilões
+                </Link>
+                .
+              </div>
+            ) : (
+              <div className="max-w-xs">
+                <Label>Preço (R$)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={form.price}
+                  onChange={(e) => updateField('price', e.target.value)}
+                />
+              </div>
             )}
           </CardContent>
         </Card>

@@ -141,8 +141,8 @@ export default function ProductDetail() {
         title: 'Mensagem enviada!',
         description: 'Sua conversa foi iniciada com o vendedor.',
       });
-      // Navega para a página de mensagens do comprador
-      navigate('/account/messages');
+      // Navega para a página de mensagens do comprador (F31: rota correta é /conta/mensagens)
+      navigate('/conta/mensagens');
     },
     onError: (err) => {
       console.error(err);

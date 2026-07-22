@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import EmptyState from '@/components/EmptyState';
 import { ArrowLeft, Package, Truck, Copy, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { useOrderById, useConfirmDelivery } from '@/hooks/use-api';
 import type { Order, OrderStatus } from '@/lib/api';
 import { formatBRL } from '@/lib/currency';
@@ -171,7 +172,17 @@ export default function OrderDetailPage() {
               </div>
               <div className="flex items-center gap-2">
                 <code className="text-sm text-foreground font-mono">{order.trackingCode}</code>
-                <Button variant="ghost" size="icon" className="h-7 w-7">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  aria-label="Copiar código de rastreio"
+                  onClick={() => {
+                    navigator.clipboard?.writeText(order.trackingCode ?? '')
+                      .then(() => toast.success('Código de rastreio copiado'))
+                      .catch(() => toast.error('Não foi possível copiar'));
+                  }}
+                >
                   <Copy className="h-3 w-3" />
                 </Button>
               </div>

@@ -1,5 +1,31 @@
 # Divisão de trabalho: bugs mapeados na varredura de 21/07
 
+> ## ✅ Status de resolução — 22/07/2026
+>
+> **Todos os 42 pontos foram atacados.** Trabalho em duas branches:
+> - Frontend: `fix/varredura-42-bugs` — F1–F34 resolvidos.
+> - Backend: `feat/varredura-backend-deps` — B1–B5 + dependências de D.
+>
+> **Frontend (F1–F34):** todos resolvidos. Notas: F8 (paridade do editar) — o
+> editar de leilão deixou de gravar no campo errado e remete ao gerenciador de
+> leilões (paridade total de campos de leilão/categoria fica como feature futura).
+>
+> **Backend (B1–B5):** B1 — coluna `attributes` (JSON) em `listings` + DTO/serviço
+> (migração aplicada via `drizzle-kit push`). B5 — `antiSniper` aceito na criação.
+> B2/B3/B4 — telas cenográficas (cartões, verificação, métricas do vendedor)
+> removidas/tornadas honestas (decisão D8). F26 — `seller/mine` passou a devolver
+> `totalBids` e `winnerName`.
+>
+> **Decisões (D1–D8):** D1 quantidade travada em 1 no carrinho · D2 saque R$50
+> alinhado · D3 formato JSON em `attributes` · D4 aba "Aguardando pagamento"
+> removida · D5 desfecho de leilão por heurística real · D6 mantida paginação
+> no cliente (server-side re-quebraria abas multi-status) · D7 regra do 1º lance
+> mantida · D8 telas cenográficas escondidas até existirem de verdade.
+>
+> Validação: backend build ✅ · frontend build ✅ · 80/80 testes ✅.
+
+---
+
 Varredura completa de UX feita em 21/07/2026 sobre a `main` (já incluindo o push
 do PIX/Pagar.me). Foram 42 problemas confirmados por leitura de código, com
 arquivo e linha. Este documento divide a responsabilidade:

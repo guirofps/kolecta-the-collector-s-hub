@@ -3,9 +3,21 @@ import { useSearchParams, Link } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
 import { useOrderById } from '@/hooks/use-api';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, Package, ArrowRight, Loader2, Clock } from 'lucide-react';
+import { CheckCircle, Package, ArrowRight, Loader2, Clock, XCircle } from 'lucide-react';
 import { formatBRL } from '@/lib/mock-data';
 import { trackEvent } from '@/lib/analytics';
+
+// F18: rótulo legível do status (antes exibia "paid"/"processing" cru).
+const STATUS_LABELS: Record<string, string> = {
+  pending: 'Aguardando pagamento',
+  paid: 'Pagamento confirmado',
+  processing: 'Em separação',
+  shipped: 'Enviado',
+  delivered: 'Entregue',
+  completed: 'Concluído',
+  cancelled: 'Cancelado',
+  disputed: 'Disputa aberta',
+};
 
 export default function OrderConfirmation() {
   const [searchParams] = useSearchParams();
@@ -17,8 +29,11 @@ export default function OrderConfirmation() {
     pollWhilePending: true,
   });
 
-  // 'pending' = aguardando confirmação do PIX; qualquer outro = pago/processado.
+  // 'pending' = aguardando confirmação do PIX; 'cancelled' = pagamento não
+  // concluído/cancelado (F34: antes qualquer status não-pendente virava
+  // "Pagamento Aprovado!", inclusive falha); demais = pago/processado.
   const isPending = order?.status === 'pending';
+  const isFailed = order?.status === 'cancelled';
 
   useEffect(() => {
     if (orderId && order && order.status !== 'pending') {
@@ -75,6 +90,19 @@ export default function OrderConfirmation() {
                     Verificando o pagamento...
                   </div>
                 </>
+              ) : isFailed ? (
+                <>
+                  <div className="mx-auto w-20 h-20 bg-kolecta-red/10 text-kolecta-red rounded-full flex items-center justify-center mb-6">
+                    <XCircle className="w-10 h-10" />
+                  </div>
+                  <h1 className="font-heading text-4xl sm:text-5xl font-extrabold italic uppercase text-foreground mb-4">
+                    Pagamento não concluído
+                  </h1>
+                  <p className="text-muted-foreground text-lg">
+                    Este pedido foi cancelado ou o pagamento não foi confirmado a tempo.
+                    Você pode tentar a compra novamente.
+                  </p>
+                </>
               ) : (
                 <>
                   <div className="mx-auto w-20 h-20 bg-kolecta-green/10 text-kolecta-green rounded-full flex items-center justify-center mb-6">
@@ -129,7 +157,7 @@ export default function OrderConfirmation() {
                   <div>
                     <h4 className="font-medium text-foreground">{order.listing?.title || 'Produto Indisponível'}</h4>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Status da operação: <span className="font-semibold text-primary">{order.status}</span>
+                      Status da operação: <span className="font-semibold text-primary">{STATUS_LABELS[order.status] ?? order.status}</span>
                     </p>
                   </div>
                 </div>
@@ -138,7 +166,8 @@ export default function OrderConfirmation() {
 
             <div className="mt-8 flex flex-col sm:flex-row justify-center gap-4">
               <Button asChild variant="kolecta" size="lg" className="px-8">
-                <Link to="/painel/pedidos">
+                {/* F17: comprador vai para os pedidos DELE (/conta), não o painel do vendedor. */}
+                <Link to="/conta/pedidos">
                   Rastrear Meus Pedidos
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>

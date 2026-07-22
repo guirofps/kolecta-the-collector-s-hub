@@ -30,8 +30,8 @@ const mockFAQs: Record<string, { q: string; a: string }[]> = {
   ],
   vendendo: [
     { q: 'Como começo a vender na Kolecta?', a: 'Crie uma conta, acesse o Painel do Vendedor e complete a verificação de identidade (KYC). Após aprovação, você poderá criar seus primeiros anúncios. Também será necessário vincular uma conta Stripe para receber seus pagamentos.' },
-    { q: 'Quanto custa vender na Kolecta?', a: 'A Kolecta cobra uma comissão sobre cada venda realizada, que varia por categoria (geralmente entre 10% e 14%). Vendas no Modo Lance têm uma taxa adicional. Confira a tabela completa em Taxas e Comissões. Não há mensalidade ou taxa para anunciar.' },
-    { q: 'Quanto tempo leva para receber meu dinheiro?', a: 'Os repasses são realizados automaticamente em até 3 dias úteis após a confirmação de entrega pelo comprador. O valor já desconta a comissão da Kolecta. Saques podem ser solicitados a partir de R$ 20,00.' },
+    { q: 'Quanto custa vender na Kolecta?', a: 'A Kolecta cobra uma comissão única de 11% sobre cada venda realizada, igual para Venda Direta e Modo Lance, mais uma pequena taxa operacional fixa por venda concluída. Confira os detalhes em Taxas e Comissões. Não há mensalidade ou taxa para anunciar.' },
+    { q: 'Quanto tempo leva para receber meu dinheiro?', a: 'Os repasses são realizados automaticamente em até 3 dias úteis após a confirmação de entrega pelo comprador. O valor já desconta a comissão da Kolecta. Saques podem ser solicitados a partir de R$ 50,00.' },
     { q: 'Posso editar meu anúncio depois de publicado?', a: 'Sim, você pode editar a maioria das informações do anúncio (descrição, fotos, preço) a qualquer momento, desde que não haja vendas pendentes. Anúncios no Modo Lance não podem ter o lance mínimo alterado após receberem o primeiro lance.' },
     { q: 'O que acontece se eu não enviar o produto no prazo?', a: 'O não envio no prazo pode resultar em penalidades na sua conta, incluindo redução da reputação, suspensão temporária e, em casos recorrentes, banimento da plataforma. O comprador também poderá solicitar cancelamento automático com reembolso integral.' },
   ],

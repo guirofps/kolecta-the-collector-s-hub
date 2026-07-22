@@ -140,6 +140,9 @@ function durationLabel(hours: string): string {
   return `${days} ${days === 1 ? 'dia' : 'dias'}`;
 }
 
+// Parsing de valor monetário → centavos vive em @/lib/currency (parsePriceToCents),
+// fonte única usada aqui e no resto do app (fix do F1).
+
 const initialForm: FormData = {
   type: null,
   title: '',
@@ -304,13 +307,20 @@ export default function CreateListing() {
           ? `Envie pelo menos ${MIN_PHOTOS} fotos (${form.photos.length} de ${MIN_PHOTOS})`
           : null;
       case 4: {
-        // Valida via parser: bloqueia vazio, zero e negativo (não só string vazia).
-        if (form.type === 'direct') {
-          const cents = parsePriceToCents(form.price);
-          return cents && cents > 0 ? null : 'Defina um preço de venda maior que zero';
+        // F4: valida via parser (bloqueia vazio, zero e negativo).
+        const cents = form.type === 'direct'
+          ? parsePriceToCents(form.price)
+          : parsePriceToCents(form.startingBid);
+        const label = form.type === 'direct' ? 'um preço de venda' : 'um lance inicial';
+        if (!cents || cents <= 0) return `Defina ${label} maior que zero`;
+        // F5: reserva abaixo do lance inicial não faz sentido (nunca vende).
+        if (form.type === 'auction' && form.reservePrice) {
+          const reserve = parsePriceToCents(form.reservePrice);
+          if (reserve && reserve > 0 && reserve < cents) {
+            return 'O preço mínimo para vender não pode ser menor que o lance inicial';
+          }
         }
-        const bid = parsePriceToCents(form.startingBid);
-        return bid && bid > 0 ? null : 'Defina um lance inicial maior que zero';
+        return null;
       }
       default:
         return null;
@@ -332,22 +342,35 @@ export default function CreateListing() {
     };
     const isAuction = form.type === 'auction';
 
+    // F2: a UI dos detalhes por categoria grava em `categoryFields.*`. As chaves
+    // com coluna própria (brand/line/scale/year/edition) vão para o topo; o mapa
+    // completo (jogo, raridade, personagem, número, grading…) vai em `attributes`
+    // (coluna JSON no backend).
+    const cf = form.categoryFields ?? {};
+    const hasAttributes = Object.keys(cf).length > 0;
+
     const payload: CreateListingPayload = {
       title: form.title,
       description: form.description || undefined,
       categoryId: form.category || undefined,
-      brand: form.brand || undefined,
-      line: form.line || undefined,
-      scale: form.scale || undefined,
-      year: form.year || undefined,
-      edition: form.edition || undefined,
+      brand: cf.brand || form.brand || undefined,
+      line: cf.line || form.line || undefined,
+      scale: cf.scale || form.scale || undefined,
+      year: cf.year || form.year || undefined,
+      edition: cf.edition || form.edition || undefined,
       condition: form.condition,
       type: form.type as 'direct' | 'auction',
       priceInCents: !isAuction && form.price ? toCents(form.price) : undefined,
       // Config de leilão: o backend cria a linha de auction (parada) junto do anúncio.
       startingBidInCents: isAuction && form.startingBid ? toCents(form.startingBid) : undefined,
+      // F3: incremento mínimo era coletado mas nunca enviado.
+      minIncrementInCents: isAuction && form.minIncrement ? toCents(form.minIncrement) : undefined,
       durationHours: isAuction ? Number(form.duration) || 336 : undefined,
       reservePriceInCents: isAuction && form.reservePrice ? toCents(form.reservePrice) : undefined,
+      // Anti-sniper do wizard (só faz sentido em leilão).
+      antiSniper: isAuction ? form.antiSniper : undefined,
+      // Atributos por categoria em JSON.
+      attributes: hasAttributes ? JSON.stringify(cf) : undefined,
       images: form.photos.length > 0 ? JSON.stringify(form.photos) : undefined,
       // Envio (frete): opcionais — sem eles o backend usa um pacote default.
       weightGrams: toInt(form.weightGrams),
@@ -522,14 +545,17 @@ export default function CreateListing() {
             <Button
               variant="kolecta"
               onClick={handleSubmit}
-              disabled={createListing.isPending || addressBlocking}
+              // F6: enquanto o endereço não carregou, o submit não tem como
+              // funcionar (o backend rejeita sem origem). Trava o botão e mostra
+              // o estado em vez de "clicar e nada acontecer".
+              disabled={createListing.isPending || addressBlocking || addressQuery.isLoading}
             >
-              {createListing.isPending ? (
+              {createListing.isPending || addressQuery.isLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <Check className="h-4 w-4" />
               )}
-              Enviar para Aprovação
+              {addressQuery.isLoading ? 'Verificando endereço…' : 'Enviar para Aprovação'}
             </Button>
           )}
         </div>

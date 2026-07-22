@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Gavel, Clock, AlertCircle, Timer, Eye, X, RotateCcw } from 'lucide-react';
+import { Gavel, Clock, AlertCircle, Timer, Eye, X, RotateCcw, CheckCircle2 } from 'lucide-react';
 import { useSellerAuctions, useEndAuction } from '@/hooks/use-api';
 import type { AuctionWithListing } from '@/lib/api';
 import SellerLayout from '@/components/layout/SellerLayout';
@@ -58,6 +58,18 @@ interface MockAuction {
 }
 
 // ── Helpers ──────────────────────────────────────────────
+
+// F25: desfecho real de um leilão encerrado, a partir dos dados que a API
+// devolve (status + maior lance + reserva).
+function closedResultFor(a: AuctionWithListing): ClosedResult | undefined {
+  if (a.status === 'active') return undefined;
+  if (a.status === 'cancelled') return 'cancelled';
+  // status === 'ended'
+  const hasWinningBid = !!(a.currentBidInCents && a.currentWinnerId);
+  if (!hasWinningBid) return 'no_bids';
+  if (a.reservePriceInCents && a.currentBidInCents! < a.reservePriceInCents) return 'no_reserve';
+  return 'sold';
+}
 
 function getTimeLeft(endsAt: string) {
   const diff = new Date(endsAt).getTime() - Date.now();
@@ -162,10 +174,17 @@ export default function AuctionManager() {
     reservePrice: a.reservePriceInCents ? a.reservePriceInCents / 100 : undefined,
     currentBid: a.currentBidInCents ? a.currentBidInCents / 100 : null,
     highestBidder: a.currentWinnerId ?? null,
-    totalBids: 0,
+    // F26: nº de lances e nome do vencedor agora vêm do backend
+    // (GET /api/auctions/seller/mine). Fallback seguro se ainda não vier.
+    totalBids: a.totalBids ?? 0,
     bids: [],
-    closedResult: a.status === 'ended' ? 'sold' as ClosedResult : undefined,
-    closedAt: a.status === 'ended' ? a.updatedAt : undefined,
+    winnerId: a.currentWinnerId ?? undefined,
+    winnerName: a.winnerName ?? (a.currentWinnerId ? 'Arrematante' : undefined),
+    // F25: nem todo leilão encerrado foi VENDIDO. Classifica pelo desfecho real:
+    // vendido só com lance vencedor (e acima da reserva); senão sem lances /
+    // reserva não atingida; cancelado quando a API cancela.
+    closedResult: closedResultFor(a),
+    closedAt: a.status !== 'active' ? a.updatedAt : undefined,
     finalValue: a.currentBidInCents ? a.currentBidInCents / 100 : undefined,
   })), [apiAuctions]);
 
@@ -182,7 +201,7 @@ export default function AuctionManager() {
   const summaryCards = [
     { label: 'Leilões ativos', value: active.length, icon: Gavel, color: 'text-[hsl(var(--kolecta-gold))]' },
     { label: 'Encerrando hoje', value: ending24h.length, icon: Clock, color: 'text-[hsl(var(--kolecta-red))]', pulse: ending24h.length > 0 },
-    { label: 'Aguardando pagamento', value: pendingPayment.length, icon: AlertCircle, color: 'text-amber-500' },
+    { label: 'Encerrados', value: closed.length, icon: CheckCircle2, color: 'text-emerald-500' },
   ];
 
   async function handleClose(auc: AuctionWithListing) {
@@ -240,9 +259,8 @@ export default function AuctionManager() {
             <TabsTrigger value="ending" className="gap-1.5">
               Encerrando em 24h <Badge className="ml-1 text-[10px] bg-[hsl(var(--kolecta-red))] text-white">{ending24h.length}</Badge>
             </TabsTrigger>
-            <TabsTrigger value="pending" className="gap-1.5">
-              Aguardando pagamento <Badge className="ml-1 text-[10px] bg-amber-500 text-white">{pendingPayment.length}</Badge>
-            </TabsTrigger>
+            {/* D4: aba "Aguardando pagamento" removida — o backend não tem o
+                status pending_payment para leilões, então ela nunca enchia. */}
             <TabsTrigger value="closed">Encerrados</TabsTrigger>
           </TabsList>
 
@@ -274,19 +292,7 @@ export default function AuctionManager() {
             )}
           </TabsContent>
 
-          {/* TAB: Pending payment */}
-          <TabsContent value="pending">
-            {loading ? <SkeletonCards /> : pendingPayment.length === 0 ? (
-              <EmptyTab icon={AlertCircle} message="Nenhum leilão aguardando pagamento" />
-            ) : (
-              <div className="space-y-4 mt-4">
-                {/* API: GET /api/seller/auctions?status=pending_payment */}
-                {pendingPayment.map(a => (
-                  <PendingPaymentCard key={a.id} auction={a} onReopen={handleReopen} />
-                ))}
-              </div>
-            )}
-          </TabsContent>
+          {/* TAB: Pending payment removida (D4) — sem status no backend. */}
 
           {/* TAB: Closed */}
           <TabsContent value="closed">

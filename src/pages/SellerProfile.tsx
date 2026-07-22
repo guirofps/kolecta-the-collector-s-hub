@@ -17,6 +17,18 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useCategories } from '@/hooks/use-api';
 import { api } from '@/lib/api';
 
+// F32: parse defensivo — `images` pode vir como JSON de array, URL crua ou nulo.
+// Nunca lança (JSON.parse solto derrubava a página do vendedor).
+function safeParseImages(raw: string | null | undefined): string[] {
+  if (!raw) return ['/placeholder.svg'];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : ['/placeholder.svg'];
+  } catch {
+    return raw.startsWith('http') ? [raw] : ['/placeholder.svg'];
+  }
+}
+
 function CategoryIcon({ slug, size = 32 }: { slug: string; size?: number }) {
   const fill = '#FFD700';
   switch (slug) {
@@ -260,11 +272,11 @@ export default function SellerProfilePage() {
         </div>
 
         {/* ─── Stats ─── */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {/* B4/D8: "Tempo médio de envio" e "Taxa de resposta" eram valores fixos
+            no código (1-2 dias / 98%). Removidos até haver métrica real. */}
+        <div className="grid grid-cols-2 gap-3">
           <StatCard label="Vendas concluídas" value={seller.totalSales} />
           <StatCard label="Avaliação média" value={`${seller.averageRating}★`} />
-          <StatCard label="Tempo médio de envio" value="1-2 dias" />
-          <StatCard label="Taxa de resposta" value="98%" />
         </div>
 
         {/* ─── Tabs ─── */}
@@ -331,8 +343,11 @@ export default function SellerProfilePage() {
                     slug: product.id,
                     price: product.priceInCents ? product.priceInCents / 100 : undefined,
                     categorySlug: product.categoryId ?? '',
-                    images: product.images ? JSON.parse(product.images) : [],
-                    seller: { name: seller.name }
+                    // F32: JSON.parse sem proteção derrubava a página inteira quando
+                    // `images` não era JSON válido (ex.: uma URL crua).
+                    images: safeParseImages(product.images),
+                    // F32: sem id/slug o card apontava para "/vendedor/undefined".
+                    seller: { name: seller.name, slug: slug, id: slug, verified: !!seller.isVerified },
                   } as unknown as import('@/lib/mock-data').Product;
                   return <ProductCard key={product.id} product={mappedProduct} />;
                 })}

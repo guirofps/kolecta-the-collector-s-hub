@@ -23,19 +23,52 @@ import {
 } from '@/components/ui/dialog';
 import EmptyState from '@/components/EmptyState';
 import LoadingSkeleton from '@/components/LoadingSkeleton';
+import { toast } from 'sonner';
 import { useCart } from '@/contexts/CartContext';
 import { useFavorites } from '@/hooks/use-api';
 import type { Favorite } from '@/lib/api';
+import type { Product } from '@/lib/mock-data';
 import { formatBRL } from '@/lib/currency';
+import { conditionLabel } from '@/lib/conditions';
 
 type SortOption = 'recent' | 'price_asc' | 'price_desc' | 'name';
 
 // ── Component ─────────────────────────────────────────────
 
 export default function FavoritesPage() {
-  const { addItem } = useCart();
+  const { addItem, openCart } = useCart();
   const { query, removeMutation } = useFavorites();
   const { data: favorites = [], isLoading } = query;
+
+  // F15: adiciona o favorito ao carrinho. Monta o shape que o CartContext
+  // espera a partir do listing do favorito (só venda direta tem carrinho).
+  function handleAddToCart(listing: NonNullable<Favorite['listing']>, images: string[]) {
+    const product = {
+      id: listing.id,
+      title: listing.title,
+      slug: listing.id,
+      images,
+      category: '',
+      categorySlug: '',
+      subcategorySlug: '',
+      condition: listing.condition,
+      type: listing.type,
+      price: (listing.priceInCents ?? 0) / 100,
+      seller: {
+        id: listing.sellerId, name: 'Vendedor Kolecta', slug: listing.sellerId,
+        avatar: '/placeholder.svg', verified: false, rating: 0, totalSales: 0, location: '', since: '',
+      },
+      description: '',
+      details: {},
+      featured: false,
+      tags: [],
+      status: 'aprovado',
+      createdAt: new Date().toISOString(),
+    } as unknown as Product;
+    addItem(product, 1);
+    toast.success('Adicionado ao carrinho');
+    openCart();
+  }
 
   const [sort, setSort] = useState<SortOption>('recent');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
@@ -174,7 +207,7 @@ export default function FavoritesPage() {
 
                     <div className="flex items-center gap-2">
                       <Badge variant="outline" className="text-[10px] font-heading uppercase">
-                        {listing.condition}
+                        {conditionLabel(listing.condition)}
                       </Badge>
                       {isAuction && (
                         <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/30 text-[10px] font-heading uppercase">
@@ -216,6 +249,8 @@ export default function FavoritesPage() {
                           size="sm"
                           className="text-xs"
                           disabled={!available}
+                          onClick={() => handleAddToCart(listing, images)}
+                          aria-label="Adicionar ao carrinho"
                         >
                           <ShoppingCart className="h-3.5 w-3.5" />
                         </Button>

@@ -272,7 +272,7 @@ export default function MessagesPage() {
             </Link>
           </div>
           {conv?.listingId && (
-            <Link to={`/anuncio/${conv.listingId}`}>
+            <Link to={`/produto/${conv.listingId}`}>
               <Badge variant="outline" className="text-xs hover:bg-muted cursor-pointer">
                 Ver anúncio
               </Badge>

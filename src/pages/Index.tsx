@@ -10,6 +10,7 @@ import type { ProductCondition, Product } from '@/lib/mock-data';
 import type { Listing } from '@/lib/api';
 import { isListingFeatured } from '@/lib/api';
 import { useListings } from '@/hooks/use-api';
+import { COMMISSION_LABEL } from '@/lib/fees';
 import { useLaunchGate } from '@/hooks/use-launch-gate';
 import { trackEvent } from '@/lib/analytics';
 import heroBg from '@/assets/hero-bg.jpg';
@@ -328,7 +329,7 @@ function HomeContent() {
               </div>
               <div>
                 <h3 className="font-heading text-lg font-bold uppercase tracking-wider mb-2">Comissão justa</h3>
-                <p className="text-sm text-muted-foreground">Apenas 12% por venda. Sem mensalidade, sem taxa de cadastro.</p>
+                <p className="text-sm text-muted-foreground">Apenas {COMMISSION_LABEL} por venda. Sem mensalidade, sem taxa de cadastro.</p>
               </div>
             </div>
             

@@ -47,6 +47,7 @@ interface TimelineEvent {
 // ── Status config ────────────────────────────────────────
 
 const statusConfig: Record<LocalStatus, { label: string; cls: string }> = {
+  // F20: 'pending' (PIX ainda não confirmado) NÃO é pagamento confirmado.
   aguardando_pagamento: { label: 'Aguardando pagamento', cls: 'bg-kolecta-gold/10 text-kolecta-gold border-kolecta-gold/30' },
   pagamento_confirmado: { label: 'Pagamento confirmado', cls: 'bg-blue-500/10 text-blue-500 border-blue-500/30' },
   em_separacao: { label: 'Em separação', cls: 'bg-blue-500/10 text-blue-500 border-blue-500/30' },
@@ -287,6 +288,8 @@ export default function SellerOrderDetailPage() {
                   <span className="text-sm text-muted-foreground">Status atual:</span>
                   <Badge variant="outline" className={sc.cls}>{sc.label}</Badge>
                 </div>
+                {/* F20: pedido só libera etiqueta/envio DEPOIS de pago. 'pending'
+                    (PIX não confirmado) não pode gerar etiqueta nem despachar. */}
                 {order.status === 'pending' && (
                   // Sem pagamento, sem envio: nada de etiqueta aqui.
                   <div className="flex items-start gap-2 rounded-md border border-kolecta-gold/30 bg-kolecta-gold/5 p-3">
