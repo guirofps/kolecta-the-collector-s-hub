@@ -42,14 +42,16 @@ function daysLeftFrom(order: Order): number | undefined {
 export default function OrderDetailPage() {
   const { id } = useParams();
   const [disputeOpen, setDisputeOpen] = useState(false);
-  const [confirmed, setConfirmed] = useState(false);
+  // Só para feedback imediato pós-clique; a fonte da verdade é o pedido
+  // (buyerConfirmedAt/status), senão o F5 "desconfirmava" (estado local zerava).
+  const [justConfirmed, setJustConfirmed] = useState(false);
   const { data: order, isLoading, isError } = useOrderById(id ?? '');
   const confirmDelivery = useConfirmDelivery();
 
   const handleConfirm = async () => {
     if (!order) return;
     await confirmDelivery.mutateAsync(order.id);
-    setConfirmed(true);
+    setJustConfirmed(true);
   };
 
   if (isLoading) {
@@ -85,6 +87,8 @@ export default function OrderDetailPage() {
   const step = toStep(order.status);
   const daysLeft = daysLeftFrom(order);
   const inVerification = order.status === 'delivered';
+  // Confirmado = fato persistido no pedido (ou clique recém-feito nesta sessão).
+  const confirmed = justConfirmed || !!order.buyerConfirmedAt || order.status === 'completed';
 
   return (
     <Layout>
