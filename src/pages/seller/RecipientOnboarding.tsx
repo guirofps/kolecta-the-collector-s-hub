@@ -379,6 +379,11 @@ export default function RecipientOnboardingPage() {
                       <Label htmlFor="p-occ">Ocupação profissional</Label>
                       <Input id="p-occ" required value={partner.professionalOccupation} onChange={(e) => setPartner((p) => ({ ...p, professionalOccupation: e.target.value }))} />
                     </div>
+                    <div>
+                      <Label htmlFor="p-phone">Telefone (com DDD)</Label>
+                      <Input id="p-phone" required inputMode="numeric" placeholder="11999999999"
+                        value={partner.phone} onChange={(e) => setPartner((p) => ({ ...p, phone: digits(e.target.value) }))} />
+                    </div>
                   </div>
                   <Separator />
                   <p className="text-sm font-heading font-bold uppercase text-muted-foreground">Endereço do representante</p>
