@@ -66,12 +66,12 @@ const HOW_IT_WORKS = [
   {
     icon: ClipboardCheck,
     title: `Suba ${REQUIRED_LISTINGS} anúncios`,
-    desc: `É o que garante sua vaga: Fundador é benefício de lojista. Os anúncios ficam em análise enquanto a plataforma não abre.`,
+    desc: `É o requisito pra concorrer: Fundador é benefício de lojista. Os anúncios ficam em análise enquanto a plataforma não abre.`,
   },
   {
     icon: Timer,
-    title: 'Estreie no lançamento',
-    desc: 'No dia 25 sua loja abre no ar, com o selo e os créditos de destaque na mão.',
+    title: 'Resultado no dia 25',
+    desc: 'A seleção sai no lançamento. Os escolhidos estreiam com a loja no ar, o selo numerado e os destaques na mão.',
   },
 ];
 
@@ -230,7 +230,7 @@ export default function LaunchCountdown() {
             className="text-base sm:text-lg text-white/60 max-w-lg mx-auto mb-6"
           >
             O point dos colecionadores abre {launchLabel ? <>em <strong className="text-white/80">{launchLabel}</strong></> : 'em breve'}.
-            Entre agora, monte sua loja e garanta as vantagens de Fundador que ninguém mais vai ter.
+            Entre agora, monte sua loja e concorra às vantagens de Fundador que ninguém mais vai ter.
           </motion.p>
 
           {/* Faixa de benefícios: o que ganha, na cara, sem precisar rolar */}
@@ -297,7 +297,7 @@ export default function LaunchCountdown() {
         <div className="container mx-auto flex items-center justify-center gap-2.5 px-4 py-3 text-center">
           <Flame className="h-4 w-4 shrink-0" />
           <p className="font-heading text-xs font-bold uppercase tracking-wide sm:text-sm">
-            Só 100 fundadores no mundo. Os primeiros levam os números mais baixos.
+            Só 100 fundadores no mundo. Complete os requisitos e concorra a uma das vagas.
           </p>
         </div>
       </div>
@@ -328,8 +328,8 @@ export default function LaunchCountdown() {
                 e em todos os seus anúncios, pra sempre.
               </p>
               <p className="text-white/40 text-sm">
-                Quanto mais cedo você entra, menor o seu número. E colecionador sabe o que vale
-                um número baixo.
+                Os números são atribuídos aos selecionados no lançamento. E colecionador sabe
+                o que vale um número baixo.
               </p>
             </div>
           </div>
@@ -378,7 +378,7 @@ export default function LaunchCountdown() {
               Só quem entra <span className="text-primary">antes</span> tem
             </h2>
             <p className="text-white/60">
-              É de graça. São {TOTAL_FOUNDERS} vagas e elas fecham no lançamento.
+              É de graça concorrer. São {TOTAL_FOUNDERS} vagas e a seleção sai no lançamento.
             </p>
           </div>
 
@@ -410,12 +410,12 @@ export default function LaunchCountdown() {
         </div>
       </section>
 
-      {/* ─── COMO GARANTIR A VAGA ─────────────────────── */}
+      {/* ─── COMO CONCORRER À VAGA ────────────────────── */}
       <section className="py-16 lg:py-24 bg-kolecta-carbon border-t border-white/10">
         <div className="container mx-auto px-4">
           <div className="text-center max-w-2xl mx-auto mb-12">
             <h2 className="font-heading text-3xl sm:text-4xl font-extrabold italic uppercase mb-3">
-              Como garantir sua <span className="text-primary">vaga</span>
+              Como concorrer a uma <span className="text-primary">vaga</span>
             </h2>
             <p className="text-white/60">
               Fundador é benefício de <strong className="text-white/80">lojista</strong>. Não basta se
@@ -450,16 +450,18 @@ export default function LaunchCountdown() {
             <div className="flex gap-3">
               <Check className="h-5 w-5 text-primary shrink-0 mt-0.5" />
               <p className="text-sm text-white/70">
-                <strong className="text-white">A regra:</strong> sua vaga de Fundador é confirmada
-                quando você tiver <strong className="text-white">{REQUIRED_LISTINGS} anúncios enviados</strong> antes
-                do lançamento. Depois, para manter a taxa de {FOUNDER_FEE} e os créditos, basta seguir com
-                anúncios ativos. <span className="text-white/50">O selo, esse é seu pra sempre.</span>
+                <strong className="text-white">A regra:</strong> com{' '}
+                <strong className="text-white">{REQUIRED_LISTINGS} anúncios enviados</strong> antes do
+                lançamento, você entra na seleção de Fundadores. A curadoria prioriza lojistas
+                de verdade e o resultado sai no dia 25, junto com o lançamento. Selecionados
+                ganham o selo numerado, a taxa de {FOUNDER_FEE} por 6 meses e os destaques
+                grátis. <span className="text-white/50">Manter anúncios ativos conta pontos.</span>
               </p>
             </div>
           </div>
 
           <div className="text-center mt-10">
-            <SignupCta label="Garantir minha vaga" />
+            <SignupCta label="Quero concorrer" />
           </div>
         </div>
       </section>

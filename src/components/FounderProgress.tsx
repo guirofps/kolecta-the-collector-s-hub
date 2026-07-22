@@ -1,7 +1,8 @@
 // ─── Placar do Fundador ──────────────────────────────────────
-// Card de progresso rumo à vaga de Membro Fundador: 5 anúncios enviados
-// antes do lançamento. Aparece só durante o pré-lançamento; depois do dia 25
-// a campanha fecha e o card some sozinho (via hasLaunched).
+// Progresso rumo à CANDIDATURA de Membro Fundador: 5 anúncios enviados antes
+// do lançamento colocam o vendedor na seleção (não garantem a vaga; a equipe
+// faz a curadoria priorizando lojistas e o resultado sai no dia 25).
+// Aparece só durante o pré-lançamento; depois do dia 25 some sozinho.
 //
 // A contagem segue a regra do handoff (docs/handoff-fundadores.md): contam
 // anúncios enviados, em análise ou já aprovados. Recusados não contam.
@@ -39,12 +40,12 @@ export default function FounderProgress({ listings }: { listings: Listing[] }) {
 
         <div className="min-w-0 flex-1">
           <p className="font-heading text-xs font-bold uppercase tracking-widest text-primary">
-            Sua vaga de Membro Fundador
+            Seleção de Membros Fundadores
           </p>
 
           {done ? (
             <p className="mt-1 font-heading text-xl font-extrabold italic uppercase leading-tight">
-              Requisito completo! Sua vaga está garantida.
+              Requisitos completos! Você está concorrendo.
             </p>
           ) : (
             <p className="mt-1 font-heading text-xl font-extrabold italic uppercase leading-tight">
@@ -68,14 +69,15 @@ export default function FounderProgress({ listings }: { listings: Listing[] }) {
             {done ? (
               <>
                 <Check className="mr-1 inline h-3.5 w-3.5 text-primary" />
-                Mantenha seus anúncios ativos para garantir a taxa reduzida e os
-                destaques no lançamento.
+                Sua candidatura está na seleção. Mantenha os anúncios ativos: a
+                curadoria prioriza lojistas ativos. Resultado no dia 25/07, no
+                lançamento.
               </>
             ) : (
               <>
                 Faltam <strong className="text-white">{remaining}</strong> pra
-                garantir o selo numerado, a taxa reduzida por 6 meses e os 5
-                destaques grátis.
+                entrar na seleção. Os escolhidos ganham selo numerado, taxa
+                reduzida por 6 meses e 5 destaques grátis. Resultado no dia 25/07.
               </>
             )}
           </p>

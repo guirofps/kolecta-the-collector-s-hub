@@ -32,10 +32,14 @@ Estender o perfil do usuário com:
   - `lapsed`: perdeu taxa/créditos por inatividade (mas mantém `founderNumber` e o selo)
 - `founderSince: datetime` (quando atingiu `active`; base para os 6 meses e para a taxa de 9%)
 
-### 2. Qualificação (5 anúncios) e atribuição de número  (alta)
-- Quando o usuário atinge **5 anúncios enviados** (status `em_analise` ou aprovado), promover `pending -> active`, gravar `founderSince` e **atribuir o próximo `founderNumber`** livre da faixa da landing (#051+).
-- **Travar em 100** vagas preenchidas. Ao esgotar, novos cadastros não viram fundador (definir com o time: fila de espera ou simplesmente "vagas encerradas").
-- Concorrência: a atribuição de número precisa ser atômica (evitar dois usuários pegando o mesmo número).
+### 2. Candidatura (5 anúncios) e seleção MANUAL  (alta) — ATUALIZADO 21/07
+Mudança de conceito: completar 5 anúncios NÃO vira fundador automaticamente.
+Vira **candidato** à seleção. A escolha é manual, feita pela equipe (prioriza
+lojistas, com contato individual), e o resultado sai no dia 25.
+- Quando o usuário atinge **5 anúncios enviados** (status `em_analise` ou aprovado), marcar como **candidato** (`pending -> candidate`).
+- **Tela/endpoint admin de seleção**: listar candidatos (nome, email, nº de anúncios, data) e permitir à equipe **aprovar** cada um. Aprovar promove `candidate -> active`, grava `founderSince` e atribui o próximo `founderNumber` da faixa da landing (#051+).
+- **Travar em 100** vagas preenchidas. A atribuição de número precisa ser atômica (evitar número duplicado).
+- A copy pública já foi ajustada: a landing e o placar do painel falam em "concorrer/seleção", nunca em vaga garantida.
 
 ### 3. Códigos de convite do evento (#001 a #050)  (média)
 - Gerar 50 códigos de convite. Resgatar um código atribui um número reservado da faixa 1 a 50.
