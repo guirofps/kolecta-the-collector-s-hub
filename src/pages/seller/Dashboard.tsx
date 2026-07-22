@@ -6,6 +6,7 @@ import {
   PlusCircle, AlertCircle, Clock, Loader2
 } from 'lucide-react';
 import SellerLayout from '@/components/layout/SellerLayout';
+import FounderProgress from '@/components/FounderProgress';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -118,6 +119,13 @@ export default function SellerDashboard() {
             </Link>
           </Button>
         </div>
+
+        {/* Placar do Fundador: só aparece no pré-lançamento */}
+        {!listingsLoading && (
+          <div className="mb-8">
+            <FounderProgress listings={listings} />
+          </div>
+        )}
 
         {/* Metrics grid */}
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-8">

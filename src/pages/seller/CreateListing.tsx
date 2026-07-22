@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, ArrowRight, Check, ShoppingCart, Gavel, Upload,
-  X, ImagePlus, AlertCircle, Eye, Loader2,
+  X, ImagePlus, AlertCircle, Eye, Loader2, Sparkles,
 } from 'lucide-react';
 import SellerLayout from '@/components/layout/SellerLayout';
 import { Button } from '@/components/ui/button';
@@ -173,6 +173,46 @@ const MIN_DESCRIPTION = 30;
 const MIN_PHOTOS = 3;
 const MAX_PHOTOS = 8;
 
+// ─── Rascunho automático ─────────────────────────────────────
+// O wizard guarda o progresso no navegador: fechar a aba no meio não perde
+// mais o anúncio. O rascunho é limpo no envio com sucesso ou no descarte.
+const DRAFT_KEY = 'kolecta:listing-draft';
+
+function loadDraft(): { form: FormData; step: number } | null {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return null;
+    const d = JSON.parse(raw);
+    if (!d || typeof d !== 'object' || !d.form) return null;
+    return d;
+  } catch {
+    return null;
+  }
+}
+
+// ─── Título sugerido a partir dos campos da categoria ────────
+function suggestTitle(slug: string | undefined, f: Record<string, any>): string {
+  const parts: (string | undefined)[] = [];
+  switch (slug) {
+    case 'miniaturas-diecast':
+      parts.push(f?.brand, f?.line, f?.year, f?.scale);
+      break;
+    case 'cards-colecionaveis':
+      parts.push(f?.jogo, f?.numero, f?.raridade);
+      break;
+    case 'action-figures':
+      parts.push(f?.brand, f?.line, f?.personagem, f?.escalaAltura);
+      break;
+    case 'funko-pop':
+      parts.push('Funko Pop', f?.line, f?.numero);
+      break;
+    case 'mangas-hqs':
+      parts.push(f?.tituloObra, f?.volume, f?.editora);
+      break;
+  }
+  return parts.filter(Boolean).join(' ').trim().slice(0, 80);
+}
+
 const steps = [
   { id: 1, label: 'Tipo' },
   { id: 2, label: 'Detalhes' },
@@ -185,10 +225,35 @@ const steps = [
 const conditions = CONDITIONS;
 
 export default function CreateListing() {
-  const [step, setStep] = useState(1);
-  const [form, setForm] = useState<FormData>(initialForm);
+  // Recupera o rascunho salvo (se houver) uma única vez, na montagem.
+  const [draft] = useState(loadDraft);
+  const [step, setStep] = useState(draft?.step ?? 1);
+  const [form, setForm] = useState<FormData>(
+    draft ? { ...initialForm, ...draft.form } : initialForm,
+  );
+  const [showDraftNotice, setShowDraftNotice] = useState(!!draft);
   // Quantos uploads estão em voo (o wizard aceita vários arquivos de uma vez).
   const [uploadingCount, setUploadingCount] = useState(0);
+
+  // Salva o rascunho a cada mudança (só depois que há conteúdo de verdade).
+  useEffect(() => {
+    const hasContent = form.type !== null || form.title.trim() !== '' || form.photos.length > 0;
+    if (!hasContent) return;
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ form, step }));
+    } catch {
+      // storage cheio/indisponível: rascunho é conveniência, não requisito
+    }
+  }, [form, step]);
+
+  const discardDraft = () => {
+    try {
+      localStorage.removeItem(DRAFT_KEY);
+    } catch { /* ignora */ }
+    setForm(initialForm);
+    setStep(1);
+    setShowDraftNotice(false);
+  };
   const navigate = useNavigate();
   const createListing = useCreateListing();
   const uploadImage = useUploadImage();
@@ -292,7 +357,13 @@ export default function CreateListing() {
     };
 
     createListing.mutate(payload, {
-      onSuccess: () => navigate('/painel/anuncios'),
+      onSuccess: () => {
+        // Anúncio enviado: o rascunho local já cumpriu o papel.
+        try {
+          localStorage.removeItem(DRAFT_KEY);
+        } catch { /* ignora */ }
+        navigate('/painel/anuncios');
+      },
     });
   };
 
@@ -336,6 +407,26 @@ export default function CreateListing() {
             <p className="text-xs text-muted-foreground">Passo {step} de {steps.length}</p>
           </div>
         </div>
+
+        {/* Aviso de rascunho recuperado */}
+        {showDraftNotice && (
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-md border border-primary/30 bg-primary/5 p-3">
+            <div className="flex items-center gap-2">
+              <Check className="h-4 w-4 shrink-0 text-primary" />
+              <span className="text-xs text-foreground">
+                Recuperamos seu rascunho. Continue de onde parou.
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={discardDraft}>
+                Começar do zero
+              </Button>
+              <Button variant="outline-gold" size="sm" className="h-7 text-xs" onClick={() => setShowDraftNotice(false)}>
+                Continuar
+              </Button>
+            </div>
+          </div>
+        )}
 
         {/* Step indicator */}
         <div className="flex items-center gap-1 mb-8">
@@ -643,6 +734,28 @@ function StepDetails({ form, update, categories }: { form: FormData; update: (f:
             </span>
             <span className="text-[10px] text-muted-foreground">{form.title.length}/80</span>
           </div>
+
+          {/* Sugestão montada a partir dos campos da categoria preenchidos
+              abaixo. Só aparece enquanto o título ainda não está resolvido. */}
+          {(() => {
+            const suggestion = suggestTitle(catSlug, form.categoryFields);
+            const titleUnresolved = form.title.trim().length < MIN_TITLE;
+            if (!titleUnresolved || suggestion.length < MIN_TITLE || suggestion === form.title) {
+              return null;
+            }
+            return (
+              <button
+                type="button"
+                onClick={() => update('title', suggestion)}
+                className="mt-1 inline-flex max-w-full items-center gap-1.5 rounded-full border border-primary/30 bg-primary/5 px-3 py-1 text-left transition-colors hover:bg-primary/10"
+              >
+                <Sparkles className="h-3 w-3 shrink-0 text-primary" />
+                <span className="truncate text-[11px] text-foreground">
+                  Usar sugestão: <strong>{suggestion}</strong>
+                </span>
+              </button>
+            );
+          })()}
         </div>
 
         <div>
