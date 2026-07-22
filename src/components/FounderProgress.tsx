@@ -4,8 +4,12 @@
 // faz a curadoria priorizando lojistas e o resultado sai no dia 25).
 // Aparece só durante o pré-lançamento; depois do dia 25 some sozinho.
 //
-// A contagem segue a regra do handoff (docs/handoff-fundadores.md): contam
-// anúncios enviados, em análise ou já aprovados. Recusados não contam.
+// A contagem segue a regra do handoff (docs/handoff-fundadores.md): conta
+// anúncio ENVIADO, esteja ele em análise ou já aprovado. Recusado não conta.
+//
+// ATENÇÃO À VOCABULÁRIO: o banco grava status em inglês (`draft` = em análise,
+// `active` = aprovado, `rejected` = recusado). Contar pelos nomes em português
+// zerava o placar de todo mundo.
 
 import { Link } from 'react-router-dom';
 import { PlusCircle, Check } from 'lucide-react';
@@ -16,8 +20,9 @@ import type { Listing } from '@/lib/api';
 
 const REQUIRED = 5;
 
-// Status que contam para a qualificação (rascunho e reprovado ficam fora).
-const QUALIFYING = new Set(['em_analise', 'aprovado', 'pausado', 'vendido']);
+// Só o recusado fica de fora: contar por exclusão evita zerar o placar de novo
+// se o backend introduzir um status novo (vendido, pausado, etc.).
+const NOT_QUALIFYING = new Set(['rejected', 'reprovado']);
 
 export default function FounderProgress({ listings }: { listings: Listing[] }) {
   // Campanha encerrada: não renderiza nada.
@@ -25,7 +30,7 @@ export default function FounderProgress({ listings }: { listings: Listing[] }) {
 
   const count = Math.min(
     REQUIRED,
-    listings.filter((l) => QUALIFYING.has(l.status)).length,
+    listings.filter((l) => !NOT_QUALIFYING.has(l.status)).length,
   );
   const done = count >= REQUIRED;
   const remaining = REQUIRED - count;
