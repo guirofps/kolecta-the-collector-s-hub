@@ -178,11 +178,16 @@ export default function SellerOrderDetailPage() {
   const commission = order.platformFeeInCents ?? 0;
   const net = order.sellerNetInCents ?? gross - commission;
   const commissionRate = gross > 0 ? commission / gross : 0;
-  const payoutStatus = order.buyerConfirmedAt
-    ? 'Liberado ao vendedor'
-    : order.status === 'delivered'
-      ? 'Em verificação (aguardando confirmação)'
-      : 'Aguardando entrega';
+  // "Liberado" só quando o pedido vira 'completed' (release efetivo pelo cron).
+  // Confirmado mas ainda em 'delivered' = retido na janela de 48h.
+  const payoutStatus =
+    order.status === 'completed'
+      ? 'Liberado ao vendedor'
+      : order.buyerConfirmedAt
+        ? 'Em liberação (janela de 48h)'
+        : order.status === 'delivered'
+          ? 'Aguardando confirmação do comprador'
+          : 'Aguardando entrega';
 
   const listing = order.listing;
 

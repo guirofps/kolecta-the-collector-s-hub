@@ -35,7 +35,7 @@ import type { Order } from '@/lib/api';
 
 interface Transfer {
   id: string; date: string; order: string; gross: number; commission: number | null; net: number | null;
-  status: 'transferido' | 'em_processamento' | 'aguardando_entrega';
+  status: 'transferido' | 'em_liberacao' | 'em_processamento' | 'aguardando_entrega';
 }
 
 interface Commission {
@@ -53,6 +53,7 @@ function fmtDate(d: string) {
 
 const transferStatusConfig: Record<Transfer['status'], { label: string; cls: string }> = {
   transferido: { label: 'Liberado', cls: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30' },
+  em_liberacao: { label: 'Em liberação (48h)', cls: 'bg-amber-500/10 text-amber-500 border-amber-500/30' },
   em_processamento: { label: 'Em processamento', cls: 'bg-amber-500/10 text-amber-500 border-amber-500/30' },
   aguardando_entrega: { label: 'Aguardando confirmação', cls: 'bg-muted text-muted-foreground border-border' },
 };
@@ -63,12 +64,17 @@ function orderToTransfer(o: Order): Transfer {
   const hasFee = o.platformFeeInCents != null && o.sellerNetInCents != null;
   const commission = hasFee ? o.platformFeeInCents! / 100 : null;
   const net = hasFee ? o.sellerNetInCents! / 100 : null;
-  // Repasse é liberado quando o comprador confirma o recebimento.
-  const status: Transfer['status'] = o.buyerConfirmedAt
-    ? 'transferido'
-    : o.status === 'delivered'
-      ? 'aguardando_entrega'
-      : 'em_processamento';
+  // "Liberado" = release EFETIVO (pedido vira 'completed' quando o cron move o
+  // saldo de retido → disponível). A confirmação do comprador NÃO libera na hora:
+  // abre a janela de 48h (proteção contra disputa), então mostra "Em liberação".
+  const status: Transfer['status'] =
+    o.status === 'completed'
+      ? 'transferido'
+      : o.buyerConfirmedAt
+        ? 'em_liberacao'
+        : o.status === 'delivered'
+          ? 'aguardando_entrega'
+          : 'em_processamento';
   return { id: o.id, date: o.createdAt, order: `#${o.id.slice(0, 8)}`, gross, commission, net, status };
 }
 
