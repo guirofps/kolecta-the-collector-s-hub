@@ -462,7 +462,7 @@ export const api = {
         token,
       }).then(r => r.data),
 
-    createCheckout: (token: string, body: { items: { listingId: string }[]; addressId?: string; shippingInCents?: number; useWalletBalance?: boolean; buyerCpf?: string; buyerPhone?: string }) =>
+    createCheckout: (token: string, body: { items: { listingId: string }[]; addressId?: string; shippingInCents?: number; deliveryMethod?: 'shipping' | 'pickup'; useWalletBalance?: boolean; buyerCpf?: string; buyerPhone?: string }) =>
       request<{
         orderId: string;
         totalInCents: number;

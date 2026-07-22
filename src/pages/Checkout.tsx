@@ -53,6 +53,16 @@ interface ShippingOption {
   serviceId?: number;
 }
 
+// Opção de retirada em mãos — sempre disponível, grátis, sem Melhor Envio.
+// Ao ser escolhida, o pedido é criado como pickup (delivery_method='pickup'):
+// sem etiqueta, e o saldo libera na hora quando o comprador confirma.
+const PICKUP_OPTION: ShippingOption = {
+  id: 'pickup',
+  label: 'Retirada pessoal',
+  price: 0,
+  days: 'combinar com o vendedor',
+};
+
 function groupBySeller(items: CartItem[]) {
   const groups: Record<string, { sellerName: string; sellerSlug: string; sellerId: string; items: CartItem[] }> = {};
   for (const item of items) {
@@ -232,6 +242,12 @@ export default function CheckoutPage() {
 
   if (items.length === 0) return <Navigate to="/carrinho" replace />;
 
+  // Opções de frete do vendedor + retirada pessoal (sempre disponível).
+  const optionsFor = (slug: string): ShippingOption[] => [
+    ...(shippingOptions[slug] ?? []),
+    PICKUP_OPTION,
+  ];
+
   // Shipping totals
   let shippingTotal = 0;
   let allShippingSelected = true;
@@ -239,7 +255,7 @@ export default function CheckoutPage() {
     const sel = selectedShipping[group.sellerSlug];
     if (!sel) { allShippingSelected = false; }
     else {
-      const opt = (shippingOptions[group.sellerSlug] ?? []).find(o => o.id === sel);
+      const opt = optionsFor(group.sellerSlug).find(o => o.id === sel);
       if (opt) shippingTotal += opt.price;
       else allShippingSelected = false;
     }
@@ -286,10 +302,12 @@ export default function CheckoutPage() {
     // não era enviado, então o comprador via o total com frete mas só o item
     // era cobrado.
     const selectedShipId = selectedShipping[group.sellerSlug];
-    const shipOpt = (shippingOptions[group.sellerSlug] ?? []).find(o => o.id === selectedShipId);
+    const isPickup = selectedShipId === 'pickup';
+    const shipOpt = optionsFor(group.sellerSlug).find(o => o.id === selectedShipId);
     const shippingInCents = shipOpt ? Math.round(shipOpt.price) : 0;
+    const deliveryMethod: 'shipping' | 'pickup' = isPickup ? 'pickup' : 'shipping';
 
-    const result = await createCheckout.mutateAsync({ items: listingItems, addressId, shippingInCents, useWalletBalance, buyerCpf, buyerPhone });
+    const result = await createCheckout.mutateAsync({ items: listingItems, addressId, shippingInCents, deliveryMethod, useWalletBalance, buyerCpf, buyerPhone });
 
     // Se pagou integralmente via wallet, redireciona direto para confirmação
     if (result.paidViaWallet) {
@@ -492,23 +510,21 @@ export default function CheckoutPage() {
                           <div key={i} className="h-16 w-full animate-pulse bg-muted/60 rounded-md relative overflow-hidden before:absolute before:inset-0 before:-translate-x-full before:animate-[shimmer_2s_infinite] before:bg-gradient-to-r before:from-transparent before:via-white/10 before:to-transparent" />
                         ))}
                       </div>
-                    ) : cepError ? (
-                      <div className="flex items-center gap-3 p-4 rounded-md border border-destructive/50 bg-destructive/10 text-destructive">
-                        <AlertTriangle className="h-5 w-5 shrink-0" />
-                        <p className="text-sm font-medium">Não encontramos opções de envio para este CEP.</p>
-                      </div>
-                    ) : groups.map((group, idx) => {
-                      const options = shippingOptions[group.sellerSlug] ?? [];
+                    ) : (
+                      <>
+                        {cepError && (
+                          <div className="flex items-center gap-3 p-4 rounded-md border border-amber-500/50 bg-amber-500/10 text-amber-600">
+                            <AlertTriangle className="h-5 w-5 shrink-0" />
+                            <p className="text-sm font-medium">Sem opções de envio para este CEP — você ainda pode escolher <strong>Retirada pessoal</strong>.</p>
+                          </div>
+                        )}
+                        {groups.map((group, idx) => {
+                      const options = optionsFor(group.sellerSlug);
                       return (
                         <div key={group.sellerSlug}>
                           <p className="font-heading text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-2">
                             {group.sellerName}
                           </p>
-                          {isCepFilled && options.length === 0 && (
-                            <p className="text-sm text-muted-foreground mb-2">
-                              Sem opções de frete para este vendedor.
-                            </p>
-                          )}
                           <RadioGroup
                             value={selectedShipping[group.sellerSlug] || ''}
                             onValueChange={(val) =>
@@ -543,7 +559,9 @@ export default function CheckoutPage() {
                           {idx < groups.length - 1 && <div className="line-tech my-4" />}
                         </div>
                       );
-                    })}
+                        })}
+                      </>
+                    )}
                   </CardContent>
                 </Card>
               </>
