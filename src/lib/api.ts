@@ -20,6 +20,32 @@ export class ApiError extends Error {
 
 // ── Função principal ──────────────────────────────────────────────────────────
 
+// Achata o erro real da Pagar.me que o backend repassa no campo `pagarme` do
+// corpo de erro. Sem isso, um 422 da Pagar.me virava só "Erro na comunicação"
+// e o motivo real (campo inválido, documento já cadastrado…) ficava escondido.
+function extractPagarmeDetail(pagarme: unknown): string | null {
+  if (!pagarme) return null;
+  if (typeof pagarme === 'string') return pagarme;
+  if (typeof pagarme !== 'object') return null;
+  const p = pagarme as Record<string, unknown>;
+  const parts: string[] = [];
+  if (typeof p.message === 'string') parts.push(p.message);
+  const errs = p.errors;
+  if (Array.isArray(errs)) {
+    errs.forEach((e) => {
+      if (typeof e === 'string') parts.push(e);
+      else if (e && typeof e === 'object' && 'message' in e) parts.push(String((e as any).message));
+      else parts.push(JSON.stringify(e));
+    });
+  } else if (errs && typeof errs === 'object') {
+    Object.entries(errs as Record<string, unknown>).forEach(([field, v]) => {
+      const msg = Array.isArray(v) ? v.join(', ') : String(v);
+      parts.push(`${field}: ${msg}`);
+    });
+  }
+  return parts.length ? parts.join(' · ') : null;
+}
+
 async function request<T>(
   path: string,
   options: RequestInit & { token?: string | null } = {},
@@ -39,7 +65,10 @@ async function request<T>(
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new ApiError(res.status, body?.message ?? `HTTP ${res.status}`);
+    let message = body?.message ?? `HTTP ${res.status}`;
+    const detail = extractPagarmeDetail(body?.pagarme);
+    if (detail) message += ` — ${detail}`;
+    throw new ApiError(res.status, message);
   }
 
   if (res.status === 204) return undefined as T;
