@@ -27,7 +27,7 @@ import {
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { formatBRL } from '@/lib/currency';
-import { useWallet, useWithdrawals, useWalletDeposit, useSellerOrders, useConnect } from '@/hooks/use-api';
+import { useWallet, useWithdrawals, useWalletDeposit, useSellerOrders, useRecipient } from '@/hooks/use-api';
 import { isValidCpf } from '@/lib/cpf';
 import type { Order } from '@/lib/api';
 
@@ -107,7 +107,8 @@ export default function SellerFinancialPage() {
   const { data: wallet, isLoading: walletLoading } = useWallet();
   const { data: withdrawals = [], isLoading: withdrawalsLoading } = useWithdrawals().query;
   const { requestMutation } = useWithdrawals();
-  const { statusQuery, bankAccountQuery } = useConnect();
+  // Recebimentos via Pagar.me (recebedor + prova de vida). Antes era Stripe Connect.
+  const { statusQuery } = useRecipient();
   const depositMutation = useWalletDeposit();
   const { data: sales = [], isLoading: salesLoading } = useSellerOrders();
 
@@ -194,7 +195,8 @@ export default function SellerFinancialPage() {
     pending:        (wallet?.pendingInCents ?? 0) / 100,
     monthTotal,
     totalWithdrawn,
-    stripeConnected: statusQuery.data?.status === 'active',
+    // canWithdraw = recebedor ativo + prova de vida concluída na Pagar.me.
+    recipientReady: statusQuery.data?.canWithdraw ?? false,
   };
 
   // ── Withdraw dialog helpers ────────────────────────────
@@ -307,7 +309,7 @@ export default function SellerFinancialPage() {
             <h1 className="font-heading text-3xl font-bold tracking-tight">Financeiro</h1>
             <p className="text-sm text-muted-foreground mt-1">Saldo, repasses e histórico financeiro</p>
           </div>
-          {summary.stripeConnected ? (
+          {summary.recipientReady ? (
             <div className="flex gap-2">
               <Button variant="outline-gold" onClick={() => setDepositOpen(true)}>
                 <TrendingUp className="h-4 w-4 mr-2" /> Adicionar Saldo
@@ -321,10 +323,10 @@ export default function SellerFinancialPage() {
               <AlertCircle className="h-5 w-5 text-kolecta-red shrink-0" />
               <div>
                 <p className="text-sm font-medium text-kolecta-red">Configure seus recebimentos</p>
-                <p className="text-xs text-muted-foreground">Conecte sua conta bancária para receber pagamentos</p>
+                <p className="text-xs text-muted-foreground">Cadastre seus dados e conclua a prova de vida para receber e sacar</p>
               </div>
               <Button size="sm" variant="kolecta" asChild>
-                <Link to="/painel/stripe-onboarding">Configurar</Link>
+                <Link to="/painel/recebedor">Configurar</Link>
               </Button>
             </div>
           )}
@@ -613,19 +615,19 @@ export default function SellerFinancialPage() {
             <Separator />
 
             <div className="space-y-2">
-              <p className="text-sm font-medium">Conta destino</p>
+              <p className="text-sm font-medium">Recebedor</p>
               <div className="flex items-center justify-between rounded-lg border border-border bg-muted/50 px-4 py-3">
-                {bankAccountQuery.isLoading ? (
+                {statusQuery.isLoading ? (
                   <Skeleton className="h-4 w-32" />
-                ) : bankAccountQuery.data ? (
+                ) : statusQuery.data?.canWithdraw ? (
                   <span className="text-sm">
-                    {bankAccountQuery.data.bankName} •••• {bankAccountQuery.data.last4}
+                    Ativo{statusQuery.data.document ? ` · ${statusQuery.data.document}` : ''}
                   </span>
                 ) : (
-                  <span className="text-sm text-destructive">Nenhuma conta configurada</span>
+                  <span className="text-sm text-destructive">Recebedor não configurado</span>
                 )}
                 <Button size="sm" variant="ghost" asChild>
-                  <Link to="/painel/stripe-onboarding">Alterar conta</Link>
+                  <Link to="/painel/recebedor">Gerenciar</Link>
                 </Button>
               </div>
             </div>

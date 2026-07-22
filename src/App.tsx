@@ -127,7 +127,7 @@ const App = () => (
 
             {/* Stripe Connect Callbacks */}
             <Route path="/connect/success" element={<ConnectSuccessPage />} />
-            <Route path="/connect/refresh" element={<Navigate to="/painel/stripe-onboarding" replace />} />
+            <Route path="/connect/refresh" element={<Navigate to="/painel/recebedor" replace />} />
 
             {/* Conta — requireAuth (todo user autenticado) */}
             <Route path="/conta" element={<ProtectedRoute><AccountDashboard /></ProtectedRoute>} />
@@ -152,7 +152,8 @@ const App = () => (
             <Route path="/painel/modo-lance" element={<ProtectedRoute><AuctionManagerPage /></ProtectedRoute>} />
             <Route path="/painel/integracoes" element={<ProtectedRoute><IntegrationsPage /></ProtectedRoute>} />
             <Route path="/painel/financeiro" element={<ProtectedRoute><SellerFinancialPage /></ProtectedRoute>} />
-            <Route path="/painel/stripe-onboarding" element={<ProtectedRoute><StripeOnboardingPage /></ProtectedRoute>} />
+            {/* Stripe Connect aposentado (migração p/ Pagar.me): redireciona ao recebedor. */}
+            <Route path="/painel/stripe-onboarding" element={<Navigate to="/painel/recebedor" replace />} />
             <Route path="/painel/recebedor" element={<ProtectedRoute><RecipientOnboardingPage /></ProtectedRoute>} />
             <Route path="/painel/mensagens" element={<ProtectedRoute><SellerMessagesPage /></ProtectedRoute>} />
             <Route path="/painel/configuracoes" element={<ProtectedRoute><SellerSettingsPage /></ProtectedRoute>} />
