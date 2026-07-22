@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { PlusCircle, Search, MoreHorizontal, Eye, Pencil, Pause, Play, Trash2, Loader2, Upload, Sparkles, Rocket } from 'lucide-react';
+import { PlusCircle, Search, MoreHorizontal, Eye, Pencil, Pause, Play, Trash2, Loader2, Upload, Sparkles, Rocket, Copy, Package, SearchX } from 'lucide-react';
 import SellerLayout from '@/components/layout/SellerLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,6 +8,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { formatBRL, conditionLabel } from '@/lib/mock-data';
 import { isListingFeatured } from '@/lib/api';
 import { useMyListings, useDeleteListing, useTogglePauseListing, usePublishListing, useMyFounder, useUseFounderCredit } from '@/hooks/use-api';
+import type { Listing } from '@/lib/api';
+import EmptyState from '@/components/EmptyState';
+import { saveDraft, draftFromListing } from '@/lib/listing-draft';
+import { hasLaunched } from '@/lib/launch';
+import { toast } from 'sonner';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -62,6 +67,22 @@ export default function SellerListings() {
     if (search && !p.title.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
+
+  const semAnuncios = (myProducts || []).length === 0;
+  const filtroAtivo = activeTab !== 'todos' || search.trim() !== '';
+
+  /**
+   * Duplicar: grava uma cópia do anúncio como rascunho e abre o wizard já
+   * preenchido. Poupa o vendedor de repetir categoria, condição, descrição e
+   * dimensões a cada item parecido (o caso de quem tem estoque).
+   */
+  const duplicar = (product: Listing) => {
+    saveDraft(draftFromListing(product));
+    toast.success('Cópia criada', {
+      description: 'Ajuste o título e envie as fotos deste item.',
+    });
+    navigate('/painel/anuncios/novo');
+  };
 
   return (
     <SellerLayout>
@@ -123,12 +144,43 @@ export default function SellerListings() {
             <p className="font-heading text-lg font-bold text-muted-foreground uppercase">Buscando seus anúncios...</p>
           </div>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-16">
-            <p className="text-muted-foreground mb-4">Nenhum anúncio encontrado.</p>
-            <Button variant="kolecta" asChild>
-              <Link to="/painel/anuncios/novo">Criar primeiro anúncio</Link>
-            </Button>
-          </div>
+          semAnuncios ? (
+            // Vitrine vazia: convite, não só um aviso. Durante o pré-lançamento
+            // puxa o gancho da seleção de Fundador, que é o que move o vendedor.
+            <EmptyState
+              icon={Package}
+              title="Sua vitrine está vazia"
+              description={
+                hasLaunched()
+                  ? 'Crie seu primeiro anúncio e comece a vender para colecionadores de todo o Brasil.'
+                  : 'Crie seus primeiros anúncios e concorra a uma das 100 vagas de Membro Fundador. O resultado sai no lançamento.'
+              }
+              action={
+                <Button variant="kolecta" asChild>
+                  <Link to="/painel/anuncios/novo">
+                    <PlusCircle className="h-4 w-4" /> Criar primeiro anúncio
+                  </Link>
+                </Button>
+              }
+            />
+          ) : (
+            // Tem anúncio, só não bateu com o filtro: não faz sentido convidar a criar.
+            <EmptyState
+              icon={SearchX}
+              title="Nenhum anúncio com esse filtro"
+              description="Tente outra aba ou limpe a busca."
+              action={
+                filtroAtivo ? (
+                  <Button
+                    variant="outline"
+                    onClick={() => { setActiveTab('todos'); setSearch(''); }}
+                  >
+                    Limpar filtros
+                  </Button>
+                ) : undefined
+              }
+            />
+          )
         ) : (
           <div className="space-y-3">
             {filtered.map((product) => {
@@ -192,6 +244,9 @@ export default function SellerListings() {
                         </DropdownMenuItem>
                         <DropdownMenuItem className="gap-2 text-sm" onClick={() => navigate(`/painel/anuncios/${product.id}/editar`)}>
                           <Pencil className="h-3.5 w-3.5" /> Editar
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="gap-2 text-sm" onClick={() => duplicar(product)}>
+                          <Copy className="h-3.5 w-3.5" /> Duplicar
                         </DropdownMenuItem>
                         {(product.status === 'draft' || product.status === 'pending_review') && (
                           <DropdownMenuItem

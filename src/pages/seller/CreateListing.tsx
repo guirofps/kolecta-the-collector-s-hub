@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, ArrowRight, Check, ShoppingCart, Gavel, Upload,
-  X, ImagePlus, AlertCircle, Eye, Loader2, Sparkles,
+  X, ImagePlus, AlertCircle, Eye, Loader2, Sparkles, Copy,
 } from 'lucide-react';
 import SellerLayout from '@/components/layout/SellerLayout';
 import { Button } from '@/components/ui/button';
@@ -19,6 +19,7 @@ import { trackEvent } from '@/lib/analytics';
 import { COMMISSION_RATE, COMMISSION_LABEL } from '@/lib/fees';
 import { categoryArt } from '@/lib/category-art';
 import { parsePriceToCents } from '@/lib/currency';
+import { loadDraft, saveDraft, clearDraft } from '@/lib/listing-draft';
 import { CONDITIONS } from '@/lib/conditions';
 import { useCreateListing, useUploadImage, useCategories, useAddresses } from '@/hooks/use-api';
 import type { CreateListingPayload } from '@/lib/api';
@@ -176,22 +177,8 @@ const MIN_DESCRIPTION = 30;
 const MIN_PHOTOS = 3;
 const MAX_PHOTOS = 8;
 
-// ─── Rascunho automático ─────────────────────────────────────
-// O wizard guarda o progresso no navegador: fechar a aba no meio não perde
-// mais o anúncio. O rascunho é limpo no envio com sucesso ou no descarte.
-const DRAFT_KEY = 'kolecta:listing-draft';
-
-function loadDraft(): { form: FormData; step: number } | null {
-  try {
-    const raw = localStorage.getItem(DRAFT_KEY);
-    if (!raw) return null;
-    const d = JSON.parse(raw);
-    if (!d || typeof d !== 'object' || !d.form) return null;
-    return d;
-  } catch {
-    return null;
-  }
-}
+// Rascunho automático e "Duplicar" vivem em @/lib/listing-draft (fonte única,
+// compartilhada com a lista de anúncios).
 
 // ─── Título sugerido a partir dos campos da categoria ────────
 function suggestTitle(slug: string | undefined, f: Record<string, any>): string {
@@ -229,10 +216,12 @@ const conditions = CONDITIONS;
 
 export default function CreateListing() {
   // Recupera o rascunho salvo (se houver) uma única vez, na montagem.
+  // Pode ser retomada de um rascunho ou uma cópia vinda do "Duplicar".
   const [draft] = useState(loadDraft);
+  const isCopy = draft?.origin === 'duplicate';
   const [step, setStep] = useState(draft?.step ?? 1);
   const [form, setForm] = useState<FormData>(
-    draft ? { ...initialForm, ...draft.form } : initialForm,
+    draft ? { ...initialForm, ...(draft.form as Partial<FormData>) } : initialForm,
   );
   const [showDraftNotice, setShowDraftNotice] = useState(!!draft);
   // Quantos uploads estão em voo (o wizard aceita vários arquivos de uma vez).
@@ -242,17 +231,11 @@ export default function CreateListing() {
   useEffect(() => {
     const hasContent = form.type !== null || form.title.trim() !== '' || form.photos.length > 0;
     if (!hasContent) return;
-    try {
-      localStorage.setItem(DRAFT_KEY, JSON.stringify({ form, step }));
-    } catch {
-      // storage cheio/indisponível: rascunho é conveniência, não requisito
-    }
-  }, [form, step]);
+    saveDraft({ form, step, origin: draft?.origin, sourceTitle: draft?.sourceTitle });
+  }, [form, step, draft]);
 
   const discardDraft = () => {
-    try {
-      localStorage.removeItem(DRAFT_KEY);
-    } catch { /* ignora */ }
+    clearDraft();
     setForm(initialForm);
     setStep(1);
     setShowDraftNotice(false);
@@ -382,9 +365,7 @@ export default function CreateListing() {
     createListing.mutate(payload, {
       onSuccess: () => {
         // Anúncio enviado: o rascunho local já cumpriu o papel.
-        try {
-          localStorage.removeItem(DRAFT_KEY);
-        } catch { /* ignora */ }
+        clearDraft();
         navigate('/painel/anuncios');
       },
     });
@@ -431,13 +412,22 @@ export default function CreateListing() {
           </div>
         </div>
 
-        {/* Aviso de rascunho recuperado */}
+        {/* Aviso de rascunho recuperado ou de cópia ("Duplicar") */}
         {showDraftNotice && (
           <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-md border border-primary/30 bg-primary/5 p-3">
-            <div className="flex items-center gap-2">
-              <Check className="h-4 w-4 shrink-0 text-primary" />
+            <div className="flex items-start gap-2">
+              {isCopy
+                ? <Copy className="h-4 w-4 shrink-0 text-primary mt-0.5" />
+                : <Check className="h-4 w-4 shrink-0 text-primary mt-0.5" />}
               <span className="text-xs text-foreground">
-                Recuperamos seu rascunho. Continue de onde parou.
+                {isCopy ? (
+                  <>
+                    Cópia de <strong>{draft?.sourceTitle || 'um anúncio seu'}</strong>. Ajuste o
+                    título e envie as fotos deste item.
+                  </>
+                ) : (
+                  <>Recuperamos seu rascunho. Continue de onde parou.</>
+                )}
               </span>
             </div>
             <div className="flex items-center gap-2">
