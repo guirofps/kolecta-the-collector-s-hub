@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Disparo de e-mail: credenciais, base de contatos e previews nunca vão pro repo
+scripts/email-fundadores/.env
+scripts/email-fundadores/*.csv
+scripts/email-fundadores/preview/
+scripts/email-fundadores/enviados.json
