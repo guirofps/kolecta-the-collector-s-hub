@@ -21,6 +21,7 @@ import { categoryArt } from '@/lib/category-art';
 import { parsePriceToCents } from '@/lib/currency';
 import { loadDraft, saveDraft, clearDraft } from '@/lib/listing-draft';
 import { CONDITIONS } from '@/lib/conditions';
+import { fieldsForCategory, formatFieldValue, isFieldApplicable } from '@/lib/category-fields';
 import { useCreateListing, useUploadImage, useCategories, useAddresses } from '@/hooks/use-api';
 import type { CreateListingPayload } from '@/lib/api';
 
@@ -260,16 +261,18 @@ export default function CreateListing() {
     setForm((prev) => ({ ...prev, [field]: value })); 
   };
 
-  // Campos obrigatórios por categoria (além dos comuns).
+  // Campos obrigatórios por categoria (além dos comuns). A lista vive em
+  // @/lib/category-fields, mesma fonte que a moderação usa para saber o que
+  // cobrar. Antes eram duas listas soltas e elas divergiram: o painel do admin
+  // cobrava escala de carta colecionável, que o wizard nem pergunta.
   const missingCategoryField = (): string | null => {
-    const slug = slugOf(form.category);
-    const f = form.categoryFields ?? {};
-    if (slug === 'miniaturas-diecast' && (!f.brand || !f.scale)) return 'Preencha marca e escala';
-    if (slug === 'cards-colecionaveis' && !f.jogo) return 'Escolha o jogo/universo';
-    if (slug === 'action-figures' && (!f.brand || !f.line || !f.personagem)) return 'Preencha marca, linha e personagem';
-    if (slug === 'funko-pop' && (!f.numero || !f.line)) return 'Preencha o número do Pop e a linha';
-    if (slug === 'mangas-hqs' && !f.tituloObra) return 'Preencha o título da obra';
-    return null;
+    const valores = form.categoryFields ?? {};
+    const faltando = fieldsForCategory(slugOf(form.category))
+      .filter((campo) => campo.required && isFieldApplicable(campo, valores))
+      .filter((campo) => formatFieldValue(valores[campo.key]) === null);
+    if (faltando.length === 0) return null;
+    const nomes = faltando.map((c) => c.label.toLowerCase());
+    return `Preencha ${nomes.length > 1 ? nomes.slice(0, -1).join(', ') + ' e ' + nomes.at(-1) : nomes[0]}`;
   };
 
   // O que falta no passo atual. `null` = pode avançar.

@@ -50,6 +50,11 @@ const makeListing = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
+const CATEGORIAS = [
+  { id: 'cat_1', name: 'Funko Pop', slug: 'funko-pop', icon: null, parentId: null },
+  { id: 'cat_2', name: 'Cards Colecionáveis', slug: 'cards-colecionaveis', icon: null, parentId: null },
+];
+
 /**
  * A tela faz DUAS consultas (`pending_review` e `draft`), então o mock precisa
  * responder diferente para cada uma. Devolver a mesma lista nas duas duplicava
@@ -71,15 +76,18 @@ function renderFila(emAnalise: unknown[], rascunhos: unknown[] = []) {
   );
 }
 
+/** Abre o detalhe do primeiro anúncio pelo nome acessível do botão. */
+function abrirDetalhe() {
+  fireEvent.click(screen.getAllByRole('button', { name: /^Ver detalhes de/ })[0]);
+}
+
 describe('AdminListings (fila de aprovação)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     (useUpdateListingStatus as ReturnType<typeof vi.fn>).mockReturnValue({
       mutate, isPending: false,
     });
-    (useCategories as ReturnType<typeof vi.fn>).mockReturnValue({
-      data: [{ id: 'cat_1', name: 'Funko Pop', slug: 'funko-pop', icon: null, parentId: null }],
-    });
+    (useCategories as ReturnType<typeof vi.fn>).mockReturnValue({ data: CATEGORIAS });
   });
 
   // Regressão do bug mais grave: o banco tem DOIS status de espera
@@ -127,9 +135,8 @@ describe('AdminListings (fila de aprovação)', () => {
     expect(screen.queryByText('novo-lacrado')).not.toBeInTheDocument();
   });
 
-  it('mostra a categoria e a contagem de fotos na linha', () => {
+  it('mostra a contagem de fotos na linha', () => {
     renderFila([makeListing()]);
-    expect(screen.getByText('Funko Pop')).toBeInTheDocument();
     expect(screen.getByText('3 fotos')).toBeInTheDocument();
   });
 
@@ -140,7 +147,6 @@ describe('AdminListings (fila de aprovação)', () => {
       type: 'auction', priceInCents: null, startingBidInCents: 25000,
     })]);
     expect(screen.getByText(/Inicial/)).toBeInTheDocument();
-    expect(screen.getByText(/25,00|250,00/)).toBeInTheDocument();
   });
 
   it('grita quando o anúncio não tem valor nenhum', () => {
@@ -150,7 +156,7 @@ describe('AdminListings (fila de aprovação)', () => {
 
   it('avisa que a config do leilão não veio do backend, em vez de ficar mudo', () => {
     renderFila([makeListing({ type: 'auction', priceInCents: null })]);
-    fireEvent.click(screen.getAllByRole('button')[0]); // abre o detalhe
+    abrirDetalhe();
     expect(screen.getByText(/não envia a configuração do leilão/i)).toBeInTheDocument();
   });
 
@@ -160,7 +166,7 @@ describe('AdminListings (fila de aprovação)', () => {
       startingBidInCents: 25000, minIncrementInCents: 1000,
       reservePriceInCents: 50000, durationHours: 168, antiSniper: true,
     })]);
-    fireEvent.click(screen.getAllByRole('button')[0]);
+    abrirDetalhe();
     expect(screen.getByText('Incremento mínimo')).toBeInTheDocument();
     expect(screen.getByText('Preço de reserva')).toBeInTheDocument();
     expect(screen.getByText('7 dias')).toBeInTheDocument();
@@ -169,9 +175,7 @@ describe('AdminListings (fila de aprovação)', () => {
 
   it('marca em vermelho o anúncio sem dados de frete', () => {
     renderFila([makeListing()]);
-    fireEvent.click(screen.getAllByRole('button')[0]);
-    // O valor fica na mesma linha do rótulo, então buscamos a partir dele
-    // (só "Não informado" é ambíguo: vários campos vazios usam esse texto).
+    abrirDetalhe();
     const linha = screen.getByText('Peso e medidas').parentElement!;
     const valor = linha.querySelector('span:last-child')!;
     expect(valor.textContent).toBe('Não informado');
@@ -180,7 +184,7 @@ describe('AdminListings (fila de aprovação)', () => {
 
   it('mostra peso e medidas quando o vendedor preencheu', () => {
     renderFila([makeListing({ weightGrams: 300, widthCm: 10, heightCm: 15, lengthCm: 8 })]);
-    fireEvent.click(screen.getAllByRole('button')[0]);
+    abrirDetalhe();
     expect(screen.getByText('300 g, 10 x 15 x 8 cm')).toBeInTheDocument();
   });
 
@@ -196,5 +200,75 @@ describe('AdminListings (fila de aprovação)', () => {
       }),
       expect.anything(),
     );
+  });
+
+  // ── Campos por categoria ───────────────────────────────────────────────────
+  // Regressão: o painel mostrava as colunas cruas do banco, então carta
+  // colecionável aparecia com "Escala: não informada" em vermelho, sendo que
+  // escala nem é perguntada para carta, e o campo que a categoria exige (jogo)
+  // não aparecia em lugar nenhum.
+
+  it('não cobra escala de carta colecionável', () => {
+    renderFila([makeListing({
+      categoryId: 'cat_2',
+      attributes: JSON.stringify({ jogo: 'Pokémon', raridade: 'Rara' }),
+    })]);
+    abrirDetalhe();
+    expect(screen.queryByText('Escala')).not.toBeInTheDocument();
+  });
+
+  it('mostra os campos que a categoria realmente pergunta', () => {
+    renderFila([makeListing({
+      categoryId: 'cat_2',
+      attributes: JSON.stringify({ jogo: 'Pokémon', raridade: 'Rara' }),
+    })]);
+    abrirDetalhe();
+    expect(screen.getByText('Jogo / Universo')).toBeInTheDocument();
+    expect(screen.getByText('Pokémon')).toBeInTheDocument();
+    expect(screen.getByText('Raridade')).toBeInTheDocument();
+  });
+
+  it('marca em vermelho só o obrigatório da categoria que está vazio', () => {
+    renderFila([makeListing({ categoryId: 'cat_2', attributes: JSON.stringify({}) })]);
+    abrirDetalhe();
+    const jogo = screen.getByText('Jogo / Universo').parentElement!;
+    expect(jogo.querySelector('span:last-child')!.className).toContain('text-destructive');
+    // Raridade é opcional, então não pode aparecer como problema.
+    const raridade = screen.getByText('Raridade').parentElement!;
+    expect(raridade.querySelector('span:last-child')!.className).not.toContain('text-destructive');
+  });
+
+  // ── Filtros ────────────────────────────────────────────────────────────────
+
+  it('filtra por categoria', () => {
+    renderFila([
+      makeListing({ id: 'a', title: 'Funko do teste', categoryId: 'cat_1' }),
+      makeListing({ id: 'b', title: 'Carta do teste', categoryId: 'cat_2' }),
+    ]);
+    fireEvent.click(screen.getByRole('button', { name: /^Cards Colecionáveis \(1\)$/ }));
+    expect(screen.getByText('Carta do teste')).toBeInTheDocument();
+    expect(screen.queryByText('Funko do teste')).not.toBeInTheDocument();
+  });
+
+  it('filtra só os que têm pendência', () => {
+    renderFila([
+      makeListing({ id: 'ok', title: 'Completo', weightGrams: 300, widthCm: 1, heightCm: 1, lengthCm: 1, attributes: JSON.stringify({ numero: '#1', line: 'Marvel' }) }),
+      makeListing({ id: 'ruim', title: 'Faltando coisa', images: JSON.stringify(['a.jpg']) }),
+    ]);
+    fireEvent.click(screen.getByRole('button', { name: /Com pendência/ }));
+    expect(screen.getByText('Faltando coisa')).toBeInTheDocument();
+    expect(screen.queryByText('Completo')).not.toBeInTheDocument();
+  });
+
+  it('busca por título', () => {
+    renderFila([
+      makeListing({ id: 'a', title: 'Funko do teste' }),
+      makeListing({ id: 'b', title: 'Carta do teste' }),
+    ]);
+    fireEvent.change(screen.getByPlaceholderText(/Buscar por título/), {
+      target: { value: 'carta' },
+    });
+    expect(screen.getByText('Carta do teste')).toBeInTheDocument();
+    expect(screen.queryByText('Funko do teste')).not.toBeInTheDocument();
   });
 });

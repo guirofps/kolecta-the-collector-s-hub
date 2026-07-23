@@ -14,6 +14,9 @@ import { formatBRL } from '@/lib/currency';
 // (mint, near_mint...) e não batia com o que o wizard salva (`novo-lacrado`),
 // então a fila mostrava o código cru em todo anúncio.
 import { conditionLabel } from '@/lib/conditions';
+import {
+  fieldsForCategory, parseAttributes, formatFieldValue, isFieldApplicable,
+} from '@/lib/category-fields';
 
 const rejectReasons = [
   'Fotos insuficientes ou de baixa qualidade',
@@ -45,6 +48,17 @@ function valorPrincipal(l: Listing): string | null {
   return l.type === 'auction' ? brl(l.startingBidInCents) : brl(l.priceInCents);
 }
 
+/** Botão de filtro. `perigo` marca os que apontam problema. */
+function Chip({ ativo, onClick, perigo, children }: {
+  ativo: boolean; onClick: () => void; perigo?: boolean; children: React.ReactNode;
+}) {
+  const base = 'rounded-md px-2.5 py-1 text-xs font-medium transition-colors';
+  const cor = ativo
+    ? perigo ? 'bg-destructive/15 text-destructive' : 'bg-accent/15 text-accent'
+    : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground';
+  return <button type="button" onClick={onClick} className={`${base} ${cor}`}>{children}</button>;
+}
+
 /** Uma linha de dado no painel de revisão. `alerta` pinta de vermelho o que falta. */
 function Dado({ rotulo, valor, alerta }: { rotulo: string; valor: React.ReactNode; alerta?: boolean }) {
   return (
@@ -55,6 +69,23 @@ function Dado({ rotulo, valor, alerta }: { rotulo: string; valor: React.ReactNod
       </span>
     </div>
   );
+}
+
+/**
+ * Valores dos campos da categoria. `attributes` é a fonte; as colunas do topo
+ * (brand/line/scale/year/edition) entram como reserva porque anúncio antigo foi
+ * gravado antes de o wizard passar a mandar o JSON.
+ */
+function valoresDoAnuncio(l: Listing): Record<string, unknown> {
+  const attrs = parseAttributes(l.attributes);
+  const reserva: Record<string, unknown> = {
+    brand: l.brand, line: l.line, scale: l.scale, year: l.year, edition: l.edition,
+  };
+  const saida: Record<string, unknown> = { ...reserva };
+  for (const [k, v] of Object.entries(attrs)) {
+    if (formatFieldValue(v) !== null) saida[k] = v;
+  }
+  return saida;
 }
 
 /** Peso e dimensões: frete errado sai caro, então a falta precisa aparecer. */
@@ -92,7 +123,7 @@ export default function AdminListings() {
   const listaRascunho = rascunho.data ?? [];
 
   // Mais antigo primeiro: quem enviou antes é revisado antes.
-  const listings = [...listaRevisao, ...listaRascunho].sort(
+  const todos = [...listaRevisao, ...listaRascunho].sort(
     (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
   );
 
@@ -102,18 +133,74 @@ export default function AdminListings() {
   // estar na revisão. A API do anúncio devolve só o id.
   const nomeCategoria = (id: string | null) =>
     categorias.find((c) => c.id === id)?.name ?? null;
+  const slugCategoria = (id: string | null) =>
+    categorias.find((c) => c.id === id)?.slug ?? null;
 
   const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [rejectNotes, setRejectNotes] = useState('');
   const [detailOpen, setDetailOpen] = useState(false);
+  const [filtroCategoria, setFiltroCategoria] = useState<string>('todas');
+  const [filtroTipo, setFiltroTipo] = useState<'todos' | 'direct' | 'auction'>('todos');
+  const [soPendencia, setSoPendencia] = useState(false);
+  const [busca, setBusca] = useState('');
 
   // Qual anúncio está sendo moderado agora. Sem isso, `updateStatus.isPending`
   // é global e uma única aprovação punha spinner e travava o botão das 176
   // linhas ao mesmo tempo, parecendo que a tela inteira congelou.
   const [emAndamento, setEmAndamento] = useState<string | null>(null);
   const ocupado = (id: string) => emAndamento === id;
+
+  /**
+   * O que está faltando neste anúncio. Alimenta o selo na linha e o filtro
+   * "só com pendência", que é o que permite achar problema no meio de 600.
+   */
+  const pendenciasDe = (l: Listing): string[] => {
+    const faltas: string[] = [];
+    const fotos = parseImages(l.images).length;
+    if (fotos < 3) faltas.push(`${fotos} ${fotos === 1 ? 'foto' : 'fotos'}`);
+    if (!l.categoryId) faltas.push('sem categoria');
+    if (valorPrincipal(l) === null) faltas.push('sem valor');
+    if (resumoFrete(l).faltando) faltas.push('frete incompleto');
+
+    const valores = valoresDoAnuncio(l);
+    const obrigatoriosVazios = fieldsForCategory(slugCategoria(l.categoryId))
+      .filter((c) => c.required && isFieldApplicable(c, valores))
+      .filter((c) => formatFieldValue(valores[c.key]) === null);
+    if (obrigatoriosVazios.length) {
+      faltas.push(obrigatoriosVazios.map((c) => c.label.toLowerCase()).join(', '));
+    }
+    return faltas;
+  };
+
+  // Contagem por categoria sobre a fila inteira, para os chips não mentirem
+  // quando um filtro já está aplicado.
+  const contagemPorCategoria = todos.reduce<Record<string, number>>((acc, l) => {
+    const chave = l.categoryId ?? 'sem-categoria';
+    acc[chave] = (acc[chave] ?? 0) + 1;
+    return acc;
+  }, {});
+
+  const categoriasNaFila = categorias
+    .filter((c) => contagemPorCategoria[c.id] > 0)
+    .sort((a, b) => contagemPorCategoria[b.id] - contagemPorCategoria[a.id]);
+
+  const termo = busca.trim().toLowerCase();
+  const listings = todos.filter((l) => {
+    if (filtroCategoria === 'sem-categoria') {
+      if (l.categoryId != null) return false;
+    } else if (filtroCategoria !== 'todas' && l.categoryId !== filtroCategoria) {
+      return false;
+    }
+    if (filtroTipo !== 'todos' && l.type !== filtroTipo) return false;
+    if (soPendencia && pendenciasDe(l).length === 0) return false;
+    if (termo && !l.title.toLowerCase().includes(termo) && !(l.sellerName ?? '').toLowerCase().includes(termo)) return false;
+    return true;
+  });
+
+  const totalComPendencia = todos.filter((l) => pendenciasDe(l).length > 0).length;
+  const filtroAtivo = filtroCategoria !== 'todas' || filtroTipo !== 'todos' || soPendencia || termo !== '';
 
   const handleApprove = (id: string) => {
     setEmAndamento(id);
@@ -194,7 +281,9 @@ export default function AdminListings() {
           <div>
             <h1 className="font-heading text-2xl font-extrabold italic uppercase">Fila de Aprovação</h1>
             <p className="text-sm text-muted-foreground mt-1">
-              {listings.length} anúncios aguardando revisão
+              {filtroAtivo
+                ? `${listings.length} de ${todos.length} anúncios`
+                : `${todos.length} anúncios aguardando revisão`}
               {listaRevisao.length > 0 && listaRascunho.length > 0 && (
                 <span className="text-xs">
                   {' '}({listaRevisao.length} em análise, {listaRascunho.length} em rascunho)
@@ -229,6 +318,52 @@ export default function AdminListings() {
             </p>
           </div>
         )}
+
+        {/* Filtros. Com 600 anúncios numa lista corrida não dá para revisar
+            nada; agrupar por categoria deixa o olho calibrado num tipo de item
+            por vez, e "com pendência" acha o problema no meio do monte. */}
+        <div className="mb-5 space-y-3 rounded-lg border border-border bg-card/50 p-3">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="mr-1 text-[10px] font-heading uppercase tracking-wider text-muted-foreground">Categoria</span>
+            <Chip ativo={filtroCategoria === 'todas'} onClick={() => setFiltroCategoria('todas')}>
+              Todas ({todos.length})
+            </Chip>
+            {categoriasNaFila.map((c) => (
+              <Chip key={c.id} ativo={filtroCategoria === c.id} onClick={() => setFiltroCategoria(c.id)}>
+                {c.name} ({contagemPorCategoria[c.id]})
+              </Chip>
+            ))}
+            {contagemPorCategoria['sem-categoria'] > 0 && (
+              <Chip
+                ativo={filtroCategoria === 'sem-categoria'}
+                onClick={() => setFiltroCategoria('sem-categoria')}
+                perigo
+              >
+                Sem categoria ({contagemPorCategoria['sem-categoria']})
+              </Chip>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="mr-1 text-[10px] font-heading uppercase tracking-wider text-muted-foreground">Tipo</span>
+            <Chip ativo={filtroTipo === 'todos'} onClick={() => setFiltroTipo('todos')}>Todos</Chip>
+            <Chip ativo={filtroTipo === 'direct'} onClick={() => setFiltroTipo('direct')}>Venda direta</Chip>
+            <Chip ativo={filtroTipo === 'auction'} onClick={() => setFiltroTipo('auction')}>Modo Lance</Chip>
+
+            <span className="mx-2 h-4 w-px bg-border" />
+            <Chip ativo={soPendencia} onClick={() => setSoPendencia((v) => !v)} perigo>
+              Com pendência ({totalComPendencia})
+            </Chip>
+          </div>
+
+          <input
+            type="text"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            placeholder="Buscar por título ou vendedor..."
+            className="h-9 w-full rounded-md border border-border bg-input px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+        </div>
 
         {/* Listing queue */}
         <AnimatePresence>
@@ -283,18 +418,34 @@ export default function AdminListings() {
                               {imgs.length} {imgs.length === 1 ? 'foto' : 'fotos'}
                             </span>
                           </div>
-                          <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                          <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
                             <span>Vendedor: <span className="text-foreground">{listing.sellerName || listing.sellerId}</span></span>
                             <span className="flex items-center gap-1">
                               <Clock className="h-3 w-3" />
                               {timeAgo(listing.createdAt)}
                             </span>
+                            {/* Resumo do que falta, para dar pra triar sem abrir. */}
+                            {(() => {
+                              const faltas = pendenciasDe(listing);
+                              if (faltas.length === 0) return null;
+                              return (
+                                <span className="rounded bg-destructive/10 px-1.5 py-0.5 text-destructive">
+                                  {faltas.join(' · ')}
+                                </span>
+                              );
+                            })()}
                           </div>
                         </div>
 
                         {/* Actions */}
                         <div className="flex items-center gap-2 shrink-0">
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openDetail(listing)}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => openDetail(listing)}
+                            aria-label={`Ver detalhes de ${listing.title}`}
+                          >
                             <Eye className="h-4 w-4" />
                           </Button>
                           <Button
@@ -332,11 +483,31 @@ export default function AdminListings() {
         </AnimatePresence>
 
         {listings.length === 0 && (
-          <div className="text-center py-20">
-            <Check className="h-12 w-12 text-green-400 mx-auto mb-4" />
-            <h2 className="font-heading text-xl font-bold uppercase mb-2">Tudo revisado!</h2>
-            <p className="text-sm text-muted-foreground">Não há anúncios pendentes de aprovação.</p>
-          </div>
+          filtroAtivo ? (
+            <div className="py-16 text-center">
+              <AlertCircle className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">Nenhum anúncio com esse filtro.</p>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="mt-3"
+                onClick={() => {
+                  setFiltroCategoria('todas');
+                  setFiltroTipo('todos');
+                  setSoPendencia(false);
+                  setBusca('');
+                }}
+              >
+                Limpar filtros
+              </Button>
+            </div>
+          ) : (
+            <div className="text-center py-20">
+              <Check className="h-12 w-12 text-green-400 mx-auto mb-4" />
+              <h2 className="font-heading text-xl font-bold uppercase mb-2">Tudo revisado!</h2>
+              <p className="text-sm text-muted-foreground">Não há anúncios pendentes de aprovação.</p>
+            </div>
+          )
         )}
 
         {/* Detail dialog */}
@@ -380,11 +551,42 @@ export default function AdminListings() {
                       <p className="mb-1 text-[10px] font-heading uppercase tracking-wider text-muted-foreground">Item</p>
                       <Dado rotulo="Categoria" valor={nomeCategoria(selectedListing.categoryId) ?? 'Sem categoria'} alerta={!selectedListing.categoryId} />
                       <Dado rotulo="Condição" valor={conditionLabel(selectedListing.condition) || 'Não informada'} alerta={!selectedListing.condition} />
-                      <Dado rotulo="Marca" valor={selectedListing.brand || 'Não informada'} alerta={!selectedListing.brand} />
-                      <Dado rotulo="Linha" valor={selectedListing.line || 'Não informada'} />
-                      <Dado rotulo="Escala" valor={selectedListing.scale || 'Não informada'} />
-                      <Dado rotulo="Ano" valor={selectedListing.year || 'Não informado'} />
-                      <Dado rotulo="Edição" valor={selectedListing.edition || 'Não informada'} />
+
+                      {/* Só os campos que ESTA categoria pergunta. Antes aqui
+                          saíam as colunas cruas do banco, então carta aparecia
+                          com "Escala: não informada" em vermelho, sendo que
+                          escala nem é perguntada para carta. */}
+                      {(() => {
+                        const slug = slugCategoria(selectedListing.categoryId);
+                        const campos = fieldsForCategory(slug);
+                        const valores = valoresDoAnuncio(selectedListing);
+
+                        if (campos.length === 0) {
+                          return (
+                            <Dado
+                              rotulo="Detalhes"
+                              valor={slug ? 'Categoria sem campos definidos' : 'Categoria desconhecida'}
+                              alerta
+                            />
+                          );
+                        }
+
+                        return campos
+                          .filter((campo) => isFieldApplicable(campo, valores))
+                          .map((campo) => {
+                            const texto = formatFieldValue(valores[campo.key]);
+                            return (
+                              <Dado
+                                key={campo.key}
+                                rotulo={campo.label}
+                                valor={texto ?? (campo.required ? 'Faltando' : 'Não informado')}
+                                // Vermelho só no que a categoria realmente exige.
+                                alerta={campo.required && !texto}
+                              />
+                            );
+                          });
+                      })()}
+
                       <Dado rotulo="Fotos" valor={`${imgs.length} de 8`} alerta={imgs.length < 3} />
                     </div>
 
