@@ -442,7 +442,7 @@ export default function SellerProfilePage() {
                     </div>
                     <div>
                       <p className="font-heading font-semibold mb-1">Pagamento</p>
-                      <p className="text-muted-foreground">PIX, cartão de crédito e boleto via plataforma</p>
+                      <p className="text-muted-foreground">PIX e cartão de crédito via plataforma</p>
                     </div>
                   </div>
                 </div>

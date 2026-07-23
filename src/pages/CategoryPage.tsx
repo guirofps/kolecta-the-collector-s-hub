@@ -5,6 +5,9 @@ import ProductCard from '@/components/ProductCard';
 import { useListings, useCategories } from '@/hooks/use-api';
 import { Button } from '@/components/ui/button';
 import { onlyPublic } from '@/lib/listing-visibility';
+import {
+  subcategoriaField, normalizeSubcategoria, parseAttributes, formatFieldValue,
+} from '@/lib/category-fields';
 import type { ProductCondition, Product } from '@/lib/mock-data';
 import type { Listing } from '@/lib/api';
 
@@ -91,6 +94,7 @@ type FiltroTipo = 'todos' | 'direct' | 'auction';
 export default function CategoryPage() {
   const { slug } = useParams<{ slug: string }>();
   const [filtroTipo, setFiltroTipo] = useState<FiltroTipo>('todos');
+  const [filtroSub, setFiltroSub] = useState<string>('todas');
   // F29: antes passava o slug como `q` (busca de TEXTO), então procurava itens
   // com "funko-pop" no título → sempre vazio. Agora buscamos os anúncios e
   // filtramos pela CATEGORIA real (id resolvido pelo slug via API).
@@ -113,9 +117,36 @@ export default function CategoryPage() {
 
   const totalDireta = daCategoria.filter((l) => l.type === 'direct').length;
   const totalLeilao = daCategoria.filter((l) => l.type === 'auction').length;
-  const products = filtroTipo === 'todos'
-    ? daCategoria
-    : daCategoria.filter((l) => l.type === filtroTipo);
+
+  // ─── Subcategoria (a "prateleira" dentro da categoria) ───
+  // O valor vem de `attributes`, com as colunas do topo como reserva, e passa
+  // pela normalização: sem ela, os 22 anúncios de Hot Wheels ficariam em 5
+  // grupos por causa da grafia. Quem não encaixa em nada vira "Outros".
+  const sub = subcategoriaField(slug);
+  const OUTROS = 'Outros';
+
+  const subDe = (l: Listing): string => {
+    if (!sub) return OUTROS;
+    const attrs = parseAttributes(l.attributes);
+    const bruto = formatFieldValue(attrs[sub.key])
+      ?? formatFieldValue((l as unknown as Record<string, unknown>)[sub.key])
+      ?? '';
+    return normalizeSubcategoria(bruto, sub.options ?? []) ?? OUTROS;
+  };
+
+  const contagemSub = daCategoria.reduce<Record<string, number>>((acc, l) => {
+    const s = subDe(l);
+    acc[s] = (acc[s] ?? 0) + 1;
+    return acc;
+  }, {});
+
+  // Só mostra prateleira que tem item, da maior para a menor, com "Outros" no fim.
+  const subsComItem = Object.keys(contagemSub)
+    .sort((a, b) => (a === OUTROS ? 1 : b === OUTROS ? -1 : contagemSub[b] - contagemSub[a]));
+
+  const products = daCategoria
+    .filter((l) => filtroTipo === 'todos' || l.type === filtroTipo)
+    .filter((l) => filtroSub === 'todas' || subDe(l) === filtroSub);
 
   if (!category) {
     return (
@@ -208,6 +239,43 @@ export default function CategoryPage() {
           </div>
         )}
 
+        {/* Prateleiras dentro da categoria. Sem isto, "Miniaturas" é uma pilha
+            de 52 itens misturando Hot Wheels, Majorette e Bburago. */}
+        {sub && subsComItem.length > 1 && (
+          <div className="mb-6">
+            <p className="mb-2 text-[10px] font-heading uppercase tracking-wider text-muted-foreground">
+              {sub.label}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setFiltroSub('todas')}
+                className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                  filtroSub === 'todas'
+                    ? 'bg-primary/15 text-primary'
+                    : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground'
+                }`}
+              >
+                Todas ({daCategoria.length})
+              </button>
+              {subsComItem.map((nome) => (
+                <button
+                  key={nome}
+                  type="button"
+                  onClick={() => setFiltroSub(nome)}
+                  className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                    filtroSub === nome
+                      ? 'bg-primary/15 text-primary'
+                      : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground'
+                  }`}
+                >
+                  {nome} ({contagemSub[nome]})
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {isLoading ? (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {Array.from({ length: 8 }).map((_, i) => (
@@ -220,10 +288,13 @@ export default function CategoryPage() {
           // clicou em "Modo Lance" seria mentira.
           daCategoria.length > 0 ? (
             <div className="py-16 text-center">
-              <p className="text-sm text-muted-foreground">
-                Nenhum item em {filtroTipo === 'auction' ? 'Modo Lance' : 'compra direta'} nesta categoria.
-              </p>
-              <Button variant="ghost" size="sm" className="mt-3" onClick={() => setFiltroTipo('todos')}>
+              <p className="text-sm text-muted-foreground">Nenhum item com esse filtro.</p>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="mt-3"
+                onClick={() => { setFiltroTipo('todos'); setFiltroSub('todas'); }}
+              >
                 Ver tudo de {category.name}
               </Button>
             </div>

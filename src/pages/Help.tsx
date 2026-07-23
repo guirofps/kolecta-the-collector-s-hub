@@ -43,9 +43,9 @@ const mockFAQs: Record<string, { q: string; a: string }[]> = {
     { q: 'Posso definir um valor de "Compre Já" no leilão?', a: 'Atualmente o Modo Lance opera exclusivamente por lances. Não há opção de "Compre Já" durante o leilão. Se desejar vender a um preço fixo, crie um anúncio padrão (preço fixo) ao invés de usar o Modo Lance.' },
   ],
   pagamentos: [
-    { q: 'Quais formas de pagamento são aceitas?', a: 'A Kolecta aceita cartão de crédito (Visa, Mastercard, Elo, American Express), Pix e boleto bancário. As opções disponíveis podem variar conforme o vendedor e o tipo de transação (compra direta ou Modo Lance).' },
+    { q: 'Quais formas de pagamento são aceitas?', a: 'A Kolecta aceita Pix e cartão de crédito (Visa, Mastercard, Elo, American Express). As opções disponíveis podem variar conforme o tipo de transação (compra direta ou Modo Lance).' },
     { q: 'Os pagamentos são seguros?', a: 'Sim. Todos os pagamentos são processados pelo Stripe, uma das maiores plataformas de pagamentos do mundo. Os dados do seu cartão são criptografados e nunca armazenados nos servidores da Kolecta. Utilizamos criptografia TLS/SSL em todas as transações.' },
-    { q: 'Posso parcelar minhas compras?', a: 'Sim, compras com cartão de crédito podem ser parceladas em até 12x, sujeito a juros da operadora do cartão. Compras via Pix e boleto são à vista. As condições de parcelamento são exibidas no checkout.' },
+    { q: 'Posso parcelar minhas compras?', a: 'Sim, compras com cartão de crédito podem ser parceladas em até 12x, sujeito a juros da operadora do cartão. Compras via Pix são à vista. As condições de parcelamento são exibidas no checkout.' },
     { q: 'Como funciona o reembolso?', a: 'Em caso de reembolso aprovado (por disputa, cancelamento ou estorno), o valor é devolvido pela mesma forma de pagamento original. Reembolsos em cartão de crédito podem levar até 2 faturas para aparecer. Reembolsos via Pix são processados em até 5 dias úteis.' },
     { q: 'O que é o saldo disponível do vendedor?', a: 'O saldo disponível é o valor que o vendedor já pode sacar para sua conta bancária. Ele é composto pelos valores de vendas concluídas (entrega confirmada) menos a comissão da Kolecta. Saques podem ser solicitados a partir de R$ 20,00.' },
   ],

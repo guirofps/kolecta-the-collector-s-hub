@@ -28,7 +28,7 @@ const mockArticles: Record<string, {
       { type: 'p', text: 'Antes de comprar, verifique a reputação do vendedor (número de vendas e avaliação média), leia a descrição completa do produto e analise todas as fotos disponíveis. Se tiver dúvidas, utilize o sistema de mensagens para falar diretamente com o vendedor.' },
       { type: 'highlight', text: 'Dica: Vendedores com o selo de verificação passaram pelo processo de KYC da Kolecta, o que adiciona uma camada extra de segurança à sua compra.' },
       { type: 'h3', text: 'Passo 3: Finalize a compra' },
-      { type: 'p', text: 'Adicione o produto ao carrinho e siga para o checkout. Escolha o endereço de entrega, o método de frete e a forma de pagamento. Aceitamos cartão de crédito, Pix e boleto bancário. Após a confirmação do pagamento, o vendedor será notificado para preparar o envio.' },
+      { type: 'p', text: 'Adicione o produto ao carrinho e siga para o checkout. Escolha o endereço de entrega, o método de frete e a forma de pagamento. Aceitamos Pix e cartão de crédito. Após a confirmação do pagamento, o vendedor será notificado para preparar o envio.' },
       { type: 'h3', text: 'Passo 4: Acompanhe e receba' },
       { type: 'p', text: 'Após o envio, o código de rastreamento ficará disponível em "Meus Pedidos". Ao receber o produto, confirme o recebimento na plataforma. Se houver qualquer problema, você tem até 7 dias para abrir uma disputa. Sua satisfação e segurança são prioridades para nós.' },
     ],
