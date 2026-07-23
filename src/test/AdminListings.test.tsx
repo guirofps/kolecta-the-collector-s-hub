@@ -50,10 +50,17 @@ const makeListing = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
-function renderFila(listings: unknown[]) {
-  (useAdminListings as ReturnType<typeof vi.fn>).mockReturnValue({
-    data: listings, isLoading: false, isError: false,
-  });
+/**
+ * A tela faz DUAS consultas (`pending_review` e `draft`), então o mock precisa
+ * responder diferente para cada uma. Devolver a mesma lista nas duas duplicava
+ * todo anúncio na tela.
+ */
+function renderFila(emAnalise: unknown[], rascunhos: unknown[] = []) {
+  (useAdminListings as ReturnType<typeof vi.fn>).mockImplementation((status: string) => ({
+    data: status === 'pending_review' ? emAnalise : rascunhos,
+    isLoading: false,
+    isError: false,
+  }));
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     React.createElement(
@@ -73,6 +80,45 @@ describe('AdminListings (fila de aprovação)', () => {
     (useCategories as ReturnType<typeof vi.fn>).mockReturnValue({
       data: [{ id: 'cat_1', name: 'Funko Pop', slug: 'funko-pop', icon: null, parentId: null }],
     });
+  });
+
+  // Regressão do bug mais grave: o banco tem DOIS status de espera
+  // (`pending_review`, 358 anúncios, e `draft`, 251). A fila buscava só `draft`
+  // e deixava 358 invisíveis: o vendedor via "em análise" no painel dele e o
+  // anúncio nunca chegava na moderação.
+  it('traz as duas filas, em análise e rascunho, não só uma', () => {
+    renderFila(
+      [makeListing({ id: 'a', title: 'Veio de pending_review', status: 'pending_review' })],
+      [makeListing({ id: 'b', title: 'Veio de draft', status: 'draft' })],
+    );
+    expect(screen.getByText('Veio de pending_review')).toBeInTheDocument();
+    expect(screen.getByText('Veio de draft')).toBeInTheDocument();
+    expect(screen.getByText(/2 anúncios aguardando revisão/)).toBeInTheDocument();
+  });
+
+  it('mostra a quebra por origem quando as duas filas têm item', () => {
+    renderFila(
+      [makeListing({ id: 'a' })],
+      [makeListing({ id: 'b' }), makeListing({ id: 'c' })],
+    );
+    expect(screen.getByText(/1 em análise, 2 em rascunho/)).toBeInTheDocument();
+  });
+
+  it('avisa quando parte da fila falhou, para não aprovar lista incompleta', () => {
+    (useAdminListings as ReturnType<typeof vi.fn>).mockImplementation((status: string) => ({
+      data: status === 'pending_review' ? [] : [makeListing()],
+      isLoading: false,
+      isError: status === 'pending_review',
+    }));
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      React.createElement(
+        QueryClientProvider,
+        { client: queryClient },
+        React.createElement(MemoryRouter, null, React.createElement(AdminListingsPage)),
+      ),
+    );
+    expect(screen.getByText(/lista abaixo está incompleta/i)).toBeInTheDocument();
   });
 
   it('mostra a condição legível, não o código cru do banco', () => {

@@ -69,10 +69,34 @@ function resumoFrete(l: Listing): { texto: string; faltando: boolean } {
 }
 
 
+// Limite por consulta. Se uma delas voltar cheia, tem anúncio ficando de fora
+// e a tela avisa em vez de esconder.
+const LIMITE = 1000;
+
 export default function AdminListings() {
-  const { data: listings = [], isLoading, isError } = useAdminListings('draft', 500);
+  // ATENÇÃO: existem DOIS status de "aguardando moderação" no banco.
+  // `pending_review` é o que o painel do vendedor mostra como "em análise"
+  // (ver seller/Dashboard.tsx), e `draft` é o vocabulário anterior, ainda com
+  // centenas de anúncios parados. A fila buscava só `draft` e deixava todos os
+  // `pending_review` invisíveis: o vendedor via "aguardando aprovação" e o
+  // anúncio nunca chegava aqui. Enquanto o backend não unifica, buscamos os dois.
+  const revisao = useAdminListings('pending_review', LIMITE);
+  const rascunho = useAdminListings('draft', LIMITE);
   const { data: categorias = [] } = useCategories();
   const updateStatus = useUpdateListingStatus();
+
+  const isLoading = revisao.isLoading || rascunho.isLoading;
+  const isError = revisao.isError && rascunho.isError;
+
+  const listaRevisao = revisao.data ?? [];
+  const listaRascunho = rascunho.data ?? [];
+
+  // Mais antigo primeiro: quem enviou antes é revisado antes.
+  const listings = [...listaRevisao, ...listaRascunho].sort(
+    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+  );
+
+  const truncou = listaRevisao.length >= LIMITE || listaRascunho.length >= LIMITE;
 
   // Categoria errada é o erro mais comum de anúncio, então o nome dela precisa
   // estar na revisão. A API do anúncio devolve só o id.
@@ -166,16 +190,45 @@ export default function AdminListings() {
   return (
     <AdminLayout>
       <div className="p-6 lg:p-8 max-w-5xl">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="font-heading text-2xl font-extrabold italic uppercase">Fila de Aprovação</h1>
-            <p className="text-sm text-muted-foreground mt-1">{listings.length} anúncios aguardando revisão</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              {listings.length} anúncios aguardando revisão
+              {listaRevisao.length > 0 && listaRascunho.length > 0 && (
+                <span className="text-xs">
+                  {' '}({listaRevisao.length} em análise, {listaRascunho.length} em rascunho)
+                </span>
+              )}
+            </p>
           </div>
           <Badge className="bg-accent/10 text-accent text-sm px-3 py-1">
             <AlertCircle className="h-3.5 w-3.5 mr-1" />
             {listings.length} pendentes
           </Badge>
         </div>
+
+        {/* Se uma das consultas falhar, a fila fica incompleta sem avisar, e
+            aprovar em lote com lista parcial deixa vendedor para trás. */}
+        {(revisao.isError || rascunho.isError) && (
+          <div className="mb-4 flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/5 p-3">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+            <p className="text-xs text-destructive">
+              Parte da fila não carregou ({revisao.isError ? 'em análise' : 'rascunhos'}).
+              A lista abaixo está incompleta. Recarregue antes de aprovar em lote.
+            </p>
+          </div>
+        )}
+
+        {truncou && (
+          <div className="mb-4 flex items-start gap-2 rounded-md border border-accent/30 bg-accent/5 p-3">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
+            <p className="text-xs text-accent">
+              A fila atingiu o limite de {LIMITE} por consulta e pode haver anúncios
+              fora desta lista.
+            </p>
+          </div>
+        )}
 
         {/* Listing queue */}
         <AnimatePresence>
