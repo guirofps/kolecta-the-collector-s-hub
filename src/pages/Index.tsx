@@ -12,6 +12,7 @@ import { isListingFeatured } from '@/lib/api';
 import { useListings } from '@/hooks/use-api';
 import { COMMISSION_LABEL } from '@/lib/fees';
 import { useLaunchGate } from '@/hooks/use-launch-gate';
+import { categoryArt } from '@/lib/category-art';
 import { trackEvent } from '@/lib/analytics';
 import heroBg from '@/assets/hero-bg.jpg';
 import LaunchCountdown from './LaunchCountdown';
@@ -240,12 +241,25 @@ function HomeContent() {
               >
                 <Link
                   to={`/categoria/${cat.slug}`}
-                  className="group flex flex-col items-center gap-3 p-5 rounded-lg border border-border bg-card hover:border-primary/40 hover:bg-card/80 transition-all duration-300"
+                  className="group block overflow-hidden rounded-lg border border-border bg-card transition-all duration-300 hover:border-primary/40"
                 >
-                  <CategoryIcon slug={cat.slug} size={32} />
-                  <span className="font-heading text-sm font-semibold uppercase tracking-wider text-center text-foreground group-hover:text-primary transition-colors">
-                    {cat.name}
-                  </span>
+                  {/* Arte duotone da categoria (mesma da landing, via category-art) */}
+                  <div className="relative aspect-square overflow-hidden bg-black">
+                    <img
+                      src={categoryArt(cat.slug)}
+                      alt=""
+                      aria-hidden="true"
+                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
+                  </div>
+                  <div className="p-3 text-center">
+                    <span className="block font-heading text-sm font-semibold uppercase tracking-wider text-foreground transition-colors group-hover:text-primary">
+                      {cat.name}
+                    </span>
+                    <span className="mt-1 block text-xs leading-snug text-muted-foreground">
+                      {cat.description}
+                    </span>
+                  </div>
                 </Link>
               </motion.div>
             ))}

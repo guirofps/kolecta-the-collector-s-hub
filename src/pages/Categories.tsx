@@ -1,6 +1,7 @@
 import Layout from '@/components/layout/Layout';
 import { Link } from 'react-router-dom';
 import { useCategories } from '@/hooks/use-api';
+import { categoryArt } from '@/lib/category-art';
 
 // Descrições curadas por slug — o endpoint /api/categories ainda não retorna `description`.
 const CATEGORY_DESCRIPTIONS: Record<string, string> = {
@@ -86,17 +87,38 @@ export default function CategoriesPage() {
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            {(categories ?? []).map((cat) => (
-              <Link
-                key={cat.id}
-                to={`/categoria/${cat.slug}`}
-                className="group p-6 rounded-lg border border-border bg-card hover:border-primary/40 transition-all"
-              >
-                <CategoryIcon slug={cat.slug} size={48} />
-                <h2 className="font-heading text-lg font-bold uppercase tracking-wider text-foreground group-hover:text-primary transition-colors">{cat.name}</h2>
-                <p className="text-sm text-muted-foreground mt-1">{CATEGORY_DESCRIPTIONS[cat.slug] ?? ''}</p>
-              </Link>
-            ))}
+            {(categories ?? []).map((cat) => {
+              const art = categoryArt(cat.slug);
+              return (
+                <Link
+                  key={cat.id}
+                  to={`/categoria/${cat.slug}`}
+                  className="group overflow-hidden rounded-lg border border-border bg-card transition-all hover:border-primary/40"
+                >
+                  {/* Arte duotone da categoria (mesma da landing, via category-art) */}
+                  {art ? (
+                    <div className="relative aspect-[4/3] overflow-hidden bg-black">
+                      <img
+                        src={art}
+                        alt=""
+                        aria-hidden="true"
+                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex aspect-[4/3] items-center justify-center bg-kolecta-dark">
+                      <CategoryIcon slug={cat.slug} size={48} />
+                    </div>
+                  )}
+                  <div className="p-4">
+                    <h2 className="font-heading text-lg font-bold uppercase tracking-wider text-foreground transition-colors group-hover:text-primary">
+                      {cat.name}
+                    </h2>
+                    <p className="mt-1 text-sm text-muted-foreground">{CATEGORY_DESCRIPTIONS[cat.slug] ?? ''}</p>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         )}
       </div>

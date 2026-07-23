@@ -18,11 +18,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { mockProducts, conditionLabel, formatBRL } from '@/lib/mock-data';
+import { conditionLabel, formatBRL } from '@/lib/mock-data';
 import type { ProductCondition, ListingStatus, Product, ProductType } from '@/lib/mock-data';
 import { api } from '@/lib/api';
 import type { Listing } from '@/lib/api';
-import { useListing } from '@/hooks/use-api';
+import { useListing, useListings } from '@/hooks/use-api';
 import { trackEvent } from '@/lib/analytics';
 import { useMutation } from '@tanstack/react-query';
 import { useAuth } from '@clerk/clerk-react';
@@ -117,6 +117,9 @@ export default function ProductDetail() {
 
   // ── Dados reais do backend ───────────────────────────────────────────────
   const { data: listing, isLoading, isError } = useListing(id);
+  // "Explore mais": anúncios reais da plataforma (busca alguns a mais para
+  // sobrar 4 depois de tirar o próprio anúncio e os que não estão ativos).
+  const { data: similarData } = useListings(12);
 
   const [isFavorite, setIsFavorite] = useState(false);
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
@@ -196,8 +199,13 @@ export default function ProductDetail() {
   const priceInBRL = listing.priceInCents != null ? listing.priceInCents / 100 : null;
   const isAvailable = listing.status === 'active';
 
-  // Produtos similares: fallback para mock (sem listagem real por categoria ainda)
-  const similar = mockProducts.slice(0, 4);
+  // "Explore mais": anúncios REAIS da plataforma (antes vinha de mock, que
+  // exibia produtos inexistentes com preço e contagem de lances falsos).
+  // Tira o próprio anúncio da lista e mostra até 4.
+  const similar: Product[] = (similarData ?? [])
+    .filter((l) => l.id !== listing.id && l.status === 'active')
+    .slice(0, 4)
+    .map(listingToCartProduct);
 
   return (
     <Layout>
