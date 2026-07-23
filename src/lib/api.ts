@@ -398,10 +398,12 @@ export const api = {
       return request<{ data: Listing[] }>(`/api/admin/listings?${params}`, { token }).then(r => r.data);
     },
 
-    updateListingStatus: (token: string, id: string, status: string) =>
+    // `reason` acompanha a reprovação: é o que o vendedor precisa ler para
+    // corrigir o anúncio, e o que alimenta o e-mail de anúncio rejeitado.
+    updateListingStatus: (token: string, id: string, status: string, reason?: string) =>
       request<{ data: Listing }>(`/api/admin/listings/${id}/status`, {
         method: 'PATCH',
-        body: JSON.stringify({ status }),
+        body: JSON.stringify(reason ? { status, reason } : { status }),
         token,
       }).then(r => r.data),
   },

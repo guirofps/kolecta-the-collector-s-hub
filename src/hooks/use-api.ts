@@ -211,9 +211,9 @@ export function useUpdateListingStatus() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+    mutationFn: async ({ id, status, reason }: { id: string; status: string; reason?: string }) => {
       const token = await getToken();
-      return api.admin.updateListingStatus(token || '', id, status);
+      return api.admin.updateListingStatus(token || '', id, status, reason);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-listings'] });

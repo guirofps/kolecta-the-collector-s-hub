@@ -10,15 +10,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { useAdminListings, useUpdateListingStatus } from '@/hooks/use-api';
 import type { Listing } from '@/lib/api';
 import { formatBRL } from '@/lib/currency';
-
-const conditionLabels: Record<string, string> = {
-  mint: 'Mint',
-  near_mint: 'Near Mint',
-  excellent: 'Excelente',
-  good: 'Bom',
-  fair: 'Regular',
-  poor: 'Usado',
-};
+// Fonte única dos rótulos. A lista local daqui estava com o vocabulário antigo
+// (mint, near_mint...) e não batia com o que o wizard salva (`novo-lacrado`),
+// então a fila mostrava o código cru em todo anúncio.
+import { conditionLabel } from '@/lib/conditions';
 
 const rejectReasons = [
   'Fotos insuficientes ou de baixa qualidade',
@@ -51,10 +46,20 @@ export default function AdminListings() {
   const [rejectNotes, setRejectNotes] = useState('');
   const [detailOpen, setDetailOpen] = useState(false);
 
+  // Qual anúncio está sendo moderado agora. Sem isso, `updateStatus.isPending`
+  // é global e uma única aprovação punha spinner e travava o botão das 176
+  // linhas ao mesmo tempo, parecendo que a tela inteira congelou.
+  const [emAndamento, setEmAndamento] = useState<string | null>(null);
+  const ocupado = (id: string) => emAndamento === id;
+
   const handleApprove = (id: string) => {
+    setEmAndamento(id);
     updateStatus.mutate(
       { id, status: 'active' },
-      { onSuccess: () => setDetailOpen(false) },
+      {
+        onSuccess: () => setDetailOpen(false),
+        onSettled: () => setEmAndamento(null),
+      },
     );
   };
 
@@ -66,17 +71,22 @@ export default function AdminListings() {
   };
 
   const handleReject = () => {
-    if (selectedListing) {
-      updateStatus.mutate(
-        { id: selectedListing.id, status: 'rejected' },
-        {
-          onSuccess: () => {
-            setRejectDialogOpen(false);
-            setDetailOpen(false);
-          },
+    if (!selectedListing) return;
+    // O motivo escolhido e a observação seguem para o backend: é o que o
+    // vendedor lê para corrigir, e o que preenche o e-mail de anúncio
+    // rejeitado. Antes tudo isso era coletado na tela e descartado.
+    const motivo = [rejectReason, rejectNotes.trim()].filter(Boolean).join('. ');
+    setEmAndamento(selectedListing.id);
+    updateStatus.mutate(
+      { id: selectedListing.id, status: 'rejected', reason: motivo },
+      {
+        onSuccess: () => {
+          setRejectDialogOpen(false);
+          setDetailOpen(false);
         },
-      );
-    }
+        onSettled: () => setEmAndamento(null),
+      },
+    );
   };
 
   const openDetail = (listing: Listing) => {
@@ -162,7 +172,7 @@ export default function AdminListings() {
                             </Badge>
                           </div>
                           <div className="flex items-center gap-3 text-xs text-muted-foreground mb-1">
-                            <span>{conditionLabels[listing.condition] || listing.condition}</span>
+                            <span>{conditionLabel(listing.condition)}</span>
                             <span>·</span>
                             <span className="font-medium">
                               {listing.priceInCents ? formatBRL(listing.priceInCents / 100) : '—'}
@@ -187,7 +197,7 @@ export default function AdminListings() {
                             size="sm"
                             className="h-8 text-xs border-accent/30 text-accent hover:bg-accent/10"
                             onClick={() => openReject(listing)}
-                            disabled={updateStatus.isPending}
+                            disabled={ocupado(listing.id)}
                           >
                             <X className="h-3.5 w-3.5" />
                             Reprovar
@@ -197,9 +207,9 @@ export default function AdminListings() {
                             size="sm"
                             className="h-8 text-xs"
                             onClick={() => handleApprove(listing.id)}
-                            disabled={updateStatus.isPending}
+                            disabled={ocupado(listing.id)}
                           >
-                            {updateStatus.isPending ? (
+                            {ocupado(listing.id) ? (
                               <Loader2 className="h-3.5 w-3.5 animate-spin" />
                             ) : (
                               <Check className="h-3.5 w-3.5" />
@@ -249,7 +259,7 @@ export default function AdminListings() {
                       <h3 className="font-heading text-base font-bold mb-1">{selectedListing.title}</h3>
                       <div className="flex flex-wrap gap-2 mb-2">
                         <Badge variant="outline" className="text-xs">{selectedListing.type === 'auction' ? 'Modo Lance' : 'Venda Direta'}</Badge>
-                        <Badge variant="outline" className="text-xs">{conditionLabels[selectedListing.condition] || selectedListing.condition}</Badge>
+                        <Badge variant="outline" className="text-xs">{conditionLabel(selectedListing.condition)}</Badge>
                         {selectedListing.brand && <Badge variant="outline" className="text-xs">{selectedListing.brand}</Badge>}
                         {selectedListing.scale && <Badge variant="outline" className="text-xs">Escala {selectedListing.scale}</Badge>}
                       </div>

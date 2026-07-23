@@ -44,9 +44,15 @@ const apiToStatus: Record<string, ListingStatus> = {
 };
 
 // Ação de moderação → status enviado ao backend.
+//
+// ATENÇÃO: reprovar grava `rejected`, igual à fila de aprovação. Antes esta
+// tela mandava `cancelled` e a fila mandava `rejected`, dois nomes para a mesma
+// coisa. O efeito colateral era real: o placar do Fundador só exclui `rejected`,
+// então anúncio reprovado por aqui continuava contando para os 5 da candidatura.
+// `remove` segue como `cancelled` de propósito: é retirar do ar, não reprovar.
 const actionToApiStatus: Record<string, string> = {
   approve: 'active',
-  reject: 'cancelled',
+  reject: 'rejected',
   pause: 'paused',
   reactivate: 'active',
   remove: 'cancelled',

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Search, ShieldCheck, MoreHorizontal, Eye, Ban, Mail, Shield } from 'lucide-react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { Card, CardContent } from '@/components/ui/card';
@@ -21,6 +22,17 @@ const roleColors: Record<string, string> = {
   user:  'bg-blue-500/10 text-blue-400',
   admin: 'bg-accent/10 text-accent',
 };
+
+/**
+ * Letra do avatar. Existe cadastro com nome em branco no banco (string vazia,
+ * não nula), e `??` não pega string vazia: o `''[0]` virava undefined e o
+ * `.toUpperCase()` derrubava a página inteira. Aqui cai para o e-mail e, no
+ * pior caso, para uma interrogação.
+ */
+function inicial(nome: string | null | undefined, email: string): string {
+  const base = (nome || '').trim() || (email || '').trim();
+  return base ? base[0].toUpperCase() : '?';
+}
 
 export default function AdminUsers() {
   // Carrega todos os usuários (a tela não pagina; busca/filtro cobrem o conjunto).
@@ -85,6 +97,15 @@ export default function AdminUsers() {
           <div className="space-y-2">
             {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-16 rounded-lg" />)}
           </div>
+        ) : filtered.length === 0 ? (
+          <div className="rounded-lg border border-border bg-card py-16 text-center">
+            <Search className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">
+              {search || activeTab !== 'todos'
+                ? 'Nenhum usuário encontrado com esse filtro.'
+                : 'Nenhum usuário cadastrado ainda.'}
+            </p>
+          </div>
         ) : (
           <div className="space-y-2">
             {filtered.map((user: AdminUser) => (
@@ -92,12 +113,14 @@ export default function AdminUsers() {
                 <CardContent className="p-0">
                   <div className="flex items-center gap-4 px-4 py-3">
                     <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center shrink-0">
-                      <span className="font-heading text-sm font-bold">{(user.name ?? user.email)[0].toUpperCase()}</span>
+                      <span className="font-heading text-sm font-bold">{inicial(user.name, user.email)}</span>
                     </div>
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-0.5">
-                        <span className="text-sm font-medium truncate">{user.name ?? '—'}</span>
+                        <span className="text-sm font-medium truncate">
+                          {(user.name || '').trim() || <span className="text-muted-foreground italic">Sem nome</span>}
+                        </span>
                         {user.role === 'admin' && <ShieldCheck className="h-3.5 w-3.5 text-accent shrink-0" />}
                         <Badge className={`text-[10px] ${roleColors[user.role]}`}>{user.role}</Badge>
                       </div>
@@ -113,8 +136,10 @@ export default function AdminUsers() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="bg-popover border-border">
-                        <DropdownMenuItem className="gap-2 text-sm">
-                          <Eye className="h-3.5 w-3.5" /> Ver perfil
+                        <DropdownMenuItem asChild className="gap-2 text-sm">
+                          <Link to={`/vendedor/${user.id}`}>
+                            <Eye className="h-3.5 w-3.5" /> Ver perfil
+                          </Link>
                         </DropdownMenuItem>
                         {user.role !== 'admin' ? (
                           <DropdownMenuItem

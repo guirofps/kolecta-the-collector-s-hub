@@ -20,9 +20,12 @@ import type { Listing } from '@/lib/api';
 
 const REQUIRED = 5;
 
-// Só o recusado fica de fora: contar por exclusão evita zerar o placar de novo
-// se o backend introduzir um status novo (vendido, pausado, etc.).
-const NOT_QUALIFYING = new Set(['rejected', 'reprovado']);
+// Recusado e cancelado ficam de fora: contar por exclusão evita zerar o placar
+// de novo se o backend introduzir um status novo (vendido, pausado, etc.).
+// `cancelled` entra aqui porque a tela de detalhe do admin gravava a reprovação
+// com esse nome; corrigido, mas anúncio já gravado assim não pode voltar a
+// contar para a candidatura.
+const NOT_QUALIFYING = new Set(['rejected', 'reprovado', 'cancelled', 'cancelado']);
 
 export default function FounderProgress({ listings }: { listings: Listing[] }) {
   // Campanha encerrada: não renderiza nada.
