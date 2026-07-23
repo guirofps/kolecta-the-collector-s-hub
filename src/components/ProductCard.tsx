@@ -6,7 +6,10 @@ import AuctionCountdown from '@/components/AuctionCountdown';
 import { Product, formatBRL, conditionLabel } from '@/lib/mock-data';
 import { trackEvent } from '@/lib/analytics';
 import { useFavorites } from '@/hooks/use-api';
-import { useAuth } from '@clerk/clerk-react';
+// Auth pelo contexto do app, não pelo Clerk direto (convenção do CLAUDE.md).
+// O `useAuth` do Clerk lança erro fora do ClerkProvider, e como o card aparece
+// em toda vitrine, ele derrubava a categoria inteira no ambiente sem chave.
+import { useAuth } from '@/contexts/AuthContext';
 
 interface ProductCardProps {
   product: Product;
@@ -15,7 +18,7 @@ interface ProductCardProps {
 
 export default function ProductCard({ product, className = '' }: ProductCardProps) {
   const isAuction = product.type === 'auction';
-  const { isSignedIn } = useAuth();
+  const { isAuthenticated } = useAuth();
   const { query: favoritesQuery, toggleMutation } = useFavorites();
   
   const isFavorited = favoritesQuery.data?.some(f => f.listingId === product.id);
@@ -23,7 +26,7 @@ export default function ProductCard({ product, className = '' }: ProductCardProp
   const handleFavorite = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!isSignedIn) return; // Poderia abrir modal de login aqui
+    if (!isAuthenticated) return; // Poderia abrir modal de login aqui
     toggleMutation.mutate(product.id);
     trackEvent('add_to_favorites', { id: product.id });
   };

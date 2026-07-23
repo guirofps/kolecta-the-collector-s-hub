@@ -9,14 +9,15 @@ import { useListings, useCategories } from '@/hooks/use-api';
 import { type ProductCondition, type ProductType } from '@/lib/mock-data';
 import { trackEvent } from '@/lib/analytics';
 import { onlyPublic } from '@/lib/listing-visibility';
+import { CONDITIONS } from '@/lib/conditions';
 import { Loader2 } from 'lucide-react';
 
-const conditionOptions: { value: ProductCondition; label: string }[] = [
-  { value: 'novo', label: 'Novo' },
-  { value: 'usado', label: 'Usado' },
-  { value: 'mint', label: 'Mint' },
-  { value: 'lacrado', label: 'Lacrado' },
-];
+// As opções vêm da fonte única (lib/conditions), que é o mesmo vocabulário que
+// o formulário de anúncio grava. Antes esta lista era fixa com o vocabulário
+// antigo (novo, usado, mint, lacrado) e o banco guarda `novo-lacrado`,
+// `usado-conservado` e afins: o filtro de condição não achava NADA, qualquer
+// opção que se marcasse zerava a busca.
+const conditionOptions = CONDITIONS.map((c) => ({ value: c.value, label: c.label }));
 
 // F28: "Terminando em breve" e "Mais lances" dependem de dados de leilão
 // (fim/nº de lances) que o endpoint de listings não devolve — ficavam
@@ -40,7 +41,9 @@ export default function SearchPage() {
 
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [selectedCategories, setSelectedCategories] = useState<string[]>(categorySlug ? [categorySlug] : []);
-  const [selectedConditions, setSelectedConditions] = useState<ProductCondition[]>([]);
+  // String solta, não o tipo antigo `ProductCondition`: o vocabulário real do
+  // banco tem mais valores do que aquele união de 4 conhecia.
+  const [selectedConditions, setSelectedConditions] = useState<string[]>([]);
   const [selectedType, setSelectedType] = useState<ProductType | ''>('');
   const [sortBy, setSortBy] = useState('relevance');
 
@@ -136,10 +139,11 @@ export default function SearchPage() {
     trackEvent('filter_apply', { filter: 'category', value: slug });
   };
 
-  const toggleCondition = (c: ProductCondition) => {
+  const toggleCondition = (c: string) => {
     setSelectedConditions((prev) =>
       prev.includes(c) ? prev.filter((s) => s !== c) : [...prev, c]
     );
+    trackEvent('filter_apply', { filter: 'condition', value: c });
   };
 
   const clearFilters = () => {

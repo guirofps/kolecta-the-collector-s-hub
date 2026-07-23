@@ -4,11 +4,31 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useAuth } from '@clerk/clerk-react';
+import { useAuth as useClerkAuth } from '@clerk/clerk-react';
 import { api } from '@/lib/api';
 import type { OrderStatus, CreateRecipientPayload } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { hasLaunched } from '@/lib/launch';
+import { CLERK_ENABLED } from '@/lib/clerk';
+
+/**
+ * Token do Clerk, sem derrubar a tela quando o Clerk não está montado.
+ *
+ * Sem a chave publicável, `main.tsx` não monta o `ClerkProvider` (o modo
+ * degradado que o AuthContext prevê), e o `useAuth` do Clerk LANÇA erro fora do
+ * provider. Como os hooks daqui chamavam o Clerk direto, qualquer tela com dado
+ * quebrava em branco nesse ambiente. Foi o que derrubou a página de categoria:
+ * o ProductCard estourava e levava a lista inteira junto.
+ *
+ * `CLERK_ENABLED` vem de env e não muda em runtime, então o branch é estável
+ * entre renders e a ordem dos hooks nunca varia. É o mesmo padrão já usado no
+ * AuthContext, que separa ClerkAuthProvider de DegradedAuthProvider.
+ */
+function useAuth(): { getToken: () => Promise<string | null> } {
+  if (!CLERK_ENABLED) return { getToken: async () => null };
+  // eslint-disable-next-line react-hooks/rules-of-hooks -- constante de env, ver acima
+  return useClerkAuth();
+}
 
 // ── useMyProfile ───────────────────────────────────────────────────────────
 

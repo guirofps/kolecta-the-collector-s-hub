@@ -13,6 +13,14 @@ vi.mock('@clerk/clerk-react', () => ({
   }),
 }));
 
+// Os hooks só usam o Clerk quando ele está configurado; sem isto o ambiente de
+// teste cai no modo degradado (token nulo) e nenhuma chamada leva credencial.
+// Aqui queremos exercitar o caminho de produção, com Clerk ligado.
+vi.mock('@/lib/clerk', () => ({
+  CLERK_ENABLED: true,
+  clerkPublishableKey: 'pk_test_fake',
+}));
+
 // Mock @/lib/api
 vi.mock('@/lib/api', () => ({
   api: {
