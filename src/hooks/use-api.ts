@@ -522,6 +522,30 @@ export function useConfirmDelivery() {
   });
 }
 
+// ── useCancelOrder (comprador cancela pedido pendente / PIX não pago) ────────
+
+export function useCancelOrder() {
+  const { getToken } = useAuth();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const token = await getToken();
+      return api.orders.cancel(token!, id);
+    },
+    onSuccess: (_data, id) => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      queryClient.invalidateQueries({ queryKey: ['orders', id] });
+      queryClient.invalidateQueries({ queryKey: ['wallet'] });
+      toast({ title: 'Pedido cancelado', description: 'O anúncio voltou a ficar disponível.' });
+    },
+    onError: (err: Error) => {
+      toast({ title: 'Não foi possível cancelar', description: err.message, variant: 'destructive' });
+    },
+  });
+}
+
 // ── useMarkDelivered (vendedor marca pedido como entregue) ───────────────────
 
 export function useMarkDelivered() {

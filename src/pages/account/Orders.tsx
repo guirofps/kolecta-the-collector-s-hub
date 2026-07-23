@@ -13,7 +13,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
 import EmptyState from '@/components/EmptyState';
-import { useOrders, useStartConversationFromOrder, useConfirmDelivery, useCreateReview } from '@/hooks/use-api';
+import { useOrders, useStartConversationFromOrder, useConfirmDelivery, useCreateReview, useCancelOrder } from '@/hooks/use-api';
 import type { Order, OrderStatus } from '@/lib/api';
 import { formatBRL } from '@/lib/currency';
 
@@ -207,6 +207,7 @@ function OrderCard({ order }: { order: Order }) {
   const navigate = useNavigate();
   const startChat = useStartConversationFromOrder();
   const confirmDelivery = useConfirmDelivery();
+  const cancelOrder = useCancelOrder();
   const [reviewOpen, setReviewOpen] = useState(false);
 
   // F12: comprador confirma recebimento (libera saldo retido ao vendedor).
@@ -214,6 +215,8 @@ function OrderCard({ order }: { order: Order }) {
   const canConfirm = (order.status === 'shipped' || order.status === 'delivered') && !alreadyConfirmed;
   // "Avaliar compra" só depois de recebido/concluído.
   const canReview = order.status === 'delivered' || order.status === 'completed';
+  // Cancelar: só enquanto aguarda pagamento (PIX não pago). Libera o anúncio.
+  const canCancel = order.status === 'pending';
 
   async function handleChat() {
     const result = await startChat.mutateAsync(order.id);
@@ -271,6 +274,22 @@ function OrderCard({ order }: { order: Order }) {
               >
                 {confirmDelivery.isPending && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}
                 Confirmar recebimento
+              </Button>
+            )}
+            {canCancel && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-destructive hover:text-destructive"
+                disabled={cancelOrder.isPending}
+                onClick={() => {
+                  if (window.confirm('Cancelar este pedido? O anúncio voltará a ficar disponível.')) {
+                    cancelOrder.mutate(order.id);
+                  }
+                }}
+              >
+                {cancelOrder.isPending && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}
+                Cancelar pedido
               </Button>
             )}
             {CHAT_ELIGIBLE.includes(order.status) && (

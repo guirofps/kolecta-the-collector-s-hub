@@ -462,6 +462,13 @@ export const api = {
         token,
       }).then(r => r.data),
 
+    // Comprador cancela o próprio pedido pendente (PIX não pago) → libera o anúncio
+    cancel: (token: string, id: string) =>
+      request<{ data: Order }>(`/api/orders/${id}/cancel`, {
+        method: 'POST',
+        token,
+      }).then(r => r.data),
+
     createCheckout: (token: string, body: { items: { listingId: string }[]; addressId?: string; shippingInCents?: number; deliveryMethod?: 'shipping' | 'pickup'; useWalletBalance?: boolean; buyerCpf?: string; buyerPhone?: string; paymentMethod?: 'pix' | 'credit_card'; cardToken?: string; installments?: number }) =>
       request<{
         orderId: string;
