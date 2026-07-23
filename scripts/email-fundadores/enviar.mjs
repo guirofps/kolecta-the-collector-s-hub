@@ -1,19 +1,15 @@
 #!/usr/bin/env node
 // ── Disparo dos e-mails de Membro Fundador ────────────────────────────────
 //
-// Roda na máquina, NUNCA no navegador: a senha do e-mail não pode existir no
+// Roda na máquina, NUNCA no navegador: a chave do Resend não pode existir no
 // bundle do site. Por padrão o script é dry-run, ou seja, só gera os previews
 // em disco e não manda nada. Enviar de verdade exige a flag --enviar.
 //
 //   node scripts/email-fundadores/enviar.mjs --csv dados.csv
-//   node scripts/email-fundadores/enviar.mjs --csv dados.csv --enviar
+//   RESEND_API_KEY="re_..." node scripts/email-fundadores/enviar.mjs --enviar
 //
-// Configuração em scripts/email-fundadores/.env, que o git ignora. As chaves
-// esperadas e o que vai em cada uma estão no README desta pasta. Nunca cole
-// essas credenciais em chat nem commite o arquivo.
-//
-// Exemplo com host, usuário e senha juntos fica fora daqui de propósito: mesmo
-// com valor inventado, isso dispara o detector de segredo do GitHub.
+// A chave sai da SUA sessão de terminal, nunca de arquivo versionado. O envio
+// usa o Resend pelo mesmo domínio verificado dos e-mails transacionais.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -60,7 +56,9 @@ if (fs.existsSync(envPath)) {
   }
 }
 
-const WHATSAPP = process.env.WHATSAPP || '';
+// Número do WhatsApp de contato dos founders. Vai no botão de todo e-mail, então
+// é público por natureza; fica aqui como padrão e o .env pode sobrescrever.
+const WHATSAPP = process.env.WHATSAPP || '5511910027211';
 
 // ── Leitura do CSV ────────────────────────────────────────────────────────
 // Parser pequeno mas que respeita aspas e vírgula dentro do campo, porque a
@@ -162,10 +160,11 @@ if (!ENVIAR_DE_VERDADE) {
 }
 
 // Travas antes de qualquer envio real.
-const faltando = ['SMTP_HOST', 'SMTP_USER', 'SMTP_PASS', 'REMETENTE']
-  .filter((k) => !process.env[k]);
-if (faltando.length) {
-  console.error(`\nFaltam variáveis no .env: ${faltando.join(', ')}`);
+const REMETENTE = process.env.EMAIL_REMETENTE || 'Kolecta <avisos@send.kolecta.com.br>';
+if (!process.env.RESEND_API_KEY) {
+  console.error('\nFalta a chave do Resend na sessão. Defina antes de rodar:');
+  console.error('  PowerShell: $env:RESEND_API_KEY="re_..."');
+  console.error('  bash:       RESEND_API_KEY="re_..." node scripts/email-fundadores/enviar.mjs --enviar');
   process.exit(1);
 }
 if (!/^\d{12,13}$/.test(WHATSAPP)) {
@@ -187,7 +186,7 @@ if (!fila.length) {
 // Confirmação no terminal. Envio de e-mail não tem desfazer.
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 const resposta = await new Promise((res) =>
-  rl.question(`\nEnviar ${fila.length} e-mails de verdade, a partir de ${process.env.REMETENTE}? (digite ENVIAR) `, res)
+  rl.question(`\nEnviar ${fila.length} e-mails de verdade, a partir de ${REMETENTE}? (digite ENVIAR) `, res)
 );
 rl.close();
 if (resposta.trim() !== 'ENVIAR') {
@@ -195,32 +194,41 @@ if (resposta.trim() !== 'ENVIAR') {
   process.exit(0);
 }
 
-const { default: nodemailer } = await import('nodemailer');
-const transporte = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: Number(process.env.SMTP_PORT || 465),
-  secure: Number(process.env.SMTP_PORT || 465) === 465,
-  auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-});
+// Envio pelo Resend, por fetch puro (sem dependência). Mesmo canal e domínio
+// verificado que os e-mails transacionais vão usar.
+async function enviarResend(d) {
+  const resp = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: REMETENTE,
+      to: d.email,
+      reply_to: process.env.EMAIL_RESPOSTA || 'contato@kolecta.com.br',
+      subject: assunto(d),
+      html: montarEmail(d),
+      text: montarTexto(d),
+      // Descarta duplicata na janela de 24h, caso o script rode duas vezes.
+      headers: { 'X-Entity-Ref-ID': `founder-${d.tipo}-${d.email}` },
+    }),
+  });
+  const corpo = await resp.json().catch(() => ({}));
+  if (!resp.ok) throw new Error(corpo?.message || `HTTP ${resp.status}`);
+  return corpo.id;
+}
 
-await transporte.verify();
-console.log('Conexão SMTP ok. Começando.\n');
+console.log('Enviando pelo Resend.\n');
 
 let ok = 0, erro = 0;
 for (const d of fila) {
   try {
-    await transporte.sendMail({
-      from: process.env.REMETENTE,
-      to: d.email,
-      replyTo: process.env.RESPONDER_PARA || process.env.SMTP_USER,
-      subject: assunto(d),
-      text: montarTexto(d),
-      html: montarEmail(d),
-    });
+    const id = await enviarResend(d);
     jaEnviados[d.email] = new Date().toISOString();
     fs.writeFileSync(LOG, JSON.stringify(jaEnviados, null, 2), 'utf8');
     ok++;
-    console.log(`  ok    ${d.email}`);
+    console.log(`  ok    ${d.email.padEnd(38)} ${id ?? ''}`);
   } catch (e) {
     erro++;
     console.error(`  ERRO  ${d.email}: ${e.message}`);

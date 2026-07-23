@@ -18,23 +18,21 @@ Contas internas, de teste e a marca-mãe estão na lista `INTERNOS` dentro de
 
 ## Configuração
 
-Crie `scripts/email-fundadores/.env` (o git ignora este arquivo, não commite).
+O envio usa o Resend, mesmo canal e domínio verificado dos e-mails
+transacionais. A chave sai da sua sessão de terminal, nunca de arquivo.
 
-O arquivo precisa destas chaves, uma por linha, no formato `CHAVE=valor`:
+O número do WhatsApp de contato já vem embutido no script como padrão
+(`5511910027211`), porque é público de qualquer forma: aparece no botão de
+todo e-mail. Para trocar, defina `WHATSAPP` na sessão ou num `.env` local.
 
-| Chave | O que colocar |
+Variáveis lidas do ambiente (ou de um `.env` local, que o git ignora):
+
+| Variável | O que colocar |
 |---|---|
-| `SMTP_HOST` | servidor de saída da Hostinger |
-| `SMTP_PORT` | `465` |
-| `SMTP_USER` | o endereço da caixa que vai enviar |
-| `SMTP_PASS` | a senha dessa caixa, do painel da Hostinger |
-| `REMETENTE` | `Kolecta <endereco@kolecta.com.br>` |
-| `RESPONDER_PARA` | para onde vão as respostas (opcional) |
-| `WHATSAPP` | formato internacional, só dígitos: 55 + DDD + número |
-
-Os valores acima ficam de fora deste documento de propósito. Exemplo de
-configuração com host, usuário e senha juntos, mesmo com valor inventado,
-dispara o detector de segredo do GitHub e gera alerta à toa.
+| `RESEND_API_KEY` | chave do painel do Resend (obrigatória para enviar) |
+| `EMAIL_REMETENTE` | opcional, padrão `Kolecta <avisos@send.kolecta.com.br>` |
+| `EMAIL_RESPOSTA` | opcional, padrão `contato@kolecta.com.br` |
+| `WHATSAPP` | opcional, sobrescreve o número padrão |
 
 ## Uso
 
@@ -46,10 +44,13 @@ node scripts/email-fundadores/enviar.mjs
 
 # 2. Confira abrindo qualquer arquivo de preview/ no navegador.
 
-# 3. Teste real, só para você.
+# 3. Ponha a chave na sessão (PowerShell). Ela nao fica salva em disco.
+$env:RESEND_API_KEY="re_..."
+
+# 4. Teste real, só para você.
 node scripts/email-fundadores/enviar.mjs --so seu@email.com --enviar
 
-# 4. Disparo de verdade. Pede confirmação digitada no terminal.
+# 5. Disparo de verdade. Pede confirmação digitada no terminal.
 node scripts/email-fundadores/enviar.mjs --enviar
 ```
 
@@ -66,21 +67,22 @@ O script foi feito para ser difícil de disparar por acidente:
 
 1. Sem `--enviar` ele nunca manda nada, só escreve os previews.
 2. Com `--enviar` ele ainda exige que você digite `ENVIAR` no terminal.
-3. Recusa começar se faltar variável no `.env` ou se o WhatsApp não estiver no formato certo.
+3. Recusa começar se faltar a chave do Resend ou se o WhatsApp não estiver no formato certo.
 4. Grava cada envio em `enviados.json`. Rodar de novo pula quem já recebeu, então
-   ninguém leva o mesmo e-mail duas vezes.
+   ninguém leva o mesmo e-mail duas vezes. O Resend ainda reforça isso com o
+   header de idempotência, descartando duplicata na janela de 24h.
 5. Pausa de 4 segundos entre envios, para não parecer disparo em massa.
 
 ## Cuidados de entrega
 
-- O domínio já tem SPF, DKIM e DMARC configurados na Hostinger, então o e-mail
-  sai autenticado. Confira em https://www.mail-tester.com antes do disparo grande.
+- O envio sai por `send.kolecta.com.br`, domínio verificado no Resend com SPF e
+  DKIM próprios. Faça o teste em você mesmo (`--so seu@email.com`) antes do
+  disparo grande e confira se caiu na caixa de entrada, não no spam.
 - A logo do topo é carregada de `https://kolecta.com.br/emails/kolecta-logo.png`.
   Se esse arquivo sair do `public/`, o e-mail fica com imagem quebrada.
-- O volume aqui é pequeno, algumas dezenas. Para volume de verdade, o certo é
-  mover isso para o backend com um provedor dedicado, não SMTP de caixa comum.
 
 ## Dados pessoais
 
 `dados.csv`, `preview/`, `enviados.json` e `.env` estão no `.gitignore`.
-Não commite nenhum deles.
+Não commite nenhum deles. A chave do Resend nunca entra em arquivo: vive só na
+sessão de terminal na hora de disparar.
