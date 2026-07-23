@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { formatBRL, conditionLabel } from '@/lib/mock-data';
 import { isListingFeatured } from '@/lib/api';
-import { useMyListings, useDeleteListing, useTogglePauseListing, usePublishListing, useMyFounder, useUseFounderCredit } from '@/hooks/use-api';
+import { useMyListings, useDeleteListing, useTogglePauseListing, usePublishListing, useMyFounder, useUseFounderCredit, useIsFounderActive } from '@/hooks/use-api';
 import type { Listing } from '@/lib/api';
 import EmptyState from '@/components/EmptyState';
 import { saveDraft, draftFromListing } from '@/lib/listing-draft';
@@ -60,7 +60,8 @@ export default function SellerListings() {
   const useCreditMutation = useUseFounderCredit();
   // Fundador ativo com créditos disponíveis pode destacar anúncios ativos.
   const creditsAvailable = founder?.credits?.available ?? 0;
-  const canFeature = founder?.founderStatus === 'active' && creditsAvailable > 0;
+  // Só depois da seleção (25/07). Ver useIsFounderActive.
+  const canFeature = useIsFounderActive() && creditsAvailable > 0;
 
   const filtered = (myProducts || []).filter((p) => {
     if (activeTab !== 'todos' && p.status !== activeTab) return false;

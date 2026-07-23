@@ -114,6 +114,15 @@ export function FounderBadge({
 // ─── Wrappers auto-carregáveis (buscam o selo pelo userId) ───────────────────
 // Renderizam nada quando o usuário não é fundador (founderNumber == null),
 // então podem ser plugados direto no card/perfil sem checagem no chamador.
+//
+// TRAVA DE LANÇAMENTO: os Fundadores são escolhidos pela equipe e o resultado
+// só sai em 25/07. O backend, porém, atribui número sozinho ao avaliar a
+// qualificação na leitura de /api/founder/me, e com isso gente que só cumpriu
+// os 5 anúncios já aparecia com "Fundador #053" no perfil, antes de qualquer
+// curadoria. Enquanto o backend não separa "candidato" de "fundador escolhido",
+// nenhum selo é exibido em público antes da data.
+
+import { hasLaunched } from '@/lib/launch';
 
 /** Pill compacto que busca o selo do vendedor por userId. */
 export function FounderBadgeFor({
@@ -124,6 +133,7 @@ export function FounderBadgeFor({
   className?: string;
 }) {
   const { data } = useFounderBadge(userId);
+  if (!hasLaunched()) return null;
   if (!data) return null;
   return <FounderBadge number={data.founderNumber} className={className} />;
 }
@@ -139,6 +149,7 @@ export function FounderMedalFor({
   className?: string;
 }) {
   const { data } = useFounderBadge(userId);
+  if (!hasLaunched()) return null;
   if (!data) return null;
   return <FounderMedal number={data.founderNumber} size={size} className={className} />;
 }

@@ -6,7 +6,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Check, Star, Zap, Crown, Megaphone, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { useMyListings, useMyFounder } from '@/hooks/use-api';
+import { useMyListings, useMyFounder, useIsFounderActive } from '@/hooks/use-api';
 import { isListingFeatured } from '@/lib/api';
 import type { Listing } from '@/lib/api';
 
@@ -57,6 +57,8 @@ function daysLeft(endDate: string) {
 export default function SellerMediaPage() {
   const { data: listings = [], isLoading } = useMyListings();
   const { data: founder } = useMyFounder();
+  // Benefício de fundador só aparece depois da seleção (ver useIsFounderActive).
+  const founderAtivo = useIsFounderActive();
 
   const featured = (listings as Listing[]).filter(isListingFeatured);
   const creditsAvailable = founder?.credits?.available ?? 0;
@@ -71,7 +73,7 @@ export default function SellerMediaPage() {
         </div>
 
         {/* Créditos de Fundador (destaque real) */}
-        {founder?.founderStatus === 'active' && (
+        {founderAtivo && (
           <Card className="bg-[hsl(var(--kolecta-gold)/0.08)] border-[hsl(var(--kolecta-gold)/0.3)]">
             <CardContent className="flex flex-wrap items-center gap-3 p-4">
               <Sparkles className="h-5 w-5 text-[hsl(var(--kolecta-gold))]" />

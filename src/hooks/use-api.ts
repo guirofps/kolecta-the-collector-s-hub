@@ -8,6 +8,7 @@ import { useAuth } from '@clerk/clerk-react';
 import { api } from '@/lib/api';
 import type { OrderStatus, CreateRecipientPayload } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
+import { hasLaunched } from '@/lib/launch';
 
 // ── useMyProfile ───────────────────────────────────────────────────────────
 
@@ -49,6 +50,22 @@ export function useMyFounder() {
     staleTime: 60_000,
     retry: 1,
   });
+}
+
+/**
+ * O usuário é Fundador CONFIRMADO, com direito aos benefícios?
+ *
+ * Antes de 25/07 ninguém é: a seleção é curada pela equipe e o resultado só sai
+ * na data. O backend, porém, atribui número sozinho ao avaliar a qualificação
+ * na leitura (ver o comentário em api.founder.getMe), então quem só cumpriu os
+ * 5 anúncios já aparecia como fundador, com selo no perfil e créditos no painel,
+ * sem ninguém ter escolhido. Esta trava segura isso até a virada.
+ *
+ * Fonte única: mudou aqui, muda em todo lugar que mostra benefício de fundador.
+ */
+export function useIsFounderActive(): boolean {
+  const { data } = useMyFounder();
+  return hasLaunched() && data?.founderStatus === 'active';
 }
 
 /** Consome 1 crédito de destaque do fundador em um anúncio. */
