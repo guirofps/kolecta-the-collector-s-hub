@@ -28,3 +28,4 @@ scripts/email-fundadores/.env
 scripts/email-fundadores/*.csv
 scripts/email-fundadores/preview/
 scripts/email-fundadores/enviados.json
+emails/preview/
