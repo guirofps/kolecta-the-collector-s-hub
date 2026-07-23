@@ -8,15 +8,12 @@
 //   node scripts/email-fundadores/enviar.mjs --csv dados.csv
 //   node scripts/email-fundadores/enviar.mjs --csv dados.csv --enviar
 //
-// Variáveis de ambiente (ponha em scripts/email-fundadores/.env, que é ignorado
-// pelo git; nunca cole essas credenciais em chat nem commite o arquivo):
-//   SMTP_HOST=smtp.hostinger.com
-//   SMTP_PORT=465
-//   SMTP_USER=contato@kolecta.com.br
-//   SMTP_PASS=...
-//   REMETENTE="Kolecta <contato@kolecta.com.br>"
-//   WHATSAPP=55DDDNUMERO
-//   RESPONDER_PARA=contato@kolecta.com.br   (opcional)
+// Configuração em scripts/email-fundadores/.env, que o git ignora. As chaves
+// esperadas e o que vai em cada uma estão no README desta pasta. Nunca cole
+// essas credenciais em chat nem commite o arquivo.
+//
+// Exemplo com host, usuário e senha juntos fica fora daqui de propósito: mesmo
+// com valor inventado, isso dispara o detector de segredo do GitHub.
 
 import fs from 'node:fs';
 import path from 'node:path';

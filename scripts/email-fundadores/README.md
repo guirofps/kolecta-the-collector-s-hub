@@ -18,19 +18,23 @@ Contas internas, de teste e a marca-mãe estão na lista `INTERNOS` dentro de
 
 ## Configuração
 
-Crie `scripts/email-fundadores/.env` (o git ignora este arquivo, não commite):
+Crie `scripts/email-fundadores/.env` (o git ignora este arquivo, não commite).
 
-```
-SMTP_HOST=smtp.hostinger.com
-SMTP_PORT=465
-SMTP_USER=contato@kolecta.com.br
-SMTP_PASS=a-senha-da-caixa
-REMETENTE=Kolecta <contato@kolecta.com.br>
-RESPONDER_PARA=contato@kolecta.com.br
-WHATSAPP=5511987654321
-```
+O arquivo precisa destas chaves, uma por linha, no formato `CHAVE=valor`:
 
-`WHATSAPP` vai no formato internacional, só dígitos: 55 + DDD + número.
+| Chave | O que colocar |
+|---|---|
+| `SMTP_HOST` | servidor de saída da Hostinger |
+| `SMTP_PORT` | `465` |
+| `SMTP_USER` | o endereço da caixa que vai enviar |
+| `SMTP_PASS` | a senha dessa caixa, do painel da Hostinger |
+| `REMETENTE` | `Kolecta <endereco@kolecta.com.br>` |
+| `RESPONDER_PARA` | para onde vão as respostas (opcional) |
+| `WHATSAPP` | formato internacional, só dígitos: 55 + DDD + número |
+
+Os valores acima ficam de fora deste documento de propósito. Exemplo de
+configuração com host, usuário e senha juntos, mesmo com valor inventado,
+dispara o detector de segredo do GitHub e gera alerta à toa.
 
 ## Uso
 
