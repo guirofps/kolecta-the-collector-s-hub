@@ -4,13 +4,14 @@ import { useCart } from '@/contexts/CartContext';
 import {
   Heart, ShieldCheck, Star, Gavel, ShoppingCart, Flag,
   ChevronRight, ArrowLeft, MessageSquare, CreditCard,
-  AlertTriangle, Loader2, Package,
+  AlertTriangle, Loader2, Package, Store,
 } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
 import { cn } from '@/lib/utils';
 import ProductCard from '@/components/ProductCard';
 import VerificationBadge from '@/components/VerificationBadge';
 import { FounderBadgeFor } from '@/components/FounderBadge';
+import { onlyPublic } from '@/lib/listing-visibility';
 import ReportListingDialog from '@/components/ReportListingDialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -202,8 +203,8 @@ export default function ProductDetail() {
   // "Explore mais": anúncios REAIS da plataforma (antes vinha de mock, que
   // exibia produtos inexistentes com preço e contagem de lances falsos).
   // Tira o próprio anúncio da lista e mostra até 4.
-  const similar: Product[] = (similarData ?? [])
-    .filter((l) => l.id !== listing.id && l.status === 'active')
+  const similar: Product[] = onlyPublic(similarData ?? [])
+    .filter((l) => l.id !== listing.id)
     .slice(0, 4)
     .map(listingToCartProduct);
 
@@ -326,25 +327,53 @@ export default function ProductDetail() {
               )}
             </div>
 
-            {/* Seller (com fallback para MVP) */}
-            <div className="flex items-center gap-3 p-4 rounded-lg border border-border bg-card mb-6">
-              <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center shrink-0 text-secondary-foreground font-heading font-bold uppercase">
-                {(listing.sellerName || 'V')[0]}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5 p-1">
-                  <span className="text-sm font-medium text-foreground truncate">{listing.sellerName ?? 'Vendedor Kolecta'}</span>
-                  <VerificationBadge verified={true} />
-                  <FounderBadgeFor userId={listing.sellerId} />
+            {/* Vendedor. Todo usuário tem uma vitrine própria em /vendedor/:id,
+                mas o nome era texto morto: não havia como chegar na loja dele a
+                partir do anúncio. Agora o bloco inteiro leva ao perfil. */}
+            <div className="rounded-lg border border-border bg-card mb-6">
+              <div className="flex items-center gap-3 p-4">
+                <Link
+                  to={`/vendedor/${listing.sellerId}`}
+                  className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center shrink-0 text-secondary-foreground font-heading font-bold uppercase transition-colors hover:bg-secondary/70"
+                  aria-label={`Ver loja de ${listing.sellerName ?? 'vendedor'}`}
+                >
+                  {(listing.sellerName || 'V')[0]}
+                </Link>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 p-1">
+                    <Link
+                      to={`/vendedor/${listing.sellerId}`}
+                      className="text-sm font-medium text-foreground truncate hover:text-primary hover:underline transition-colors"
+                    >
+                      {listing.sellerName ?? 'Vendedor Kolecta'}
+                    </Link>
+                    <VerificationBadge verified={true} />
+                    <FounderBadgeFor userId={listing.sellerId} />
+                  </div>
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <ShieldCheck className="h-3 w-3 text-emerald-500" />
+                    Transação protegida pelo Kolecta
+                  </div>
                 </div>
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <ShieldCheck className="h-3 w-3 text-emerald-500" />
-                  Transação protegida pelo Kolecta
-                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={() => setChatDialogOpen(true)}
+                  aria-label="Falar com o vendedor"
+                >
+                  <MessageSquare className="h-4 w-4" />
+                </Button>
               </div>
-              <Button variant="ghost" size="sm" className="shrink-0" onClick={() => setChatDialogOpen(true)}>
-                <MessageSquare className="h-4 w-4" />
-              </Button>
+              <div className="border-t border-border px-4 py-2.5">
+                <Link
+                  to={`/vendedor/${listing.sellerId}`}
+                  className="flex items-center justify-center gap-1.5 text-xs font-medium text-primary hover:underline"
+                >
+                  <Store className="h-3.5 w-3.5" />
+                  Ver todos os anúncios desta loja
+                </Link>
+              </div>
             </div>
 
             {/* Denúncia */}

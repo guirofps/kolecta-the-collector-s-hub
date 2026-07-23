@@ -16,6 +16,7 @@ import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCategories } from '@/hooks/use-api';
 import { api } from '@/lib/api';
+import { onlyPublic } from '@/lib/listing-visibility';
 
 // F32: parse defensivo — `images` pode vir como JSON de array, URL crua ou nulo.
 // Nunca lança (JSON.parse solto derrubava a página do vendedor).
@@ -184,8 +185,10 @@ export default function SellerProfilePage() {
     );
   }
 
-  // Client-side filtering & sorting for listings
-  let filteredProducts = listingsResponse?.data || [];
+  // Só anúncio aprovado vai à vitrine. A API devolve qualquer status, e sem
+  // este filtro o perfil exibia item ainda em moderação: de fora parecia que o
+  // anúncio tinha sido aprovado sozinho, quando só estava aparecendo cedo.
+  let filteredProducts = onlyPublic(listingsResponse?.data ?? []);
   if (searchQuery) {
     const q = searchQuery.toLowerCase();
     filteredProducts = filteredProducts.filter((p) => p.title.toLowerCase().includes(q));

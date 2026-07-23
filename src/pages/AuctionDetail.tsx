@@ -14,7 +14,7 @@ import { conditionLabel } from '@/lib/mock-data';
 import type { ProductCondition } from '@/lib/mock-data';
 import type { AuctionWithListing } from '@/lib/api';
 import {
-  Gavel, ArrowLeft, ShieldCheck, Timer, Trophy, AlertTriangle, Loader2, ChevronRight, LogIn,
+  Gavel, ArrowLeft, ShieldCheck, Timer, Trophy, AlertTriangle, Loader2, ChevronRight, LogIn, Store,
 } from 'lucide-react';
 
 function parseImages(raw: string | null): string[] {
@@ -259,19 +259,40 @@ export default function AuctionDetail() {
             </div>
 
             {/* Vendedor */}
-            <div className="flex items-center gap-3 p-4 rounded-lg border border-border bg-card">
-              <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center shrink-0 text-secondary-foreground font-heading font-bold uppercase">
-                V
+            {/* Mesmo bloco do anúncio de venda direta: o nome leva à loja. */}
+            <div className="rounded-lg border border-border bg-card">
+              <div className="flex items-center gap-3 p-4">
+                <Link
+                  to={`/vendedor/${auction.sellerId}`}
+                  className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center shrink-0 text-secondary-foreground font-heading font-bold uppercase transition-colors hover:bg-secondary/70"
+                  aria-label="Ver loja do vendedor"
+                >
+                  V
+                </Link>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <Link
+                      to={`/vendedor/${auction.sellerId}`}
+                      className="text-sm font-medium text-foreground truncate hover:text-primary hover:underline transition-colors"
+                    >
+                      Vendedor Kolecta
+                    </Link>
+                    <VerificationBadge verified={true} />
+                    <FounderBadgeFor userId={auction.sellerId} />
+                  </div>
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <ShieldCheck className="h-3 w-3 text-emerald-500" /> Transação protegida pelo Kolecta
+                  </div>
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-sm font-medium text-foreground truncate">Vendedor Kolecta</span>
-                  <VerificationBadge verified={true} />
-                  <FounderBadgeFor userId={auction.sellerId} />
-                </div>
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <ShieldCheck className="h-3 w-3 text-emerald-500" /> Transação protegida pelo Kolecta
-                </div>
+              <div className="border-t border-border px-4 py-2.5">
+                <Link
+                  to={`/vendedor/${auction.sellerId}`}
+                  className="flex items-center justify-center gap-1.5 text-xs font-medium text-primary hover:underline"
+                >
+                  <Store className="h-3.5 w-3.5" />
+                  Ver todos os anúncios desta loja
+                </Link>
               </div>
             </div>
           </div>

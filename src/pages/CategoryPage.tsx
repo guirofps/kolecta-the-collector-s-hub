@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { useParams, Navigate, Link } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
 import ProductCard from '@/components/ProductCard';
 import { useListings, useCategories } from '@/hooks/use-api';
 import { Button } from '@/components/ui/button';
+import { onlyPublic } from '@/lib/listing-visibility';
 import type { ProductCondition, Product } from '@/lib/mock-data';
 import type { Listing } from '@/lib/api';
 
@@ -76,14 +78,25 @@ function CategoryIcon({ slug, size = 32 }: { slug: string; size?: number }) {
   }
 }
 
+// A API pública de anúncios só aceita limite, deslocamento e busca por texto:
+// não dá para filtrar por categoria no servidor. Então trazemos um lote grande
+// e filtramos aqui. Com 40 (o valor antigo) a categoria aparecia VAZIA mesmo
+// tendo itens, porque os 40 primeiros anúncios do geral podiam não ter nenhum
+// daquela categoria. Filtrar por categoria no servidor está pedido ao backend
+// (ver docs/pendencias-backend.md).
+const LOTE = 500;
+
+type FiltroTipo = 'todos' | 'direct' | 'auction';
+
 export default function CategoryPage() {
   const { slug } = useParams<{ slug: string }>();
+  const [filtroTipo, setFiltroTipo] = useState<FiltroTipo>('todos');
   // F29: antes passava o slug como `q` (busca de TEXTO), então procurava itens
   // com "funko-pop" no título → sempre vazio. Agora buscamos os anúncios e
   // filtramos pela CATEGORIA real (id resolvido pelo slug via API).
   // Hooks ficam antes de qualquer return condicional (regras dos hooks).
   const { data: apiCategories, isLoading: catsLoading } = useCategories();
-  const { data: listingsData, isLoading: listingsLoading } = useListings(40, 0);
+  const { data: listingsData, isLoading: listingsLoading } = useListings(LOTE, 0);
 
   if (slug && REMOVED_CATEGORY_SLUGS.includes(slug)) {
     return <Navigate to="/categorias" replace />;
@@ -92,9 +105,17 @@ export default function CategoryPage() {
   const category = CATEGORIES.find((c) => c.slug === slug);
   const isLoading = listingsLoading || catsLoading;
   const realCategoryId = (apiCategories ?? []).find((c) => c.slug === slug)?.id;
-  const products = realCategoryId
-    ? (listingsData ?? []).filter((l) => l.categoryId === realCategoryId)
+
+  // Só anúncio aprovado na vitrine (ver lib/listing-visibility).
+  const daCategoria = realCategoryId
+    ? onlyPublic(listingsData ?? []).filter((l) => l.categoryId === realCategoryId)
     : [];
+
+  const totalDireta = daCategoria.filter((l) => l.type === 'direct').length;
+  const totalLeilao = daCategoria.filter((l) => l.type === 'auction').length;
+  const products = filtroTipo === 'todos'
+    ? daCategoria
+    : daCategoria.filter((l) => l.type === filtroTipo);
 
   if (!category) {
     return (
@@ -151,13 +172,41 @@ export default function CategoryPage() {
   return (
     <Layout>
       <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center gap-3 mb-8">
+        <div className="flex items-center gap-3 mb-5">
           <CategoryIcon slug={category.slug} size={32} />
           <div>
             <h1 className="font-heading text-3xl font-extrabold italic uppercase">{category.name}</h1>
             <p className="text-sm text-muted-foreground">{products.length} itens · {category.description}</p>
           </div>
         </div>
+
+        {/* Compra direta e leilão são jornadas diferentes: uma tem preço fixo,
+            a outra tem prazo e disputa. Misturar na mesma grade confunde. */}
+        {daCategoria.length > 0 && (
+          <div className="mb-6 flex flex-wrap gap-2">
+            {([
+              { valor: 'todos', rotulo: 'Tudo', total: daCategoria.length },
+              { valor: 'direct', rotulo: 'Compra direta', total: totalDireta },
+              { valor: 'auction', rotulo: 'Modo Lance', total: totalLeilao },
+            ] as const).map((aba) => (
+              <button
+                key={aba.valor}
+                type="button"
+                onClick={() => setFiltroTipo(aba.valor)}
+                disabled={aba.total === 0}
+                className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                  filtroTipo === aba.valor
+                    ? 'bg-primary/15 text-primary'
+                    : aba.total === 0
+                      ? 'cursor-not-allowed text-muted-foreground/40'
+                      : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground'
+                }`}
+              >
+                {aba.rotulo} ({aba.total})
+              </button>
+            ))}
+          </div>
+        )}
 
         {isLoading ? (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -166,22 +215,36 @@ export default function CategoryPage() {
             ))}
           </div>
         ) : products.length === 0 ? (
-          <div className="text-center py-20 flex flex-col items-center max-w-md mx-auto">
-            <div className="mb-6 opacity-60">
-              <CategoryIcon slug={category.slug} size={64} />
-            </div>
-            <h2 className="font-heading text-2xl font-bold uppercase italic text-foreground mb-3">Seja o primeiro a vender aqui</h2>
-            <p className="text-muted-foreground mb-8">Nenhum item em {category.name} ainda. Que tal abrir caminho?</p>
-            
-            <div className="flex flex-col gap-3 w-full sm:w-auto">
-              <Button variant="kolecta" size="lg" asChild>
-                <Link to="/painel/anuncios/novo">Criar anúncio grátis</Link>
-              </Button>
-              <Button variant="ghost" size="lg" asChild>
-                <Link to="/categorias">Explorar outras categorias</Link>
+          // A categoria pode estar vazia de verdade, ou só o filtro de tipo é
+          // que não tem item. Dizer "seja o primeiro a vender" para quem só
+          // clicou em "Modo Lance" seria mentira.
+          daCategoria.length > 0 ? (
+            <div className="py-16 text-center">
+              <p className="text-sm text-muted-foreground">
+                Nenhum item em {filtroTipo === 'auction' ? 'Modo Lance' : 'compra direta'} nesta categoria.
+              </p>
+              <Button variant="ghost" size="sm" className="mt-3" onClick={() => setFiltroTipo('todos')}>
+                Ver tudo de {category.name}
               </Button>
             </div>
-          </div>
+          ) : (
+            <div className="text-center py-20 flex flex-col items-center max-w-md mx-auto">
+              <div className="mb-6 opacity-60">
+                <CategoryIcon slug={category.slug} size={64} />
+              </div>
+              <h2 className="font-heading text-2xl font-bold uppercase italic text-foreground mb-3">Seja o primeiro a vender aqui</h2>
+              <p className="text-muted-foreground mb-8">Nenhum item em {category.name} ainda. Que tal abrir caminho?</p>
+
+              <div className="flex flex-col gap-3 w-full sm:w-auto">
+                <Button variant="kolecta" size="lg" asChild>
+                  <Link to="/painel/anuncios/novo">Criar anúncio grátis</Link>
+                </Button>
+                <Button variant="ghost" size="lg" asChild>
+                  <Link to="/categorias">Explorar outras categorias</Link>
+                </Button>
+              </div>
+            </div>
+          )
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {apiProducts.map((p) => (

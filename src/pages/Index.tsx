@@ -14,6 +14,7 @@ import { COMMISSION_LABEL } from '@/lib/fees';
 import { useLaunchGate } from '@/hooks/use-launch-gate';
 import { categoryArt } from '@/lib/category-art';
 import { trackEvent } from '@/lib/analytics';
+import { onlyPublic } from '@/lib/listing-visibility';
 import heroBg from '@/assets/hero-bg.jpg';
 import LaunchCountdown from './LaunchCountdown';
 
@@ -117,8 +118,10 @@ function HomeContent() {
     trackEvent('view_home');
   }, []);
 
-  const { data: listingsData, isLoading } = useListings(8);
-  const products = listingsData ?? [];
+  // Busca uma folga porque só anúncio aprovado vai à vitrine e a API devolve
+  // qualquer status: pedindo 8 exatos, a home podia ficar quase vazia.
+  const { data: listingsData, isLoading } = useListings(40);
+  const products = onlyPublic(listingsData ?? []).slice(0, 8);
   
   // Converte a API Listing para o formato esperado pelo ProductCard
   const parseImages = (raw: string | null | undefined): string[] => {

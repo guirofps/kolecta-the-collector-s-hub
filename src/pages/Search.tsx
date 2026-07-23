@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { useListings, useCategories } from '@/hooks/use-api';
 import { type ProductCondition, type ProductType } from '@/lib/mock-data';
 import { trackEvent } from '@/lib/analytics';
+import { onlyPublic } from '@/lib/listing-visibility';
 import { Loader2 } from 'lucide-react';
 
 const conditionOptions: { value: ProductCondition; label: string }[] = [
@@ -32,7 +33,9 @@ export default function SearchPage() {
   const query = searchParams.get('q') || '';
   const categorySlug = searchParams.get('category') || '';
 
-  const { data: listingsData, isLoading } = useListings(50, 0, query);
+  // Só anúncio aprovado aparece na busca (ver lib/listing-visibility).
+  const { data: listingsRaw, isLoading } = useListings(200, 0, query);
+  const listingsData = onlyPublic(listingsRaw ?? []);
   const { data: categories } = useCategories();
 
   const [filtersOpen, setFiltersOpen] = useState(false);
