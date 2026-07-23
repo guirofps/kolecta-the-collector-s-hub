@@ -17,6 +17,33 @@ function padNumber(n: number): string {
   return String(n).padStart(3, '0');
 }
 
+// ─── Ícone base da medalha ───────────────────────────────────
+// Anel dourado + estrela, sem texto. É a assinatura visual do selo, e existe
+// separado para o pill inline usar a MESMA identidade da medalha grande. Antes
+// o pill usava um hexágono, um desenho sem parentesco com a medalha da landing.
+
+function MedalIcon({ size = 16, className }: { size?: number; className?: string }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 120 120"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      aria-hidden="true"
+    >
+      {/* Traço proporcionalmente mais grosso: em 16px um anel fino some. */}
+      <circle cx="60" cy="60" r="53" stroke={GOLD} strokeWidth="8" fill={DARK} />
+      {/* Estrela centralizada e maior, já que aqui não há número dentro. */}
+      <polygon
+        points="60,26 68.2,51.2 94.7,51.2 73.2,66.8 81.4,92 60,76.4 38.6,92 46.8,66.8 25.3,51.2 51.8,51.2"
+        fill={GOLD}
+      />
+    </svg>
+  );
+}
+
 // ─── Medalha (grande) ────────────────────────────────────────
 
 export function FounderMedal({
@@ -93,17 +120,10 @@ export function FounderBadge({
 }) {
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 pl-1.5 pr-2.5 py-0.5 ${className ?? ''}`}
+      className={`inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 pl-1 pr-2.5 py-0.5 ${className ?? ''}`}
       title={`Membro Fundador #${padNumber(number)}`}
     >
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M12 1 L21 6 L21 16 L12 21 L3 16 L3 6 Z" fill={GOLD} />
-        <polygon
-          points="12,6 13.4,10.2 17.8,10.2 14.2,12.8 15.6,17 12,14.4 8.4,17 9.8,12.8 6.2,10.2 10.6,10.2"
-          fill={DARK}
-          opacity="0.55"
-        />
-      </svg>
+      <MedalIcon size={16} />
       <span className="font-heading text-[10px] font-bold uppercase tracking-wider text-primary leading-none">
         Fundador #{padNumber(number)}
       </span>
