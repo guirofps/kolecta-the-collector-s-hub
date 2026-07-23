@@ -1,6 +1,6 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
-import { Shield, MapPin, Truck, CreditCard, ChevronRight, Loader2, AlertTriangle, Copy } from 'lucide-react';
+import { Shield, MapPin, Truck, CreditCard, QrCode, ChevronRight, Loader2, AlertTriangle, Copy } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
 import { useCart, CartItem } from '@/contexts/CartContext';
 import { Card, CardContent } from '@/components/ui/card';
@@ -10,11 +10,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Separator } from '@/components/ui/separator';
-import { useCreateCheckout, useWallet } from '@/hooks/use-api';
+import { useCreateCheckout, useWallet, useInstallmentsSimulation } from '@/hooks/use-api';
 import { useAddresses } from '@/hooks/use-api';
 import { api } from '@/lib/api';
 import { formatBRL } from '@/lib/currency';
 import { isValidCpf } from '@/lib/cpf';
+import { tokenizeCard, CardTokenizationError, isCardPaymentEnabled } from '@/lib/pagarme';
 import { useToast } from '@/hooks/use-toast';
 
 // ── Helpers ───────────────────────────────────────────────────────────────
@@ -40,6 +41,28 @@ function maskPhone(v: string) {
   }
   return d.replace(/(\d{2})(\d)/, '($1) $2').replace(/(\d{5})(\d)/, '$1-$2');
 }
+
+function maskCardNumber(v: string) {
+  const d = v.replace(/\D/g, '').slice(0, 16);
+  return d.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
+}
+
+function maskExpiry(v: string) {
+  const d = v.replace(/\D/g, '').slice(0, 4);
+  if (d.length <= 2) return d;
+  return `${d.slice(0, 2)}/${d.slice(2)}`;
+}
+
+// Opção de parcelamento vinda da simulação do backend.
+interface InstallmentOption {
+  installments: number;
+  installmentInCents: number;
+  totalInCents: number;
+  interestInCents: number;
+  hasInterest: boolean;
+}
+
+type PaymentMethod = 'pix' | 'credit_card';
 
 // ── Shipping ──────────────────────────────────────────────────────────────
 
@@ -150,6 +173,18 @@ export default function CheckoutPage() {
   const { data: wallet } = useWallet();
   const { toast } = useToast();
 
+  // ── Payment method (PIX vs cartão) ────────────────────────────────────
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('pix');
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardName, setCardName] = useState('');
+  const [cardExp, setCardExp] = useState('');
+  const [cardCvv, setCardCvv] = useState('');
+  const [installments, setInstallments] = useState(1);
+  const [installmentOptions, setInstallmentOptions] = useState<InstallmentOption[]>([]);
+  const [cardProcessing, setCardProcessing] = useState(false);
+  const [cardError, setCardError] = useState('');
+  const simulateInstallments = useInstallmentsSimulation();
+
   // ── Copiar código PIX ─────────────────────────────────────────────────
   async function handleCopyPix(code?: string) {
     if (!code) return;
@@ -240,8 +275,6 @@ export default function CheckoutPage() {
     setEstado(addr.state);
   }
 
-  if (items.length === 0) return <Navigate to="/carrinho" replace />;
-
   // Opções de frete do vendedor + retirada pessoal (sempre disponível).
   const optionsFor = (slug: string): ShippingOption[] => [
     ...(shippingOptions[slug] ?? []),
@@ -262,6 +295,40 @@ export default function CheckoutPage() {
   }
   // shippingTotal está em centavos; totalPrice em reais → normaliza p/ reais.
   const grandTotal = totalPrice + shippingTotal / 100;
+
+  // Valor a cobrar no gateway (estimativa para o seletor de parcelas): total
+  // menos o que o saldo da wallet cobre. 0 = wallet cobre tudo (cartão dispensado).
+  const totalInCents = Math.round(grandTotal * 100);
+  const walletCoverInCents =
+    useWalletBalance && wallet ? Math.min(wallet.balanceInCents, totalInCents) : 0;
+  const chargeEstimate = Math.max(0, totalInCents - walletCoverInCents);
+
+  // Simula as parcelas quando cartão está selecionado e há valor a cobrar.
+  useEffect(() => {
+    if (paymentMethod !== 'credit_card' || chargeEstimate <= 0) {
+      setInstallmentOptions([]);
+      return;
+    }
+    let cancelled = false;
+    simulateInstallments(chargeEstimate)
+      .then((res) => {
+        if (cancelled) return;
+        setInstallmentOptions(res.options);
+        // Reajusta a seleção se o nº de parcelas atual não couber no novo valor.
+        setInstallments((cur) =>
+          res.options.some((o) => o.installments === cur) ? cur : 1,
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setInstallmentOptions([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paymentMethod, chargeEstimate]);
+
+  if (items.length === 0) return <Navigate to="/carrinho" replace />;
 
   // ── Validate stage 1 ─────────────────────────────────────────────────
   function validate() {
@@ -284,9 +351,22 @@ export default function CheckoutPage() {
     return Object.keys(e).length === 0;
   }
 
+  // ── Validate card fields (só quando cartão selecionado) ──────────────
+  function validateCard(): string | null {
+    if (cardNumber.replace(/\D/g, '').length < 13) return 'Número do cartão inválido';
+    if (!cardName.trim()) return 'Informe o nome impresso no cartão';
+    const exp = cardExp.replace(/\D/g, '');
+    if (exp.length < 4) return 'Validade inválida (MM/AA)';
+    const mm = Number(exp.slice(0, 2));
+    if (mm < 1 || mm > 12) return 'Mês de validade inválido';
+    if (cardCvv.replace(/\D/g, '').length < 3) return 'CVV inválido';
+    return null;
+  }
+
   // ── Advance to payment (calls backend) ───────────────────────────────
   async function handleGoToPayment() {
     setSubmitted(true);
+    setCardError('');
     if (!validate()) return;
 
     const group = groups[currentGroupIndex];
@@ -307,16 +387,65 @@ export default function CheckoutPage() {
     const shippingInCents = shipOpt ? Math.round(shipOpt.price) : 0;
     const deliveryMethod: 'shipping' | 'pickup' = isPickup ? 'pickup' : 'shipping';
 
-    const result = await createCheckout.mutateAsync({ items: listingItems, addressId, shippingInCents, deliveryMethod, useWalletBalance, buyerCpf, buyerPhone });
-
-    // Se pagou integralmente via wallet, redireciona direto para confirmação
-    if (result.paidViaWallet) {
-      window.location.href = `/pedido/confirmacao?order_id=${result.orderId}&redirect_status=succeeded`;
-      return;
+    // Cartão só entra quando há valor a cobrar (wallet não cobre tudo). O cartão
+    // é tokenizado no cliente ANTES de criar o pedido (o número nunca vai ao back).
+    const payWithCard = paymentMethod === 'credit_card' && chargeEstimate > 0;
+    let cardToken: string | undefined;
+    if (payWithCard) {
+      const cardErr = validateCard();
+      if (cardErr) {
+        setCardError(cardErr);
+        return;
+      }
+      setCardProcessing(true);
+      try {
+        cardToken = await tokenizeCard({
+          number: cardNumber,
+          holderName: cardName,
+          expiry: cardExp,
+          cvv: cardCvv,
+        });
+      } catch (err) {
+        setCardProcessing(false);
+        const msg =
+          err instanceof CardTokenizationError
+            ? err.message
+            : 'Não foi possível validar o cartão.';
+        setCardError(msg);
+        toast({ title: 'Cartão inválido', description: msg, variant: 'destructive' });
+        return;
+      }
     }
 
-    setSessions(prev => [...prev, { ...result, sellerGroup: group }]);
-    setStage('payment');
+    try {
+      const result = await createCheckout.mutateAsync({
+        items: listingItems,
+        addressId,
+        shippingInCents,
+        deliveryMethod,
+        useWalletBalance,
+        buyerCpf,
+        buyerPhone,
+        ...(payWithCard
+          ? { paymentMethod: 'credit_card' as const, cardToken, installments }
+          : {}),
+      });
+
+      // Wallet integral OU cartão aprovado → confirma na hora e vai pra confirmação.
+      if (result.paidViaWallet || result.paidViaCard) {
+        window.location.href = `/pedido/confirmacao?order_id=${result.orderId}&redirect_status=succeeded`;
+        return;
+      }
+
+      // PIX → mostra o QR na etapa de pagamento.
+      setSessions(prev => [...prev, { ...result, sellerGroup: group }]);
+      setStage('payment');
+    } catch {
+      // O toast de erro já é disparado pelo onError do useCreateCheckout
+      // (inclui a mensagem do gateway, ex.: "Cartão recusado pelo emissor").
+    } finally {
+      setCardProcessing(false);
+    }
   }
 
   const inputCls = (field: string) => {
@@ -564,6 +693,125 @@ export default function CheckoutPage() {
                     )}
                   </CardContent>
                 </Card>
+
+                {/* Forma de Pagamento — só quando há valor a cobrar (wallet não
+                    cobre tudo) E o cartão está habilitado. Sem chave pública,
+                    o fluxo continua PIX puro (sem seletor). */}
+                {chargeEstimate > 0 && isCardPaymentEnabled && (
+                  <Card className="bg-gradient-card">
+                    <CardContent className="p-6 space-y-5">
+                      <div className="flex items-center gap-2 mb-2">
+                        <CreditCard className="h-5 w-5 text-primary" />
+                        <h2 className="font-heading text-xl font-bold uppercase tracking-wide">
+                          Forma de Pagamento
+                        </h2>
+                      </div>
+
+                      <RadioGroup
+                        value={paymentMethod}
+                        onValueChange={(v) => {
+                          const m = v as PaymentMethod;
+                          setPaymentMethod(m);
+                          setCardError('');
+                          // Cartão não combina com saldo: cobra sempre o valor cheio.
+                          if (m === 'credit_card') setUseWalletBalance(false);
+                        }}
+                        className="grid grid-cols-1 sm:grid-cols-2 gap-3"
+                      >
+                        {([
+                          { id: 'pix', label: 'PIX', desc: 'Aprovação na hora', Icon: QrCode },
+                          { id: 'credit_card', label: 'Cartão de crédito', desc: 'Em até 12x', Icon: CreditCard },
+                        ] as const).map(({ id, label, desc, Icon }) => {
+                          const active = paymentMethod === id;
+                          return (
+                            <label
+                              key={id}
+                              htmlFor={`pm-${id}`}
+                              className={`flex items-center gap-3 p-3 rounded-md border transition-all cursor-pointer ${active ? 'border-[#F5C300]/60 bg-[#F5C300]/5' : 'border-border hover:border-primary/40'}`}
+                            >
+                              <RadioGroupItem value={id} id={`pm-${id}`} className={active ? 'text-[#F5C300] border-[#F5C300]' : ''} />
+                              <Icon className="h-5 w-5 text-primary shrink-0" />
+                              <div className="leading-tight">
+                                <p className="font-body text-sm font-medium">{label}</p>
+                                <p className="text-xs text-muted-foreground">{desc}</p>
+                              </div>
+                            </label>
+                          );
+                        })}
+                      </RadioGroup>
+
+                      {/* Formulário do cartão */}
+                      {paymentMethod === 'credit_card' && (
+                        <div className="space-y-4 pt-1">
+                          <div>
+                            <Label htmlFor="cardNumber">Número do cartão *</Label>
+                            <Input id="cardNumber" inputMode="numeric" autoComplete="cc-number"
+                              className="bg-background font-mono" value={cardNumber}
+                              onChange={e => setCardNumber(maskCardNumber(e.target.value))}
+                              placeholder="0000 0000 0000 0000" />
+                          </div>
+                          <div>
+                            <Label htmlFor="cardName">Nome impresso no cartão *</Label>
+                            <Input id="cardName" autoComplete="cc-name" className="bg-background uppercase"
+                              value={cardName} onChange={e => setCardName(e.target.value)}
+                              placeholder="COMO ESTÁ NO CARTÃO" />
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <Label htmlFor="cardExp">Validade *</Label>
+                              <Input id="cardExp" inputMode="numeric" autoComplete="cc-exp"
+                                className="bg-background font-mono" value={cardExp}
+                                onChange={e => setCardExp(maskExpiry(e.target.value))} placeholder="MM/AA" />
+                            </div>
+                            <div>
+                              <Label htmlFor="cardCvv">CVV *</Label>
+                              <Input id="cardCvv" inputMode="numeric" autoComplete="cc-csc" maxLength={4}
+                                className="bg-background font-mono" value={cardCvv}
+                                onChange={e => setCardCvv(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                                placeholder="123" />
+                            </div>
+                          </div>
+
+                          {/* Parcelas */}
+                          <div>
+                            <Label htmlFor="installments">Parcelas</Label>
+                            <select
+                              id="installments"
+                              className="mt-1 w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+                              value={installments}
+                              onChange={e => setInstallments(Number(e.target.value))}
+                            >
+                              {installmentOptions.length === 0 && (
+                                <option value={1}>1x de {formatBRL(chargeEstimate / 100)} sem juros</option>
+                              )}
+                              {installmentOptions.map(opt => (
+                                <option key={opt.installments} value={opt.installments}>
+                                  {opt.installments}x de {formatBRL(opt.installmentInCents / 100)}
+                                  {opt.hasInterest
+                                    ? ` (total ${formatBRL(opt.totalInCents / 100)})`
+                                    : ' sem juros'}
+                                </option>
+                              ))}
+                            </select>
+                            {installmentOptions.find(o => o.installments === installments)?.hasInterest && (
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Juros do parcelamento cobrados no cartão.
+                              </p>
+                            )}
+                          </div>
+
+                          {cardError && (
+                            <p className="text-xs text-destructive">{cardError}</p>
+                          )}
+                          <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                            <Shield className="h-3.5 w-3.5" />
+                            Dados do cartão enviados de forma segura à Pagar.me. Não armazenamos o cartão.
+                          </p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
               </>
             )}
 
@@ -701,17 +949,23 @@ export default function CheckoutPage() {
                           type="button"
                           role="switch"
                           aria-checked={useWalletBalance}
+                          disabled={paymentMethod === 'credit_card'}
                           onClick={() => setUseWalletBalance(!useWalletBalance)}
-                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${useWalletBalance ? 'bg-primary' : 'bg-muted'}`}
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${useWalletBalance ? 'bg-primary' : 'bg-muted'}`}
                         >
                           <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${useWalletBalance ? 'translate-x-6' : 'translate-x-1'}`} />
                         </button>
                       </div>
+                      {paymentMethod === 'credit_card' && (
+                        <div className="text-xs text-muted-foreground">
+                          O saldo da carteira não é combinado com cartão — a compra no cartão cobra o valor cheio.
+                        </div>
+                      )}
                       {useWalletBalance && (
                         <div className="text-xs text-muted-foreground">
                           {wallet.balanceInCents >= grandTotal * 100
-                            ? '✅ Seu saldo cobre o valor total. Nenhum cartão será necessário.'
-                            : `Será abatido ${formatBRL(wallet.balanceInCents / 100)} do saldo. O restante será cobrado no cartão.`
+                            ? '✅ Seu saldo cobre o valor total. Nenhum pagamento adicional será necessário.'
+                            : `Será abatido ${formatBRL(wallet.balanceInCents / 100)} do saldo. O restante (${formatBRL(chargeEstimate / 100)}) será cobrado na forma escolhida.`
                           }
                         </div>
                       )}
@@ -725,16 +979,18 @@ export default function CheckoutPage() {
                       size="lg"
                       className="w-full glow-primary"
                       onClick={handleGoToPayment}
-                      disabled={createCheckout.isPending}
+                      disabled={createCheckout.isPending || cardProcessing}
                     >
-                      {createCheckout.isPending ? (
+                      {createCheckout.isPending || cardProcessing ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Preparando pagamento...
+                          {cardProcessing ? 'Processando cartão...' : 'Preparando pagamento...'}
                         </>
                       ) : (
                         <>
-                          Ir para pagamento
+                          {paymentMethod === 'credit_card' && chargeEstimate > 0
+                            ? 'Pagar com cartão'
+                            : 'Ir para pagamento'}
                           <ChevronRight className="ml-1 h-4 w-4" />
                         </>
                       )}
@@ -743,7 +999,7 @@ export default function CheckoutPage() {
 
                   <div className="flex items-center justify-center gap-2 text-muted-foreground">
                     <Shield className="h-4 w-4" />
-                    <span className="text-sm font-body">Pagamento seguro via PIX · Pagar.me</span>
+                    <span className="text-sm font-body">Pagamento seguro · Pagar.me</span>
                   </div>
                 </CardContent>
               </Card>

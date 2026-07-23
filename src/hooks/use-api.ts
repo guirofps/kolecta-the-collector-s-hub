@@ -965,7 +965,7 @@ export function useCreateCheckout() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (body: { items: { listingId: string }[]; addressId?: string; shippingInCents?: number; deliveryMethod?: 'shipping' | 'pickup'; useWalletBalance?: boolean; buyerCpf?: string; buyerPhone?: string }) => {
+    mutationFn: async (body: { items: { listingId: string }[]; addressId?: string; shippingInCents?: number; deliveryMethod?: 'shipping' | 'pickup'; useWalletBalance?: boolean; buyerCpf?: string; buyerPhone?: string; paymentMethod?: 'pix' | 'credit_card'; cardToken?: string; installments?: number }) => {
       const token = await getToken();
       return api.orders.createCheckout(token!, body);
     },
@@ -977,6 +977,19 @@ export function useCreateCheckout() {
       });
     },
   });
+}
+
+
+// ── useInstallmentsSimulation (parcelas do cartão) ─────────────────────────
+
+// Retorna uma função que consulta as parcelas para um valor (centavos).
+// Usada sob demanda no checkout ao escolher cartão / mudar o valor.
+export function useInstallmentsSimulation() {
+  const { getToken } = useAuth();
+  return async (amountInCents: number) => {
+    const token = await getToken();
+    return api.orders.installmentsSimulation(token!, amountInCents);
+  };
 }
 
 

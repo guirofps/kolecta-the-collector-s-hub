@@ -462,7 +462,7 @@ export const api = {
         token,
       }).then(r => r.data),
 
-    createCheckout: (token: string, body: { items: { listingId: string }[]; addressId?: string; shippingInCents?: number; deliveryMethod?: 'shipping' | 'pickup'; useWalletBalance?: boolean; buyerCpf?: string; buyerPhone?: string }) =>
+    createCheckout: (token: string, body: { items: { listingId: string }[]; addressId?: string; shippingInCents?: number; deliveryMethod?: 'shipping' | 'pickup'; useWalletBalance?: boolean; buyerCpf?: string; buyerPhone?: string; paymentMethod?: 'pix' | 'credit_card'; cardToken?: string; installments?: number }) =>
       request<{
         orderId: string;
         totalInCents: number;
@@ -474,9 +474,31 @@ export const api = {
         qrCode?: string; // copia-e-cola
         qrCodeUrl?: string; // imagem do QR
         expiresAt?: string;
+        // Cobrança no cartão (síncrona)
+        paidViaCard?: boolean;
+        amountCharged?: number;
+        installments?: number;
+        interestInCents?: number;
       }>(
         '/api/orders/checkout',
         { method: 'POST', body: JSON.stringify(body), token },
+      ),
+
+    // Simulação de parcelamento no cartão (juros no comprador). `amount` em
+    // centavos = valor a cobrar no cartão. O total real é recalculado no backend.
+    installmentsSimulation: (token: string, amountInCents: number) =>
+      request<{
+        amountInCents: number;
+        options: {
+          installments: number;
+          installmentInCents: number;
+          totalInCents: number;
+          interestInCents: number;
+          hasInterest: boolean;
+        }[];
+      }>(
+        `/api/orders/installments-simulation?amount=${amountInCents}`,
+        { token },
       ),
   },
 

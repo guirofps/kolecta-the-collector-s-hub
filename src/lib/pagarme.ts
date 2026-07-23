@@ -1,0 +1,91 @@
+/**
+ * Tokenização de cartão no cliente (escopo PCI).
+ *
+ * O número do cartão NUNCA passa pelo backend da Kolecta: o formulário envia os
+ * dados direto para a Pagar.me usando a CHAVE PÚBLICA (pk_...), que devolve um
+ * `card_token` de uso único. Só o token vai para o nosso `/api/orders/checkout`.
+ *
+ * Endpoint: POST https://api.pagar.me/core/v5/tokens?appId=<public_key>
+ */
+
+const PAGARME_PUBLIC_KEY = import.meta.env.VITE_PAGARME_PUBLIC_KEY as
+  | string
+  | undefined;
+
+const TOKENS_URL = 'https://api.pagar.me/core/v5/tokens';
+
+/** Cartão só é oferecido quando a chave pública está configurada no build. */
+export const isCardPaymentEnabled = Boolean(PAGARME_PUBLIC_KEY);
+
+export interface CardInput {
+  /** Só dígitos. */
+  number: string;
+  holderName: string;
+  /** "MM/AA" ou "MM/AAAA". */
+  expiry: string;
+  cvv: string;
+}
+
+/** Erro amigável de tokenização (mensagem já pronta para toast). */
+export class CardTokenizationError extends Error {}
+
+/** MM/AA(AA) → { month, year(4 dígitos) }. */
+function parseExpiry(expiry: string): { month: number; year: number } {
+  const digits = expiry.replace(/\D/g, '');
+  const month = Number(digits.slice(0, 2));
+  let year = Number(digits.slice(2));
+  if (digits.length <= 4) year += 2000; // AA → 20AA
+  return { month, year };
+}
+
+/**
+ * Gera o token do cartão na Pagar.me. Lança `CardTokenizationError` com uma
+ * mensagem pronta para exibir quando os dados são inválidos/recusados.
+ */
+export async function tokenizeCard(card: CardInput): Promise<string> {
+  if (!PAGARME_PUBLIC_KEY) {
+    throw new CardTokenizationError(
+      'Pagamento com cartão indisponível no momento. Use PIX.',
+    );
+  }
+
+  const { month, year } = parseExpiry(card.expiry);
+
+  let res: Response;
+  try {
+    res = await fetch(
+      `${TOKENS_URL}?appId=${encodeURIComponent(PAGARME_PUBLIC_KEY)}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'card',
+          card: {
+            number: card.number.replace(/\D/g, ''),
+            holder_name: card.holderName.trim(),
+            exp_month: month,
+            exp_year: year,
+            cvv: card.cvv.replace(/\D/g, ''),
+          },
+        }),
+      },
+    );
+  } catch {
+    throw new CardTokenizationError(
+      'Não foi possível validar o cartão. Verifique sua conexão e tente novamente.',
+    );
+  }
+
+  const body = await res.json().catch(() => ({}));
+
+  if (!res.ok || !body?.id) {
+    // A Pagar.me devolve errors[] com o motivo (número inválido, etc).
+    const detail =
+      body?.errors?.[0]?.message ||
+      body?.message ||
+      'Dados do cartão inválidos.';
+    throw new CardTokenizationError(detail);
+  }
+
+  return body.id as string;
+}
