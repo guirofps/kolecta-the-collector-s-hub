@@ -190,6 +190,49 @@ o aviso falhar, isso se resolve depois. Dispare sem aguardar, ou jogue numa fila
 A implementação de referência já engole o erro e loga, para o e-mail nunca
 derrubar a request principal.
 
+## Pendências do backend descobertas no painel admin
+
+Duas coisas que o front já espera e o backend ainda não entrega. Ambas ficam
+visíveis na fila de aprovação (`/admin/anuncios`).
+
+### 1. Guardar o motivo da reprovação
+
+O `PATCH /api/admin/listings/:id/status` agora recebe também `reason` quando o
+status é `rejected`. É o motivo escolhido pelo admin mais a observação livre.
+
+Sem persistir esse campo, o vendedor nunca fica sabendo o que corrigir, e o
+e-mail `anuncioRejeitado` chega sem motivo, que é justamente a parte útil dele.
+
+### 2. Devolver a config do leilão na fila de moderação
+
+`GET /api/admin/listings` devolve o `Listing`, que não tem nenhum campo de
+leilão. Eles vivem na tabela `auctions`. Resultado: o admin aprova um leilão sem
+ver lance inicial, incremento mínimo, preço de reserva nem duração, que é
+exatamente o que precisa ser conferido antes de publicar.
+
+O front já está preparado: se estes campos vierem, ele mostra tudo sozinho, sem
+mexer em nada. Enquanto não vierem, a tela exibe um aviso vermelho no lugar.
+
+Campos esperados no anúncio quando `type = 'auction'`:
+
+| Campo | Origem |
+|---|---|
+| `startingBidInCents` | `auctions.starting_bid_in_cents` |
+| `minIncrementInCents` | `auctions.min_increment_in_cents` |
+| `reservePriceInCents` | `auctions.reserve_price_in_cents` |
+| `durationHours` | `auctions.duration_hours` |
+| `antiSniper` | `auctions.anti_sniper` |
+| `endsAt` | `auctions.ends_at` |
+
+### 3. Conferir o total de anúncios do `/api/admin/stats`
+
+O KPI "Anúncios" do painel mostra `totalListings` vindo direto de
+`/api/admin/stats`, sem nenhuma conta no front. O número exibido (656) não bate
+com a contagem direta no banco (192 na exportação de 23/07). Vale conferir se a
+consulta de estatísticas está com JOIN multiplicando linha (por exemplo com a
+tabela de imagens) ou se está contando status que não deveriam entrar
+(cancelado, excluído).
+
 ## Domínio e DNS
 
 Já resolvido. O domínio de envio é **`send.kolecta.com.br`**, verificado no

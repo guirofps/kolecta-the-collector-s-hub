@@ -1093,6 +1093,19 @@ export interface Listing {
   priceInCents: number | null;
   images: string | null; // JSON array stringificado: '["url1","url2"]'
   status: string;
+  // Config de leilão (só quando type='auction'). O vendedor preenche isso no
+  // wizard e o backend grava na tabela `auctions`. Opcionais aqui porque nem
+  // todo endpoint devolve: a fila de moderação (/api/admin/listings) ainda não
+  // manda, e sem isso o admin aprova leilão sem ver lance inicial nem reserva.
+  // Ver docs/emails-transacionais.md e o handoff do painel.
+  startingBidInCents?: number | null;
+  minIncrementInCents?: number | null;
+  reservePriceInCents?: number | null;
+  durationHours?: number | null;
+  antiSniper?: boolean | null;
+  endsAt?: string | null;
+  // Atributos específicos da categoria (JSON stringificado).
+  attributes?: string | null;
   // Dados de envio (frete): peso em gramas, dimensões em cm. Nullable.
   weightGrams?: number | null;
   widthCm?: number | null;
