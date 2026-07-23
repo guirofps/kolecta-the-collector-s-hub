@@ -75,6 +75,7 @@ import OrderConfirmationPage from "./pages/OrderConfirmation";
 import ConnectSuccessPage from "./pages/connect/Success";
 import { CartProvider } from "./contexts/CartContext";
 import CartDrawer from "./components/CartDrawer";
+import { MetaPixelPageView, MetaPixelSignup } from "./components/MetaPixel";
 import { Navigate } from "react-router-dom";
 
 const queryClient = new QueryClient();
@@ -97,6 +98,8 @@ const App = () => (
         <BrowserRouter>
           <CartDrawer />
           <ScrollToTop />
+          <MetaPixelPageView />
+          {CLERK_ENABLED && <MetaPixelSignup />}
           {CLERK_ENABLED && <ConsentSync />}
           {showDevUserSwitcher && <DevUserSwitcher />}
           <LaunchGate>

@@ -13,6 +13,7 @@ import kolectaLogo from '@/assets/kolecta-logo.png';
 import heroBg from '@/assets/hero-bg.jpg';
 import miniGtNsx from '@/assets/mini-gt-nsx.webp';
 import { CATEGORY_ART } from '@/lib/category-art';
+import { metaTrackCustom } from '@/lib/meta-pixel';
 
 // ─── Config da campanha de Fundador ──────────────────────────
 // Números da oferta em um só lugar. Ajuste aqui, o layout acompanha.
@@ -126,7 +127,8 @@ function TimerBlock({ value, label }: { value: string; label: string }) {
 function SignupCta({ label = 'Quero ser Fundador' }: { label?: string }) {
   return (
     <Button variant="kolecta" size="lg" className="text-base px-10" asChild>
-      <Link to="/criar-conta">
+      {/* Evento customizado: mede o clique na landing separado do cadastro concluído. */}
+      <Link to="/criar-conta" onClick={() => metaTrackCustom('ClickQueroSerFundador', { cta: label })}>
         {label}
         <ArrowRight className="h-5 w-5 ml-2" />
       </Link>
