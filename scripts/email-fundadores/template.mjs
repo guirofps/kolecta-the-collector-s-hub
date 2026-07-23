@@ -102,8 +102,11 @@ export function montarEmail({ nome, anuncios, whatsapp, tipo, faltam = 0 }) {
     : `Assim que o quinto anúncio entrar, você passa a concorrer automaticamente. O resultado da
        seleção sai no dia <strong style="color:${TEXTO};">25 de julho</strong>, junto com o lançamento.`;
 
+  // Sem número configurado o botão sairia morto. Deixamos isso gritante no
+  // preview em vez de gerar um e-mail que não leva a lugar nenhum.
   const cta = preSelecionado
-    ? botao(esc(whatsapp), 'Falar com a Kolecta no WhatsApp')
+    ? botao(whatsapp ? esc(whatsapp) : '#FALTA-CONFIGURAR-WHATSAPP',
+            whatsapp ? 'Falar com a Kolecta no WhatsApp' : 'FALTA CONFIGURAR O WHATSAPP')
     : botao(`${SITE}/painel/anuncios/novo`, 'Publicar meu próximo anúncio');
 
   const legendaCta = preSelecionado

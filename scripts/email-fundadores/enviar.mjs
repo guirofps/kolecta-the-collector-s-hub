@@ -148,6 +148,11 @@ for (const d of destinatarios) {
 }
 console.log(`Previews em: ${SAIDA}`);
 
+if (!WHATSAPP) {
+  console.warn('\nATENÇÃO: WHATSAPP não está definido no .env.');
+  console.warn('O botão do e-mail vai sair sem link. Preencha antes de enviar.');
+}
+
 // ── Daqui para baixo, só com --enviar ─────────────────────────────────────
 if (!ENVIAR_DE_VERDADE) {
   console.log('\nDRY-RUN. Nada foi enviado.');
