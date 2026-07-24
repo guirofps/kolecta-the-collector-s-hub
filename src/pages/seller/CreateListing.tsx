@@ -389,7 +389,9 @@ export default function CreateListing() {
   };
 
   const handleFilesSelect = (files: File[]) => {
-    const free = MAX_PHOTOS - form.photos.length;
+    // Desconta também o que já está em voo: com uploads paralelos, olhar só
+    // `form.photos` deixaria passar mais que o limite.
+    const free = MAX_PHOTOS - form.photos.length - uploadingCount;
     if (free <= 0) return;
 
     const batch = files.slice(0, free);
@@ -1187,9 +1189,18 @@ function StepPhotos({
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const isUploading = uploadingCount > 0;
+  // Conta o que já subiu MAIS o que está subindo: sem isso o vendedor podia
+  // escolher 8 fotos com 5 em voo e estourar o limite.
+  const totalPrevisto = form.photos.length + uploadingCount;
+  const cheio = totalPrevisto >= MAX_PHOTOS;
 
   const handleClick = () => {
-    if (!isUploading && form.photos.length < MAX_PHOTOS) inputRef.current?.click();
+    // Antes o clique era ignorado enquanto QUALQUER foto estivesse subindo.
+    // No celular, com foto grande, o vendedor clicava para adicionar a segunda
+    // e não acontecia nada: parecia que a tela tinha travado. Upload paralelo
+    // funciona (o append soma em cima do estado mais recente), então não há
+    // motivo para bloquear.
+    if (!cheio) inputRef.current?.click();
   };
 
   // Aceita seleção múltipla: manda todos os arquivos de uma vez.
@@ -1253,22 +1264,27 @@ function StepPhotos({
           </div>
         ))}
 
-        {form.photos.length < MAX_PHOTOS && (
+        {/* Quadro de progresso por foto em voo: o vendedor vê que está
+            subindo, sem que isso trave a escolha das próximas. */}
+        {Array.from({ length: uploadingCount }).map((_, i) => (
+          <div
+            key={`enviando-${i}`}
+            className="flex aspect-square flex-col items-center justify-center gap-2 rounded-lg border border-border bg-secondary/50"
+          >
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            <span className="px-1 text-center text-[10px] text-muted-foreground">Enviando…</span>
+          </div>
+        ))}
+
+        {!cheio && (
           <button
             type="button"
             onClick={handleClick}
-            disabled={isUploading}
-            className="aspect-square rounded-lg border-2 border-dashed border-border hover:border-primary/40 bg-secondary/50 flex flex-col items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="aspect-square rounded-lg border-2 border-dashed border-border hover:border-primary/40 bg-secondary/50 flex flex-col items-center justify-center gap-2 transition-colors"
           >
-            {isUploading ? (
-              <Loader2 className="h-6 w-6 text-muted-foreground animate-spin" />
-            ) : (
-              <ImagePlus className="h-6 w-6 text-muted-foreground" />
-            )}
+            <ImagePlus className="h-6 w-6 text-muted-foreground" />
             <span className="text-[10px] text-muted-foreground text-center px-1">
-              {isUploading
-                ? `Enviando ${uploadingCount}…`
-                : 'Adicionar fotos'}
+              Adicionar fotos
             </span>
           </button>
         )}

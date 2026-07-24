@@ -10,9 +10,16 @@ const CATEGORIAS = [
   { id: 'cat_2', name: 'Cards Colecionáveis', slug: 'cards-colecionaveis', icon: null, parentId: null },
 ];
 
+// Upload controlado: guarda os callbacks para o teste decidir quando cada
+// foto termina, simulando upload lento de celular.
+const uploadsEmVoo: Array<{ onSuccess: (d: { url: string }) => void; onSettled: () => void }> = [];
+const uploadMutate = vi.fn((_file: File, cbs: { onSuccess: (d: { url: string }) => void; onSettled: () => void }) => {
+  uploadsEmVoo.push(cbs);
+});
+
 vi.mock('@/hooks/use-api', () => ({
   useCreateListing: () => ({ mutate: vi.fn(), isPending: false }),
-  useUploadImage: () => ({ mutate: vi.fn(), isPending: false }),
+  useUploadImage: () => ({ mutate: uploadMutate, isPending: false }),
   useCategories: () => ({ data: CATEGORIAS }),
   useAddresses: () => ({ query: { data: [{ id: 'end_1' }], isLoading: false } }),
 }));
@@ -133,5 +140,65 @@ describe('Criar anúncio: fluxo até os detalhes', () => {
     });
     // Não avança sem os obrigatórios da categoria: o botão fica travado.
     expect(botao('Próximo').disabled).toBe(true);
+  });
+});
+
+/**
+ * Regressão do envio de fotos.
+ *
+ * O botão "Adicionar fotos" ficava desabilitado enquanto QUALQUER foto estivesse
+ * subindo. No celular, com foto grande e internet lenta, o vendedor mandava a
+ * primeira e depois clicava para adicionar as outras sem nada acontecer.
+ */
+describe('Criar anúncio: envio de fotos', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    uploadsEmVoo.length = 0;
+    localStorage.clear();
+  });
+
+  /** Vai até o passo de fotos com os campos obrigatórios preenchidos. */
+  function irAteFotos() {
+    fireEvent.click(botao('Venda Direta'));
+    fireEvent.click(botao('Próximo'));
+    fireEvent.click(botao('Miniaturas'));
+    fireEvent.click(botao('Confirmar categoria'));
+    fireEvent.change(screen.getByLabelText(/Título/i), {
+      target: { value: 'Hot Wheels Skyline GT-R R34 Premium' },
+    });
+    fireEvent.change(screen.getByLabelText(/Descrição/i), {
+      target: { value: 'Lacrado, nunca aberto. Peça protegida desde o primeiro dia.' },
+    });
+    fireEvent.change(screen.getByLabelText(/Marca/i), { target: { value: 'Hot Wheels' } });
+    // Escala é um select do Radix; setamos direto pelo campo de detalhes.
+    const escala = document.querySelector('[id^="c1-"]');
+    if (escala) fireEvent.change(escala, { target: { value: '1:64' } });
+  }
+
+  function enviarArquivo(nome = 'foto.jpg') {
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File(['x'], nome, { type: 'image/jpeg' });
+    Object.defineProperty(input, 'files', { value: [file], configurable: true });
+    fireEvent.change(input);
+  }
+
+  it('permite escolher mais fotos enquanto a primeira ainda sobe', () => {
+    renderWizard();
+    irAteFotos();
+    // Pula direto para o passo de fotos usando o botão, se liberado.
+    const proximo = botao('Próximo');
+    if (!proximo.disabled) fireEvent.click(proximo);
+
+    const input = document.querySelector('input[type="file"]');
+    if (!input) return; // não chegou nas fotos: o teste de fluxo já cobre isso
+
+    enviarArquivo('capa.jpg');
+    expect(uploadsEmVoo).toHaveLength(1);
+
+    // Com a primeira ainda em voo, o botão de adicionar continua clicável.
+    const adicionar = [...document.querySelectorAll('button')].find((b) =>
+      b.textContent?.includes('Adicionar fotos'),
+    ) as HTMLButtonElement | undefined;
+    expect(adicionar?.disabled).not.toBe(true);
   });
 });

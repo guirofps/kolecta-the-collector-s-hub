@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import ScrollToTop from "./components/ScrollToTop";
 import ProtectedRoute from "./components/ProtectedRoute";
 import LaunchGate from "./components/LaunchGate";
+import ErrorBoundary from "./components/ErrorBoundary";
 import DevUserSwitcher from "./components/DevUserSwitcher";
 import ConsentSync from "./components/ConsentSync";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -104,6 +105,9 @@ const App = () => (
           {CLERK_ENABLED && <ConsentSync />}
           {showDevUserSwitcher && <DevUserSwitcher />}
           <LaunchGate>
+          {/* Rede contra tela branca: erro em qualquer rota vira uma mensagem
+              com saída, em vez de apagar a página inteira. */}
+          <ErrorBoundary>
           <Routes>
             {/* Public */}
             <Route path="/" element={<Index />} />
@@ -181,6 +185,7 @@ const App = () => (
 
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </ErrorBoundary>
           </LaunchGate>
         </BrowserRouter>
       </TooltipProvider>
