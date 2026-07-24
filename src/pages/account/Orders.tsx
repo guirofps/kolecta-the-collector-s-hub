@@ -13,7 +13,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
 import EmptyState from '@/components/EmptyState';
-import { useOrders, useStartConversationFromOrder, useConfirmDelivery, useCreateReview, useCancelOrder } from '@/hooks/use-api';
+import { useOrders, useStartConversationFromOrder, useConfirmDelivery, useCreateReview, useCancelOrder, usePayAuctionOrder } from '@/hooks/use-api';
 import type { Order, OrderStatus } from '@/lib/api';
 import { formatBRL } from '@/lib/currency';
 
@@ -21,11 +21,22 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
+// Tempo restante até o prazo (arremate pending_payment). Null se já venceu.
+function timeLeft(iso?: string | null): string | null {
+  if (!iso) return null;
+  const ms = new Date(iso).getTime() - Date.now();
+  if (ms <= 0) return null;
+  const h = Math.floor(ms / (60 * 60 * 1000));
+  const m = Math.floor((ms % (60 * 60 * 1000)) / (60 * 1000));
+  return h >= 1 ? `${h}h${m.toString().padStart(2, '0')}` : `${m}min`;
+}
+
 // ── Status config ────────────────────────────────────────
 // F11: `completed` passa a ter rótulo e cor (antes vazava "completed" cru).
 
 const statusMap: Record<string, { label: string; cls: string }> = {
   pending:    { label: 'Aguardando pagamento', cls: 'bg-amber-500/10 text-amber-500 border-amber-500/30' },
+  pending_payment: { label: 'Pagamento pendente', cls: 'bg-amber-500/10 text-amber-500 border-amber-500/30' },
   paid:       { label: 'Pagamento confirmado', cls: 'bg-blue-500/10 text-blue-500 border-blue-500/30' },
   processing: { label: 'Em separação',        cls: 'bg-blue-500/10 text-blue-500 border-blue-500/30' },
   shipped:    { label: 'Enviado',              cls: 'bg-kolecta-gold/10 text-kolecta-gold border-kolecta-gold/30' },
@@ -41,7 +52,7 @@ type TabKey = 'todos' | 'em-andamento' | 'entregues' | 'cancelados';
 // Cada aba agora agrupa os status reais que fazem sentido nela.
 const TAB_STATUSES: Record<TabKey, OrderStatus[] | null> = {
   todos: null,
-  'em-andamento': ['pending', 'paid', 'processing', 'shipped', 'disputed'],
+  'em-andamento': ['pending', 'pending_payment', 'paid', 'processing', 'shipped', 'disputed'],
   entregues: ['delivered', 'completed'],
   cancelados: ['cancelled'],
 };
@@ -208,7 +219,13 @@ function OrderCard({ order }: { order: Order }) {
   const startChat = useStartConversationFromOrder();
   const confirmDelivery = useConfirmDelivery();
   const cancelOrder = useCancelOrder();
+  const payAuctionOrder = usePayAuctionOrder();
   const [reviewOpen, setReviewOpen] = useState(false);
+
+  // Fase 4: arremate cuja captura falhou — o vencedor paga no cartão salvo
+  // dentro do prazo. `remaining` é null quando o prazo já venceu.
+  const isPendingPayment = order.status === 'pending_payment';
+  const remaining = isPendingPayment ? timeLeft(order.paymentDeadlineAt) : null;
 
   // F12: comprador confirma recebimento (libera saldo retido ao vendedor).
   const alreadyConfirmed = !!order.buyerConfirmedAt;
@@ -252,6 +269,15 @@ function OrderCard({ order }: { order: Order }) {
           </div>
         )}
 
+        {/* Arremate pendente: aviso de prazo para pagar (Fase 4) */}
+        {isPendingPayment && (
+          <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-600 dark:text-amber-400">
+            {remaining
+              ? <>Você arrematou este item, mas o pagamento não foi concluído. Pague no seu cartão salvo em <strong>{remaining}</strong> para garantir a compra.</>
+              : <>O prazo para pagamento venceu. Se ainda estiver disponível, você pode tentar pagar; caso contrário, o item foi oferecido a outro participante.</>}
+          </div>
+        )}
+
         <Separator />
 
         {/* Footer */}
@@ -260,6 +286,17 @@ function OrderCard({ order }: { order: Order }) {
             {formatBRL(order.totalInCents / 100)}
           </span>
           <div className="flex gap-2 flex-wrap justify-end">
+            {isPendingPayment && (
+              <Button
+                variant="kolecta"
+                size="sm"
+                disabled={payAuctionOrder.isPending}
+                onClick={() => payAuctionOrder.mutate(order.id)}
+              >
+                {payAuctionOrder.isPending && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}
+                Pagar agora
+              </Button>
+            )}
             {canReview && (
               <Button variant="outline-gold" size="sm" onClick={() => setReviewOpen(true)}>
                 Avaliar compra

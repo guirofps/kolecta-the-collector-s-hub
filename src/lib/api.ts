@@ -331,6 +331,14 @@ export const api = {
         method: 'POST',
         token,
       }).then(r => r.data),
+
+    // Vencedor paga um arremate cuja captura falhou (pedido pending_payment),
+    // via cartão salvo, dentro do prazo (Fase 4).
+    payOrder: (token: string, orderId: string) =>
+      request<{ data: { orderId: string; paid: boolean } }>(
+        `/api/auctions/orders/${orderId}/pay`,
+        { method: 'POST', token },
+      ).then(r => r.data),
   },
 
   // ── Admin ──────────────────────────────────────────────────────────────────
@@ -986,6 +994,7 @@ export interface WalletTransaction {
 
 export type OrderStatus =
   | 'pending'
+  | 'pending_payment'
   | 'paid'
   | 'processing'
   | 'shipped'
@@ -1017,6 +1026,8 @@ export interface Order {
   trackingCode?: string | null;
   createdAt: string;
   updatedAt: string;
+  // Prazo para o vencedor pagar um arremate `pending_payment` (Fase 4).
+  paymentDeadlineAt?: string | null;
   // Financeiro (preenchido em GET /api/orders/:id)
   sellerNetInCents?: number | null;
   platformFeeInCents?: number | null;

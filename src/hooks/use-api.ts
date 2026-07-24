@@ -583,6 +583,37 @@ export function useCancelOrder() {
   });
 }
 
+// ── usePayAuctionOrder (vencedor paga arremate pendente no cartão) ───────────
+
+export function usePayAuctionOrder() {
+  const { getToken } = useAuth();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (orderId: string) => {
+      const token = await getToken();
+      return api.auctions.payOrder(token!, orderId);
+    },
+    onSuccess: (_data, orderId) => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      queryClient.invalidateQueries({ queryKey: ['orders', orderId] });
+      queryClient.invalidateQueries({ queryKey: ['wallet'] });
+      toast({
+        title: 'Pagamento confirmado',
+        description: 'O arremate foi pago com sucesso.',
+      });
+    },
+    onError: (err: Error) => {
+      toast({
+        title: 'Não foi possível pagar',
+        description: err.message,
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
 // ── useMarkDelivered (vendedor marca pedido como entregue) ───────────────────
 
 export function useMarkDelivered() {
