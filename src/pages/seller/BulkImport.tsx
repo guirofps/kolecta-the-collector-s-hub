@@ -7,6 +7,7 @@ import {
   XCircle,
   Loader2,
   AlertTriangle,
+  AlertCircle,
   Download,
   ArrowLeft,
 } from 'lucide-react';
@@ -103,6 +104,15 @@ function ProgressCard({ job }: { job: ImportJob }) {
   );
 }
 
+// Importação suspensa: o modelo de planilha gera anúncio incompleto, sem passar
+// pelas mesmas validações do formulário (fotos, campos obrigatórios da
+// categoria). O que já entrou por aqui vai precisar de correção, e deixar a
+// porta aberta só aumenta o retrabalho do vendedor.
+//
+// A estrutura inteira fica de pé: rota, tela, hooks e endpoint. Para reativar,
+// basta voltar esta constante para `false` e devolver o botão em seller/Listings.
+const IMPORTACAO_SUSPENSA = true;
+
 export default function BulkImportPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -113,6 +123,9 @@ export default function BulkImportPage() {
   const { data: job } = useImportJobStatus(jobId);
 
   function validateAndUpload(file: File) {
+    // Trava de verdade, não só visual: cobre arrastar arquivo na tela e
+    // qualquer input que sobre depois de esconder a área de envio.
+    if (IMPORTACAO_SUSPENSA) return;
     setFileError(null);
 
     const ext = file.name.split('.').pop()?.toLowerCase();
@@ -165,7 +178,33 @@ export default function BulkImportPage() {
           </div>
         </div>
 
+        {/* Quem tiver a URL salva cai aqui direto, sem passar pelo botão. */}
+        {IMPORTACAO_SUSPENSA && (
+          <Card className="border-accent/30 bg-accent/5">
+            <CardContent className="flex items-start gap-3 p-5">
+              <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-accent" />
+              <div>
+                <p className="font-heading font-bold">Importação temporariamente indisponível</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Estamos refazendo o modelo de planilha. Os anúncios criados por
+                  importação estavam saindo incompletos, e preferimos pausar a
+                  reimportar tudo depois.
+                </p>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Enquanto isso, publique pelo formulário: ele valida cada campo e
+                  o anúncio já sai pronto para a moderação.
+                </p>
+                <Button variant="kolecta" size="sm" className="mt-4" asChild>
+                  <Link to="/painel/anuncios/novo">Criar anúncio</Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Template download */}
+        {!IMPORTACAO_SUSPENSA && (
+        <>
         <Card>
           <CardContent className="pt-4 pb-4">
             <div className="flex items-center justify-between">
@@ -188,18 +227,24 @@ export default function BulkImportPage() {
         <div className="text-xs text-muted-foreground space-y-1 px-1">
           <p className="font-medium text-foreground">Colunas da planilha:</p>
           <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
-            <span><code className="text-primary">title</code> — obrigatório</span>
-            <span><code className="text-primary">price</code> — obrigatório (ex: 150.00)</span>
-            <span><code className="text-primary">condition</code> — obrigatório</span>
-            <span><code className="text-muted-foreground">description</code> — opcional</span>
-            <span><code className="text-muted-foreground">images</code> — URLs separadas por vírgula</span>
+            <span><code className="text-primary">title</code>: obrigatório</span>
+            <span><code className="text-primary">price</code>: obrigatório (ex: 150.00)</span>
+            <span><code className="text-primary">condition</code>: obrigatório</span>
+            <span><code className="text-muted-foreground">description</code>: opcional</span>
+            <span><code className="text-muted-foreground">images</code>: URLs separadas por vírgula</span>
             <span><code className="text-muted-foreground">brand / line / scale / year / edition</code></span>
           </div>
+          {/* ATENÇÃO ao reativar: este vocabulário está DESATUALIZADO. O sistema
+              hoje grava novo-lacrado, novo-sem-caixa, usado-conservado e
+              usado-com-marcas (ver lib/conditions). Era por isso que todo
+              anúncio importado nascia com condição inválida. */}
           <p className="mt-1">Condições válidas: <code>lacrado, novo, mint, usado</code></p>
         </div>
+        </>
+        )}
 
         {/* Upload zone ou resultado */}
-        {job ? (
+        {!IMPORTACAO_SUSPENSA && (job ? (
           <ProgressCard job={job} />
         ) : (
           <div
@@ -233,7 +278,7 @@ export default function BulkImportPage() {
               </div>
             )}
           </div>
-        )}
+        ))}
 
         {fileError && (
           <div className="flex items-center gap-2 text-sm text-red-400 bg-red-500/10 rounded-lg p-3">

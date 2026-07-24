@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { PlusCircle, Search, MoreHorizontal, Eye, Pencil, Pause, Play, Trash2, Loader2, Upload, Sparkles, Rocket, Copy, Package, SearchX } from 'lucide-react';
+import { PlusCircle, Search, MoreHorizontal, Eye, Pencil, Pause, Play, Trash2, Loader2, Sparkles, Rocket, Copy, Package, SearchX } from 'lucide-react';
 import SellerLayout from '@/components/layout/SellerLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -94,12 +94,11 @@ export default function SellerListings() {
             <p className="text-sm text-muted-foreground mt-1">{(myProducts || []).length} anúncios no total</p>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" asChild>
-              <Link to="/painel/importar">
-                <Upload className="h-4 w-4" />
-                Importar Planilha
-              </Link>
-            </Button>
+            {/* Importação por planilha escondida até o modelo ser refeito.
+                O que entrou por ela veio incompleto e sem passar pelas mesmas
+                validações do formulário, e reimportar depois daria retrabalho
+                ao vendedor. A rota e a tela continuam de pé (/painel/importar);
+                só o acesso saiu de vista. Para reativar, devolver este botão. */}
             <Button variant="kolecta" asChild>
               <Link to="/painel/anuncios/novo">
                 <PlusCircle className="h-4 w-4" />
