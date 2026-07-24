@@ -528,6 +528,27 @@ export const api = {
       request<void>(`/api/favorites/${listingId}`, { method: 'DELETE', token }),
   },
 
+  // ── Cards (cartão salvo p/ lance por cartão) ────────────────────────────────
+
+  cards: {
+    // Cartão salvo do usuário (mascarado) ou null.
+    get: (token: string) =>
+      request<{ data: SavedCard | null }>('/api/cards', { token }).then(
+        r => r.data,
+      ),
+
+    // Salva/substitui a partir de um card_token tokenizado no front (PCI).
+    save: (token: string, cardToken: string) =>
+      request<{ data: SavedCard }>('/api/cards', {
+        method: 'POST',
+        body: JSON.stringify({ cardToken }),
+        token,
+      }).then(r => r.data),
+
+    remove: (token: string) =>
+      request<void>('/api/cards', { method: 'DELETE', token }),
+  },
+
   // ── Addresses ──────────────────────────────────────────────────────────────
 
   addresses: {
@@ -1029,6 +1050,17 @@ export interface Favorite {
     condition: string;
     sellerId: string;
   };
+}
+
+// Cartão salvo (mascarado) usado no lance por cartão. Nunca contém o número
+// completo nem o CVV — só metadados de exibição.
+export interface SavedCard {
+  id: string;
+  brand: string | null;
+  lastFour: string | null;
+  holderName: string | null;
+  expMonth: number | null;
+  expYear: number | null;
 }
 
 export interface Address {

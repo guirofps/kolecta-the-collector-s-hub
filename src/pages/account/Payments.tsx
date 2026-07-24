@@ -2,38 +2,83 @@ import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import EmptyState from '@/components/EmptyState';
-import { CreditCard, Plus, Star, Trash2, AlertTriangle, Loader2, Wallet, Copy } from 'lucide-react';
+import { CreditCard, Trash2, AlertTriangle, Loader2, Wallet, Copy, Shield, Gavel } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { useWalletDeposit, useWallet } from '@/hooks/use-api';
+import { Label } from '@/components/ui/label';
+import { useWalletDeposit, useWallet, useSavedCard } from '@/hooks/use-api';
 import { useToast } from '@/hooks/use-toast';
 import { isValidCpf } from '@/lib/cpf';
+import { tokenizeCard, CardTokenizationError, isCardPaymentEnabled } from '@/lib/pagarme';
 
-interface PaymentMethod {
-  id: string;
-  type: 'visa' | 'mastercard';
-  last4: string;
-  expiry: string;
-  isDefault: boolean;
+function maskCardNumber(v: string) {
+  const d = v.replace(/\D/g, '').slice(0, 16);
+  return d.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
+}
+
+function maskExpiry(v: string) {
+  const d = v.replace(/\D/g, '').slice(0, 4);
+  if (d.length <= 2) return d;
+  return `${d.slice(0, 2)}/${d.slice(2)}`;
 }
 
 export default function PaymentsPage() {
-  const [methods, setMethods] = useState<PaymentMethod[]>([
-    { id: 'pm1', type: 'visa', last4: '4242', expiry: '12/28', isDefault: true },
-  ]);
-  const [showAdd, setShowAdd] = useState(false);
+  // ── Cartão salvo (usado para dar LANCE por cartão) ──
+  const { query: cardQuery, saveMutation, removeMutation } = useSavedCard();
+  const savedCard = cardQuery.data;
+  const [showAddCard, setShowAddCard] = useState(false);
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardName, setCardName] = useState('');
+  const [cardExp, setCardExp] = useState('');
+  const [cardCvv, setCardCvv] = useState('');
+  const [cardError, setCardError] = useState('');
+  const [tokenizing, setTokenizing] = useState(false);
 
-  const setDefault = (id: string) => {
-    setMethods((prev) => prev.map((m) => ({ ...m, isDefault: m.id === id })));
+  const resetCardForm = () => {
+    setCardNumber('');
+    setCardName('');
+    setCardExp('');
+    setCardCvv('');
+    setCardError('');
   };
 
-  const remove = (id: string) => {
-    setMethods((prev) => prev.filter((m) => m.id !== id));
+  const handleAddCardOpenChange = (open: boolean) => {
+    setShowAddCard(open);
+    if (!open) resetCardForm();
   };
 
-  // Wallet Deposit Logic
+  const handleSaveCard = async () => {
+    setCardError('');
+    if (cardNumber.replace(/\D/g, '').length < 13) {
+      setCardError('Número do cartão inválido');
+      return;
+    }
+    if (!cardName.trim()) {
+      setCardError('Informe o nome impresso no cartão');
+      return;
+    }
+    setTokenizing(true);
+    try {
+      const cardToken = await tokenizeCard({
+        number: cardNumber,
+        holderName: cardName,
+        expiry: cardExp,
+        cvv: cardCvv,
+      });
+      await saveMutation.mutateAsync(cardToken);
+      handleAddCardOpenChange(false);
+    } catch (err) {
+      setCardError(
+        err instanceof CardTokenizationError
+          ? err.message
+          : (err as any)?.message || 'Não foi possível salvar o cartão.',
+      );
+    } finally {
+      setTokenizing(false);
+    }
+  };
+
+  // ── Depósito PIX na carteira ──
   const { data: wallet } = useWallet();
   const depositMutation = useWalletDeposit();
   const queryClient = useQueryClient();
@@ -119,7 +164,7 @@ export default function PaymentsPage() {
             <Wallet className="h-6 w-6 text-primary" />
             <div>
               <h1 className="font-heading text-3xl font-extrabold italic uppercase">Saldo & Pagamentos</h1>
-              <p className="text-sm text-muted-foreground">Sua carteira Kolecta — depósitos e pagamentos via Pix</p>
+              <p className="text-sm text-muted-foreground">Sua carteira Kolecta e o cartão usado nos lances</p>
             </div>
           </div>
           <Button variant="kolecta" size="sm" onClick={() => setIsDepositModalOpen(true)}>
@@ -136,13 +181,136 @@ export default function PaymentsPage() {
           </p>
         </div>
 
-        {/* B2/D8: os pagamentos são via Pix/carteira. A lista de "cartões salvos"
-            era cenográfica (cartões falsos locais) e foi removida até existir um
-            cofre de cartões real (Stripe/Pagar.me). */}
+        {/* ── Cartão para lances ─────────────────────────────────────────────
+            O lance em leilão é garantido por CARTÃO (retenção/pré-autorização).
+            Guardamos só uma referência segura do cartão na Pagar.me — nunca o
+            número completo. */}
+        <div className="mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <Gavel className="h-5 w-5 text-primary" />
+            <h2 className="font-heading text-lg font-bold uppercase tracking-wide">Cartão para lances</h2>
+          </div>
+
+          {!isCardPaymentEnabled ? (
+            <div className="rounded-md bg-muted/40 border border-border p-3 text-xs text-muted-foreground flex items-start gap-2">
+              <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+              <p>Pagamento com cartão indisponível no momento.</p>
+            </div>
+          ) : cardQuery.isLoading ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" /> Carregando...
+            </div>
+          ) : savedCard ? (
+            <div className="flex items-center justify-between p-4 rounded-lg border border-border bg-card">
+              <div className="flex items-center gap-3">
+                <CreditCard className="h-6 w-6 text-primary" />
+                <div>
+                  <p className="font-heading font-semibold">
+                    {(savedCard.brand || 'Cartão').toUpperCase()} •••• {savedCard.lastFour || '----'}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {savedCard.holderName || ''}
+                    {savedCard.expMonth && savedCard.expYear
+                      ? ` · ${String(savedCard.expMonth).padStart(2, '0')}/${savedCard.expYear}`
+                      : ''}
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => removeMutation.mutate()}
+                disabled={removeMutation.isPending}
+              >
+                {removeMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                )}
+              </Button>
+            </div>
+          ) : (
+            <div className="rounded-lg border border-dashed border-border p-5 text-center">
+              <p className="text-sm text-muted-foreground mb-3">
+                Você ainda não tem um cartão salvo. Salve um cartão para participar de leilões.
+              </p>
+              <Button variant="kolecta" size="sm" onClick={() => setShowAddCard(true)}>
+                <CreditCard className="h-4 w-4 mr-2" />
+                Adicionar cartão
+              </Button>
+            </div>
+          )}
+        </div>
+
         <div className="rounded-md bg-primary/5 border border-primary/20 p-3 text-xs text-primary flex items-start gap-2 mb-6">
           <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-          <p>Os pagamentos na Kolecta são via Pix. Adicione saldo à sua carteira para comprar e dar lances.</p>
+          <p>Compras usam saldo da carteira (via Pix) ou cartão no checkout. Já os lances em leilão são garantidos pelo cartão salvo acima.</p>
         </div>
+
+        {/* ── Dialog: adicionar cartão ── */}
+        <Dialog open={showAddCard} onOpenChange={handleAddCardOpenChange}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="font-heading text-xl uppercase tracking-wider">Adicionar cartão</DialogTitle>
+              <DialogDescription>
+                Esse cartão será usado para garantir seus lances em leilões (retenção do valor).
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-2">
+              <div>
+                <Label htmlFor="cardNumber">Número do cartão *</Label>
+                <Input id="cardNumber" inputMode="numeric" autoComplete="cc-number"
+                  className="bg-background font-mono" value={cardNumber}
+                  onChange={e => setCardNumber(maskCardNumber(e.target.value))}
+                  placeholder="0000 0000 0000 0000" />
+              </div>
+              <div>
+                <Label htmlFor="cardName">Nome impresso no cartão *</Label>
+                <Input id="cardName" autoComplete="cc-name" className="bg-background uppercase"
+                  value={cardName} onChange={e => setCardName(e.target.value)}
+                  placeholder="COMO ESTÁ NO CARTÃO" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="cardExp">Validade *</Label>
+                  <Input id="cardExp" inputMode="numeric" autoComplete="cc-exp"
+                    className="bg-background font-mono" value={cardExp}
+                    onChange={e => setCardExp(maskExpiry(e.target.value))} placeholder="MM/AA" />
+                </div>
+                <div>
+                  <Label htmlFor="cardCvv">CVV *</Label>
+                  <Input id="cardCvv" inputMode="numeric" autoComplete="cc-csc" maxLength={4}
+                    className="bg-background font-mono" value={cardCvv}
+                    onChange={e => setCardCvv(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                    placeholder="123" />
+                </div>
+              </div>
+
+              {cardError && <p className="text-xs text-destructive">{cardError}</p>}
+              <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                <Shield className="h-3.5 w-3.5" />
+                Dados enviados de forma segura à Pagar.me. Não armazenamos o número do seu cartão.
+              </p>
+            </div>
+
+            <DialogFooter className="sm:justify-between flex-row items-center">
+              <Button type="button" variant="ghost" onClick={() => handleAddCardOpenChange(false)}>
+                Cancelar
+              </Button>
+              <Button type="button" variant="kolecta" onClick={handleSaveCard} disabled={tokenizing}>
+                {tokenizing ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Salvando...
+                  </>
+                ) : (
+                  'Salvar cartão'
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Add Balance Dialog */}
         <Dialog open={isDepositModalOpen} onOpenChange={handleDepositOpenChange}>

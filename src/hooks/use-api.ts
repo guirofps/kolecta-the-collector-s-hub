@@ -836,6 +836,58 @@ export function useAddresses() {
   return { query, createMutation, updateMutation, removeMutation };
 }
 
+// ── useSavedCard (cartão salvo p/ lance por cartão) ─────────────────────────
+
+export function useSavedCard() {
+  const { getToken } = useAuth();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const query = useQuery({
+    queryKey: ['saved-card'],
+    queryFn: async () => {
+      const token = await getToken();
+      return api.cards.get(token!);
+    },
+    staleTime: 120_000,
+  });
+
+  const saveMutation = useMutation({
+    // Recebe o card_token já tokenizado no front (PCI) e o troca por um cartão salvo.
+    mutationFn: async (cardToken: string) => {
+      const token = await getToken();
+      return api.cards.save(token!, cardToken);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['saved-card'] });
+      toast({ title: 'Cartão salvo', description: 'Seu cartão está pronto para lances.' });
+    },
+    onError: (err: any) => {
+      toast({
+        title: 'Erro ao salvar cartão',
+        description: err?.message || 'Verifique os dados e tente novamente.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const removeMutation = useMutation({
+    mutationFn: async () => {
+      const token = await getToken();
+      return api.cards.remove(token!);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['saved-card'] });
+      toast({ title: 'Cartão removido' });
+    },
+    onError: () => {
+      toast({ title: 'Erro', description: 'Não foi possível remover o cartão', variant: 'destructive' });
+    },
+  });
+
+  return { query, saveMutation, removeMutation };
+}
+
 // ── useWithdrawals ─────────────────────────────────────────────────────────
 
 export function useWithdrawals() {

@@ -7,14 +7,14 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import VerificationBadge from '@/components/VerificationBadge';
 import { FounderBadgeFor } from '@/components/FounderBadge';
-import { useAuctionDetail, usePlaceBid } from '@/hooks/use-api';
+import { useAuctionDetail, usePlaceBid, useSavedCard } from '@/hooks/use-api';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatBRL } from '@/lib/currency';
 import { conditionLabel } from '@/lib/mock-data';
 import type { ProductCondition } from '@/lib/mock-data';
 import type { AuctionWithListing } from '@/lib/api';
 import {
-  Gavel, ArrowLeft, ShieldCheck, Timer, Trophy, AlertTriangle, Loader2, ChevronRight, LogIn, Store,
+  Gavel, ArrowLeft, ShieldCheck, Timer, Trophy, AlertTriangle, Loader2, ChevronRight, LogIn, Store, CreditCard,
 } from 'lucide-react';
 
 function parseImages(raw: string | null): string[] {
@@ -67,6 +67,8 @@ export default function AuctionDetail() {
   const { data: auction, isLoading, isError } = useAuctionDetail(id);
   const { user, isAuthenticated } = useAuth();
   const placeBid = usePlaceBid();
+  // Lance é garantido por cartão (retenção). Sem cartão salvo → não dá lance.
+  const { query: cardQuery } = useSavedCard();
 
   const countdown = useCountdown(auction?.endsAt ?? null);
   const [amountBRL, setAmountBRL] = useState('');
@@ -110,6 +112,7 @@ export default function AuctionDetail() {
   const ended = auction.status !== 'active' || countdown.ended;
   const reserveNotMet =
     auction.reservePriceInCents != null && derived.current < auction.reservePriceInCents;
+  const savedCard = cardQuery.data;
 
   const submitBid = () => {
     const cents = Math.round(parseFloat(amountBRL.replace(',', '.')) * 100);
@@ -200,8 +203,11 @@ export default function AuctionDetail() {
                     <p className="flex items-center gap-2 text-sm font-medium text-primary">
                       <Trophy className="h-4 w-4" /> Você venceu este leilão!
                     </p>
+                    <p className="text-xs text-muted-foreground">
+                      A cobrança é feita automaticamente no cartão que garantiu seu lance. Acompanhe em Meus Pedidos.
+                    </p>
                     <Button variant="kolecta" className="w-full" asChild>
-                      <Link to="/conta/pedidos">Ir para o pagamento</Link>
+                      <Link to="/conta/pedidos">Ver meus pedidos</Link>
                     </Button>
                   </div>
                 ) : (
@@ -216,6 +222,24 @@ export default function AuctionDetail() {
               ) : isSeller ? (
                 <div className="rounded-md bg-secondary/50 border border-border p-3 text-sm text-muted-foreground">
                   Você é o vendedor deste leilão e não pode dar lances.
+                </div>
+              ) : cardQuery.isLoading ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Verificando cartão...
+                </div>
+              ) : !savedCard ? (
+                <div className="rounded-md bg-secondary/50 border border-border p-4 space-y-3">
+                  <p className="flex items-start gap-2 text-sm text-muted-foreground">
+                    <CreditCard className="h-4 w-4 shrink-0 mt-0.5" />
+                    Os lances são garantidos por cartão de crédito. Salve um cartão
+                    no Financeiro para participar — o valor do lance fica retido
+                    (pré-autorizado) e só é cobrado se você vencer.
+                  </p>
+                  <Button variant="kolecta" className="w-full" asChild>
+                    <Link to="/conta/pagamentos">
+                      <CreditCard className="h-4 w-4 mr-2" /> Salvar cartão no Financeiro
+                    </Link>
+                  </Button>
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -254,6 +278,10 @@ export default function AuctionDetail() {
                       O lance precisa ser no mínimo {formatBRL(derived.minNext / 100)}.
                     </p>
                   )}
+                  <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <CreditCard className="h-3.5 w-3.5" />
+                    O valor fica retido no cartão •••• {savedCard.lastFour ?? '----'} até o fim do leilão. Você só é cobrado se vencer.
+                  </p>
                 </div>
               )}
             </div>
