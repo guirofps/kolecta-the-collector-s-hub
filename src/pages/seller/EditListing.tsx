@@ -11,6 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { mockCategories } from '@/lib/mock-data';
 import { CONDITIONS } from '@/lib/conditions';
+import ProductDescription from '@/components/ProductDescription';
 import { useListing, useUpdateListing, useUploadImage, useCategories } from '@/hooks/use-api';
 import type { CreateListingPayload } from '@/lib/api';
 import { toast } from 'sonner';
@@ -299,7 +300,24 @@ export default function EditListing() {
 
             <div>
               <Label>Descrição</Label>
-              <Textarea value={form.description} onChange={(e) => updateField('description', e.target.value)} rows={5} />
+              <Textarea
+                value={form.description}
+                onChange={(e) => updateField('description', e.target.value)}
+                rows={7}
+              />
+              <p className="mt-1.5 text-[11px] text-muted-foreground">
+                Cada linha começando com <code className="text-primary">-</code> vira um item com check no anúncio.
+              </p>
+              {/* Mesma prévia da criação: editar sem ver o resultado é como o
+                  vendedor descobria a descrição amassada só depois de publicar. */}
+              {form.description.trim().length > 0 && (
+                <div className="mt-3 rounded-md border border-border bg-secondary/20 p-3">
+                  <p className="mb-2 text-[10px] font-heading uppercase tracking-wider text-muted-foreground">
+                    Como vai aparecer no anúncio
+                  </p>
+                  <ProductDescription texto={form.description} />
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

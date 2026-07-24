@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, ArrowRight, Check, ShoppingCart, Gavel, Upload,
-  X, ImagePlus, AlertCircle, Eye, Loader2, Sparkles, Copy,
+  X, ImagePlus, AlertCircle, Eye, Loader2, Sparkles, Copy, ListPlus,
 } from 'lucide-react';
 import SellerLayout from '@/components/layout/SellerLayout';
 import { Button } from '@/components/ui/button';
@@ -22,6 +22,7 @@ import { parsePriceToCents } from '@/lib/currency';
 import { loadDraft, saveDraft, clearDraft } from '@/lib/listing-draft';
 import { CONDITIONS } from '@/lib/conditions';
 import { fieldsForCategory, formatFieldValue, isFieldApplicable } from '@/lib/category-fields';
+import ProductDescription from '@/components/ProductDescription';
 import { useCreateListing, useUploadImage, useCategories, useAddresses } from '@/hooks/use-api';
 import type { CreateListingPayload } from '@/lib/api';
 
@@ -258,7 +259,31 @@ export default function CreateListing() {
   }, []);
 
   const update = (field: keyof FormData, value: any) => {
-    setForm((prev) => ({ ...prev, [field]: value })); 
+    setForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  // ─── Ajuda para escrever a descrição ────────────────────────
+  const descricaoRef = useRef<HTMLTextAreaElement>(null);
+
+  /**
+   * Começa uma nova linha de item na descrição e deixa o cursor pronto.
+   * Ensina o formato pela prática: depois do primeiro clique, a pessoa entende
+   * que cada linha com "-" vira um item, e passa a digitar direto.
+   */
+  const adicionarItemDescricao = () => {
+    const atual = form.description;
+    // Sem linha vazia sobrando: só quebra se já houver texto.
+    const precisaQuebra = atual.length > 0 && !atual.endsWith('\n');
+    const novo = `${atual}${precisaQuebra ? '\n' : ''}- `;
+    update('description', novo);
+    // O foco e o cursor no fim precisam esperar o React repintar o textarea.
+    requestAnimationFrame(() => {
+      const el = descricaoRef.current;
+      if (!el) return;
+      el.focus();
+      el.setSelectionRange(novo.length, novo.length);
+      el.scrollTop = el.scrollHeight;
+    });
   };
 
   // Campos obrigatórios por categoria (além dos comuns). A lista vive em
@@ -805,15 +830,37 @@ function StepDetails({ form, update, categories }: { form: FormData; update: (f:
 
         <div>
           <Label htmlFor="description">Descrição *</Label>
+          {/* Placeholder com a estrutura pronta: a maioria copia o formato do
+              exemplo. Antes era "Descreva detalhes, histórico, defeitos..." e o
+              resultado saía num bloco corrido, com os diferenciais espremidos
+              no meio da frase. */}
           <Textarea
+            ref={descricaoRef}
             id="description"
-            placeholder="Descreva detalhes, histórico, defeitos..."
+            placeholder={
+              'Conte o que a peça é e em que estado está.\n\n'
+              + 'Para destacar os diferenciais, use um por linha:\n'
+              + '- Lacrado, nunca aberto\n'
+              + '- Caixa sem amassados\n'
+              + '- Acompanha certificado'
+            }
             value={form.description}
             onChange={(e) => update('description', e.target.value)}
             maxLength={4000}
-            rows={5}
+            rows={7}
             className="mt-1.5"
           />
+
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={adicionarItemDescricao}>
+              <ListPlus className="h-3.5 w-3.5" />
+              Adicionar item à lista
+            </Button>
+            <span className="text-[11px] text-muted-foreground">
+              Cada linha começando com <code className="text-primary">-</code> vira um item com check no anúncio.
+            </span>
+          </div>
+
           <div className="flex items-center justify-between mt-1">
             <span className="text-[10px] text-accent">
               {form.description.trim().length < MIN_DESCRIPTION
@@ -822,6 +869,17 @@ function StepDetails({ form, update, categories }: { form: FormData; update: (f:
             </span>
             <span className="text-[10px] text-muted-foreground">{form.description.length}/4000</span>
           </div>
+
+          {/* Prévia com o MESMO formatador da página do anúncio: o vendedor vê
+              o resultado real antes de publicar, em vez de descobrir depois. */}
+          {form.description.trim().length > 0 && (
+            <div className="mt-3 rounded-md border border-border bg-secondary/20 p-3">
+              <p className="mb-2 text-[10px] font-heading uppercase tracking-wider text-muted-foreground">
+                Como vai aparecer no anúncio
+              </p>
+              <ProductDescription texto={form.description} />
+            </div>
+          )}
         </div>
 
         {form.category && (
@@ -1436,9 +1494,7 @@ function StepReview({ form, categories }: { form: FormData; categories: Category
           )}
 
           {/* Description */}
-          {form.description && (
-            <p className="text-sm text-muted-foreground">{form.description}</p>
-          )}
+          {form.description && <ProductDescription texto={form.description} />}
 
           {/* Pricing */}
           <div className="line-tech" />
