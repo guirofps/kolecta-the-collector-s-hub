@@ -24,10 +24,13 @@ import { CLERK_ENABLED } from '@/lib/clerk';
  * entre renders e a ordem dos hooks nunca varia. É o mesmo padrão já usado no
  * AuthContext, que separa ClerkAuthProvider de DegradedAuthProvider.
  */
-function useAuth(): { getToken: () => Promise<string | null> } {
-  if (!CLERK_ENABLED) return { getToken: async () => null };
+function useAuth(): { getToken: () => Promise<string | null>; isSignedIn: boolean } {
+  // `isSignedIn` também entra: `useConnect` usa, e devolver só `getToken`
+  // deixava `isSignedIn` como undefined em toda query que dependia dele.
+  if (!CLERK_ENABLED) return { getToken: async () => null, isSignedIn: false };
   // eslint-disable-next-line react-hooks/rules-of-hooks -- constante de env, ver acima
-  return useClerkAuth();
+  const clerk = useClerkAuth();
+  return { getToken: clerk.getToken, isSignedIn: !!clerk.isSignedIn };
 }
 
 // ── useMyProfile ───────────────────────────────────────────────────────────
