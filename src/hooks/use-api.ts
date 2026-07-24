@@ -268,6 +268,47 @@ export function useUpdateListingStatus() {
   });
 }
 
+// ── Programa Fundador (admin) ───────────────────────────────────────────────
+
+export function useFounderCandidates() {
+  const { getToken } = useAuth();
+  return useQuery({
+    queryKey: ['admin-founder-candidates'],
+    queryFn: async () => {
+      const token = await getToken();
+      return api.admin.getFounderCandidates(token || '');
+    },
+    staleTime: 10_000,
+  });
+}
+
+export function useGrantFounder() {
+  const queryClient = useQueryClient();
+  const { getToken } = useAuth();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ userId, number }: { userId: string; number: number }) => {
+      const token = await getToken();
+      return api.admin.grantFounder(token || '', userId, number);
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['admin-founder-candidates'] });
+      toast({
+        title: 'Fundador concedido',
+        description: `Selo #${String(data.founderNumber).padStart(3, '0')} atribuído.`,
+      });
+    },
+    onError: (err: Error) => {
+      toast({
+        title: 'Não foi possível conceder',
+        description: err.message,
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
 // ── useCreateListing ───────────────────────────────────────────────────────
 
 export function useCreateListing() {

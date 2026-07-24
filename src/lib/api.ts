@@ -414,6 +414,20 @@ export const api = {
         body: JSON.stringify(reason ? { status, reason } : { status }),
         token,
       }).then(r => r.data),
+
+    // ── Programa Fundador (concessão pela equipe) ──
+    // Fila de candidatos (qualificados por anúncios, ainda sem número) + o
+    // próximo número livre da faixa da landing (51..100).
+    getFounderCandidates: (token: string) =>
+      request<{ data: FounderCandidatesResponse }>('/api/admin/founders/candidates', { token })
+        .then(r => r.data),
+
+    // Concede o selo a um candidato com número escolhido pela equipe.
+    grantFounder: (token: string, userId: string, number: number) =>
+      request<{ data: { userId: string; founderNumber: number; founderStatus: string } }>(
+        `/api/admin/founders/${userId}/grant`,
+        { method: 'POST', body: JSON.stringify({ number }), token },
+      ).then(r => r.data),
   },
 
   // ── Wallet ─────────────────────────────────────────────────────────────────
@@ -1118,6 +1132,19 @@ export interface Withdrawal {
 }
 
 export type ConnectAccountStatus = 'disconnected' | 'pending' | 'active';
+
+export interface FounderCandidate {
+  userId: string;
+  name: string | null;
+  email: string | null;
+  submitted: number;
+  founderStatus: string;
+}
+
+export interface FounderCandidatesResponse {
+  candidates: FounderCandidate[];
+  nextNumber: number | null;
+}
 
 export interface Listing {
   id: string;

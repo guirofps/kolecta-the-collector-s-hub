@@ -60,6 +60,7 @@ import IntegrationsPage from "./pages/seller/Integrations";
 import AdminOverview from "./pages/admin/Overview";
 import AdminListings from "./pages/admin/Listings";
 import AdminUsers from "./pages/admin/Users";
+import AdminFounders from "./pages/admin/Founders";
 import AdminReports from "./pages/admin/Reports";
 import AdminDisputes from "./pages/admin/Disputes";
 import AdminSellerVerification from "./pages/admin/SellerVerification";
@@ -167,6 +168,7 @@ const App = () => (
             <Route path="/admin" element={<ProtectedRoute role="admin"><AdminOverview /></ProtectedRoute>} />
             <Route path="/admin/usuarios" element={<ProtectedRoute role="admin"><AdminUsers /></ProtectedRoute>} />
             <Route path="/admin/vendedores/verificacao" element={<ProtectedRoute role="admin"><AdminSellerVerification /></ProtectedRoute>} />
+            <Route path="/admin/fundadores" element={<ProtectedRoute role="admin"><AdminFounders /></ProtectedRoute>} />
             <Route path="/admin/anuncios" element={<ProtectedRoute role="admin"><AdminListings /></ProtectedRoute>} />
             <Route path="/admin/anuncios/:id" element={<ProtectedRoute role="admin"><AdminListingDetail /></ProtectedRoute>} />
             <Route path="/admin/modo-lance" element={<ProtectedRoute role="admin"><AdminAuctionMonitor /></ProtectedRoute>} />

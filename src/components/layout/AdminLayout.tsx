@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Package, Users, ShieldCheck, Gavel,
-  AlertTriangle, DollarSign, BarChart3, Settings, Megaphone, Wallet,
+  AlertTriangle, DollarSign, BarChart3, Settings, Megaphone, Wallet, Award,
 } from 'lucide-react';
 import Header from './Header';
 import { cn } from '@/lib/utils';
@@ -10,6 +10,7 @@ const sidebarLinks = [
   { label: 'Overview', href: '/admin', icon: LayoutDashboard },
   { label: 'Usuários', href: '/admin/usuarios', icon: Users },
   { label: 'Verificação', href: '/admin/vendedores/verificacao', icon: ShieldCheck },
+  { label: 'Fundadores', href: '/admin/fundadores', icon: Award },
   { label: 'Anúncios', href: '/admin/anuncios', icon: Package },
   { label: 'Modo Lance', href: '/admin/modo-lance', icon: Gavel },
   { label: 'Disputas', href: '/admin/disputas', icon: AlertTriangle },
