@@ -122,6 +122,8 @@ interface FormData {
   scale: string;
   year: string;
   edition: string;
+  /** Código interno de estoque do vendedor. Opcional. */
+  sku: string;
   description: string;
   photos: string[];
   price: string;
@@ -157,6 +159,7 @@ const initialForm: FormData = {
   scale: '',
   year: '',
   edition: '',
+  sku: '',
   description: '',
   photos: [],
   price: '',
@@ -369,6 +372,7 @@ export default function CreateListing() {
       scale: cf.scale || form.scale || undefined,
       year: cf.year || form.year || undefined,
       edition: cf.edition || form.edition || undefined,
+      sku: form.sku.trim() || undefined,
       condition: form.condition,
       type: form.type as 'direct' | 'auction',
       priceInCents: !isAuction && form.price ? toCents(form.price) : undefined,
@@ -800,6 +804,24 @@ function StepDetails({ form, update, categories }: { form: FormData; update: (f:
               </button>
             );
           })()}
+        </div>
+
+        {/* SKU: pedido dos lojistas, para casar a venda aqui com o controle de
+            estoque que eles já usam. Opcional, porque colecionador pessoa
+            física não trabalha com código interno. */}
+        <div>
+          <Label htmlFor="sku">SKU / Código interno</Label>
+          <Input
+            id="sku"
+            placeholder="Ex: HW-R34-001"
+            value={form.sku}
+            onChange={(e) => update('sku', e.target.value)}
+            maxLength={60}
+            className="mt-1.5"
+          />
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            Opcional. Seu código de estoque, para achar a peça no seu controle. Só você vê.
+          </p>
         </div>
 
         <div>

@@ -76,6 +76,9 @@ export function draftFromListing(l: Listing): ListingDraft {
     scale: l.scale ?? '',
     year: l.year ?? '',
     edition: l.edition ?? '',
+    // SKU é código de peça: ao duplicar, o vendedor vai querer um novo. Copiar
+    // criaria dois anúncios com o mesmo código no controle de estoque dele.
+    sku: '',
     description: l.description ?? '',
     photos: [] as string[], // sempre vazio: ver comentário acima
     price: l.priceInCents != null ? String(l.priceInCents / 100) : '',

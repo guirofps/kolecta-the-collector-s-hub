@@ -1163,6 +1163,9 @@ export interface Listing {
   priceInCents: number | null;
   images: string | null; // JSON array stringificado: '["url1","url2"]'
   status: string;
+  // Código interno do vendedor, para casar a venda aqui com o controle de
+  // estoque que ele já usa. Opcional: só lojista costuma trabalhar com SKU.
+  sku?: string | null;
   // Moderação. O backend grava os três ao aprovar/reprovar. `rejectionReason` é
   // o que o vendedor precisa ler para corrigir: sem exibir isso, ele vê
   // "Reprovado" e não tem como saber o que mudar.
@@ -1414,6 +1417,8 @@ export interface CreateListingPayload {
   scale?: string;
   year?: string;
   edition?: string;
+  // Código interno de estoque do vendedor. Opcional.
+  sku?: string;
   condition: string;
   type: 'direct' | 'auction';
   priceInCents?: number;

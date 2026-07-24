@@ -43,6 +43,8 @@ interface EditForm {
   scale: string;
   year: string;
   edition: string;
+  /** Código interno de estoque do vendedor. Opcional. */
+  sku: string;
   description: string;
   photos: string[];
   price: string; // em reais (string), convertido p/ centavos ao salvar
@@ -62,6 +64,7 @@ const emptyForm: EditForm = {
   scale: '',
   year: '',
   edition: '',
+  sku: '',
   description: '',
   photos: [],
   price: '',
@@ -111,6 +114,7 @@ export default function EditListing() {
       scale: listing.scale ?? '',
       year: listing.year ?? '',
       edition: listing.edition ?? '',
+      sku: listing.sku ?? '',
       description: listing.description ?? '',
       photos: parseImages(listing.images),
       price: listing.priceInCents != null ? String(listing.priceInCents / 100) : '',
@@ -175,6 +179,7 @@ export default function EditListing() {
       scale: form.scale || undefined,
       year: form.year || undefined,
       edition: form.edition || undefined,
+      sku: form.sku.trim() || undefined,
       condition: form.condition || undefined,
       priceInCents,
       images: JSON.stringify(form.photos),
@@ -318,9 +323,22 @@ export default function EditListing() {
               </div>
             </div>
 
-            <div>
-              <Label>Edição</Label>
-              <Input value={form.edition} onChange={(e) => updateField('edition', e.target.value)} />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <Label>Edição</Label>
+                <Input value={form.edition} onChange={(e) => updateField('edition', e.target.value)} />
+              </div>
+              <div>
+                <Label htmlFor="sku">SKU / Código interno</Label>
+                <Input
+                  id="sku"
+                  placeholder="Ex: HW-R34-001"
+                  value={form.sku}
+                  onChange={(e) => updateField('sku', e.target.value)}
+                  maxLength={60}
+                />
+                <p className="mt-1 text-[11px] text-muted-foreground">Opcional. Só você vê.</p>
+              </div>
             </div>
 
             <div>

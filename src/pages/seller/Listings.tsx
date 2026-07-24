@@ -229,12 +229,22 @@ export default function SellerListings() {
                           </Badge>
                         )}
                       </div>
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                         <span>{product.brand || 'Sem marca'}</span>
                         <span>·</span>
                         <span>{conditionLabel(product.condition as any) || product.condition}</span>
                         <span>·</span>
                         <span>{product.type === 'auction' ? 'Modo Lance' : 'Venda Direta'}</span>
+                        {/* O SKU aparece aqui para o lojista achar a peça no
+                            controle dele sem abrir o anúncio. */}
+                        {product.sku && (
+                          <>
+                            <span>·</span>
+                            <code className="rounded bg-secondary/60 px-1.5 py-0.5 text-[10px]">
+                              {product.sku}
+                            </code>
+                          </>
+                        )}
                       </div>
                       {/* O motivo aparece na própria linha do anúncio reprovado:
                           é o que diz ao vendedor o que corrigir. */}

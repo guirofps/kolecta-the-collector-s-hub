@@ -57,6 +57,24 @@ describe('modelo da planilha', () => {
   });
 });
 
+describe('SKU', () => {
+  // Pedido dos lojistas: casar a venda aqui com o controle de estoque deles.
+  it('existe na planilha, mas nunca como obrigatório', () => {
+    const sku = COLUNAS.find((c) => c.chave === 'sku');
+    expect(sku).toBeDefined();
+    // Colecionador pessoa física não trabalha com SKU: exigir travaria ele.
+    expect(sku!.obrigatoria).toBe(false);
+  });
+
+  it('planilha sem SKU continua válida', () => {
+    expect(validarLinha({ ...OK, sku: '' }, 2)).toHaveLength(0);
+  });
+
+  it('planilha com SKU continua válida', () => {
+    expect(validarLinha({ ...OK, sku: 'HW-R34-001' }, 2)).toHaveLength(0);
+  });
+});
+
 describe('leitura do CSV', () => {
   it('não embaralha coluna quando a descrição tem vírgula', () => {
     const csv = 'title,description,price\n"Item bonito","Lacrado, sem uso, perfeito",99.90\n';

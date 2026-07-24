@@ -671,6 +671,8 @@ export default function AdminListings() {
                       })()}
 
                       <Dado rotulo="Fotos" valor={`${imgs.length} de 8`} alerta={imgs.length < 3} />
+                      {/* Só quando o vendedor usa: SKU vazio não é problema. */}
+                      {selectedListing.sku && <Dado rotulo="SKU" valor={selectedListing.sku} />}
                     </div>
 
                     <div className="rounded-md border border-border bg-secondary/20 p-3">

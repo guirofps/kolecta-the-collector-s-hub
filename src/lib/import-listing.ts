@@ -117,6 +117,14 @@ export const COLUNAS: ColunaModelo[] = [
     ajuda: 'Embalagem pronta', exemplo: '5',
   },
   {
+    chave: 'sku', titulo: 'SKU', obrigatoria: false,
+    // Pedido dos lojistas: é o código deles, para casar a venda aqui com o
+    // controle de estoque que já usam. Opcional de propósito, porque
+    // colecionador pessoa física não trabalha com SKU.
+    ajuda: 'Opcional. Seu código interno de estoque',
+    exemplo: 'HW-R34-001',
+  },
+  {
     chave: 'year', titulo: 'Ano', obrigatoria: false,
     ajuda: 'Opcional', exemplo: '2023',
   },
