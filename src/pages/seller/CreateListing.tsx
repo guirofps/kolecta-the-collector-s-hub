@@ -265,29 +265,6 @@ export default function CreateListing() {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
-  // ─── Ajuda para escrever a descrição ────────────────────────
-  const descricaoRef = useRef<HTMLTextAreaElement>(null);
-
-  /**
-   * Começa uma nova linha de item na descrição e deixa o cursor pronto.
-   * Ensina o formato pela prática: depois do primeiro clique, a pessoa entende
-   * que cada linha com "-" vira um item, e passa a digitar direto.
-   */
-  const adicionarItemDescricao = () => {
-    const atual = form.description;
-    // Sem linha vazia sobrando: só quebra se já houver texto.
-    const precisaQuebra = atual.length > 0 && !atual.endsWith('\n');
-    const novo = `${atual}${precisaQuebra ? '\n' : ''}- `;
-    update('description', novo);
-    // O foco e o cursor no fim precisam esperar o React repintar o textarea.
-    requestAnimationFrame(() => {
-      const el = descricaoRef.current;
-      if (!el) return;
-      el.focus();
-      el.setSelectionRange(novo.length, novo.length);
-      el.scrollTop = el.scrollHeight;
-    });
-  };
 
   // Campos obrigatórios por categoria (além dos comuns). A lista vive em
   // @/lib/category-fields, mesma fonte que a moderação usa para saber o que
@@ -643,6 +620,33 @@ function StepType({ form, update }: { form: FormData; update: (f: keyof FormData
 function StepDetails({ form, update, categories }: { form: FormData; update: (f: keyof FormData, v: any) => void; categories: CategoryOption[] }) {
   const [subStep, setSubStep] = useState<'category' | 'details'>(form.category ? 'details' : 'category');
   const [tempCategory, setTempCategory] = useState(form.category);
+
+  // ─── Ajuda para escrever a descrição ────────────────────────
+  // Vivem AQUI, não no componente pai: o textarea e o botão que os usam estão
+  // neste componente. Definidos lá fora, o React estourava ao renderizar este
+  // sub-passo e a tela ficava branca ao confirmar a categoria.
+  const descricaoRef = useRef<HTMLTextAreaElement>(null);
+
+  /**
+   * Começa uma nova linha de item na descrição e deixa o cursor pronto.
+   * Ensina o formato pela prática: depois do primeiro clique, a pessoa entende
+   * que cada linha com "-" vira um item, e passa a digitar direto.
+   */
+  const adicionarItemDescricao = () => {
+    const atual = form.description;
+    // Sem linha vazia sobrando: só quebra se já houver texto.
+    const precisaQuebra = atual.length > 0 && !atual.endsWith('\n');
+    const novo = `${atual}${precisaQuebra ? '\n' : ''}- `;
+    update('description', novo);
+    // O foco e o cursor no fim precisam esperar o React repintar o textarea.
+    requestAnimationFrame(() => {
+      const el = descricaoRef.current;
+      if (!el) return;
+      el.focus();
+      el.setSelectionRange(novo.length, novo.length);
+      el.scrollTop = el.scrollHeight;
+    });
+  };
 
   const handleConfirmCategory = () => {
     if (tempCategory !== form.category) {
