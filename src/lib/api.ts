@@ -1163,6 +1163,12 @@ export interface Listing {
   priceInCents: number | null;
   images: string | null; // JSON array stringificado: '["url1","url2"]'
   status: string;
+  // Moderação. O backend grava os três ao aprovar/reprovar. `rejectionReason` é
+  // o que o vendedor precisa ler para corrigir: sem exibir isso, ele vê
+  // "Reprovado" e não tem como saber o que mudar.
+  rejectionReason?: string | null;
+  moderatedBy?: string | null;
+  moderatedAt?: string | null;
   // Config de leilão (só quando type='auction'). O vendedor preenche isso no
   // wizard e o backend grava na tabela `auctions`. Opcionais aqui porque nem
   // todo endpoint devolve: a fila de moderação (/api/admin/listings) ainda não

@@ -12,11 +12,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { mockCategories } from '@/lib/mock-data';
 import { CONDITIONS } from '@/lib/conditions';
 import ProductDescription from '@/components/ProductDescription';
+import RejectionNotice from '@/components/RejectionNotice';
 import { useListing, useUpdateListing, useUploadImage, useCategories } from '@/hooks/use-api';
 import type { CreateListingPayload } from '@/lib/api';
 import { toast } from 'sonner';
 
 const MAX_PHOTOS = 8;
+
+// Mesmo vocabulário da lista de anúncios do vendedor (seller/Listings).
+const STATUS_LABEL: Record<string, string> = {
+  active: 'Ativo',
+  draft: 'Rascunho',
+  pending_review: 'Em análise',
+  rejected: 'Reprovado',
+  paused: 'Pausado',
+  sold: 'Vendido',
+  cancelled: 'Cancelado',
+};
 
 // Condições vêm da fonte única (src/lib/conditions.ts).
 const conditions = CONDITIONS;
@@ -224,8 +236,10 @@ export default function EditListing() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {/* Rótulo legível: antes caía no status cru do banco ("rejected",
+                "pending_review") para tudo que não fosse ativo. */}
             <Badge variant={listing.status === 'active' ? 'default' : 'secondary'}>
-              {listing.status === 'active' ? 'Ativo' : listing.status}
+              {STATUS_LABEL[listing.status] ?? listing.status}
             </Badge>
             <Link to={`/produto/${listing.id}`}>
               <Button variant="ghost" size="sm" className="gap-1.5">
@@ -238,6 +252,12 @@ export default function EditListing() {
             </Button>
           </div>
         </div>
+
+        {/* O motivo fica no topo da edição, que é onde o vendedor está quando
+            vai corrigir. Sem isso ele abre a tela sem saber o que mudar. */}
+        {listing.status === 'rejected' && (
+          <RejectionNotice motivo={listing.rejectionReason} />
+        )}
 
         {/* Basic info */}
         <Card className="bg-gradient-card border-border">

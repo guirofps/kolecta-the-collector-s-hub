@@ -10,6 +10,7 @@ import { isListingFeatured } from '@/lib/api';
 import { useMyListings, useDeleteListing, useTogglePauseListing, usePublishListing, useMyFounder, useUseFounderCredit, useIsFounderActive } from '@/hooks/use-api';
 import type { Listing } from '@/lib/api';
 import EmptyState from '@/components/EmptyState';
+import RejectionNotice from '@/components/RejectionNotice';
 import { saveDraft, draftFromListing } from '@/lib/listing-draft';
 import { hasLaunched } from '@/lib/launch';
 import { toast } from 'sonner';
@@ -223,6 +224,11 @@ export default function SellerListings() {
                         <span>·</span>
                         <span>{product.type === 'auction' ? 'Modo Lance' : 'Venda Direta'}</span>
                       </div>
+                      {/* O motivo aparece na própria linha do anúncio reprovado:
+                          é o que diz ao vendedor o que corrigir. */}
+                      {product.status === 'rejected' && (
+                        <RejectionNotice motivo={product.rejectionReason} compacto className="mt-2" />
+                      )}
                     </div>
                     <div className="text-right shrink-0 hidden sm:block">
                       <div className="font-heading text-sm font-bold">
@@ -255,6 +261,18 @@ export default function SellerListings() {
                             onClick={() => publishMutation.mutate(product.id)}
                           >
                             <Rocket className="h-3.5 w-3.5" /> Publicar
+                          </DropdownMenuItem>
+                        )}
+                        {/* Anúncio reprovado ficava sem saída: "Publicar" só
+                            aparecia para rascunho e em análise, então o vendedor
+                            corrigia e não tinha como devolver para a fila. */}
+                        {product.status === 'rejected' && (
+                          <DropdownMenuItem
+                            className="gap-2 text-sm text-primary"
+                            disabled={publishMutation.isPending}
+                            onClick={() => navigate(`/painel/anuncios/${product.id}/editar`)}
+                          >
+                            <Pencil className="h-3.5 w-3.5" /> Corrigir e reenviar
                           </DropdownMenuItem>
                         )}
                         {canFeature && product.status === 'active' && !isListingFeatured(product) && (
