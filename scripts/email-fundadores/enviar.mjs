@@ -24,6 +24,14 @@ const MIN_CANDIDATO = 5;       // a partir daqui a pessoa está pré-selecionada
 const MIN_QUASE_LA = 3;        // de 3 a 4 anúncios recebe o e-mail de empurrão
 const PAUSA_MS = 4000;         // respiro entre envios, para não parecer disparo em massa
 
+// Quem recebeu o e-mail de "falta pouco" no primeiro lote (23/07). Aquele lote
+// gravou só a data no log, sem o tipo, então esta lista completa a informação.
+// Serve para dar o upgrade a quem depois cruzou os 5 anúncios.
+const RECEBERAM_QUASE_LA = new Set([
+  'ollyver.hnd@gmail.com',
+  'tatoecuco@gmail.com',
+]);
+
 // Contas internas, de teste ou da marca-mãe. Não recebem e-mail.
 const INTERNOS = new Set([
   'vendedor@email.com', 'admin@kolecta.com.br', 'joao@email.com',
@@ -173,10 +181,34 @@ if (!/^\d{12,13}$/.test(WHATSAPP)) {
 }
 
 // Quem já recebeu não recebe de novo, mesmo se o script rodar duas vezes.
+//
+// O log guarda QUAL e-mail a pessoa recebeu, não só que recebeu algo. Sem isso,
+// quem levou o "falta pouco" com 4 anúncios e depois publicou mais nunca saberia
+// que entrou na pré-seleção: o script pulava por já constar no log. Aconteceu
+// com o Tato & Cuco, que saltou de 4 para 13 anúncios.
 const jaEnviados = fs.existsSync(LOG) ? JSON.parse(fs.readFileSync(LOG, 'utf8')) : {};
-const fila = destinatarios.filter((d) => !jaEnviados[d.email]);
+
+/**
+ * Que tipo de e-mail esta pessoa já recebeu?
+ * O primeiro lote gravou só a data (string). Para esses, RECEBERAM_QUASE_LA diz
+ * quem levou o "falta pouco"; o resto daquele lote foi pré-seleção.
+ */
+function tipoJaEnviado(email) {
+  const reg = jaEnviados[email];
+  if (!reg) return null;
+  if (typeof reg === 'object' && reg.tipo) return reg.tipo;
+  return RECEBERAM_QUASE_LA.has(email) ? 'quase-la' : 'preselecionado';
+}
+
+const fila = destinatarios.filter((d) => {
+  const anterior = tipoJaEnviado(d.email);
+  if (!anterior) return true;                                   // nunca recebeu
+  if (anterior === 'preselecionado') return false;              // não repete
+  return d.tipo === 'preselecionado';                           // upgrade do "falta pouco"
+});
+
 if (fila.length !== destinatarios.length) {
-  console.log(`${destinatarios.length - fila.length} já receberam antes e foram pulados.`);
+  console.log(`${destinatarios.length - fila.length} já receberam e foram pulados.`);
 }
 if (!fila.length) {
   console.log('Ninguém novo na fila. Nada a fazer.');
@@ -225,7 +257,9 @@ let ok = 0, erro = 0;
 for (const d of fila) {
   try {
     const id = await enviarResend(d);
-    jaEnviados[d.email] = new Date().toISOString();
+    // Grava o TIPO junto: é o que permite o upgrade de "falta pouco" para
+    // pré-seleção sem reenviar o mesmo e-mail para quem já recebeu.
+    jaEnviados[d.email] = { data: new Date().toISOString(), tipo: d.tipo };
     fs.writeFileSync(LOG, JSON.stringify(jaEnviados, null, 2), 'utf8');
     ok++;
     console.log(`  ok    ${d.email.padEnd(38)} ${id ?? ''}`);
