@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, X, Eye, AlertCircle, Clock, Loader2 } from 'lucide-react';
+import {
+  Check, X, Eye, AlertCircle, Clock, Loader2,
+  ArrowDownWideNarrow, ArrowUpNarrowWide,
+} from 'lucide-react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -122,10 +125,7 @@ export default function AdminListings() {
   const listaRevisao = revisao.data ?? [];
   const listaRascunho = rascunho.data ?? [];
 
-  // Mais antigo primeiro: quem enviou antes é revisado antes.
-  const todos = [...listaRevisao, ...listaRascunho].sort(
-    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-  );
+  const todos = [...listaRevisao, ...listaRascunho];
 
   const truncou = listaRevisao.length >= LIMITE || listaRascunho.length >= LIMITE;
 
@@ -145,6 +145,10 @@ export default function AdminListings() {
   const [filtroTipo, setFiltroTipo] = useState<'todos' | 'direct' | 'auction'>('todos');
   const [soPendencia, setSoPendencia] = useState(false);
   const [busca, setBusca] = useState('');
+  // Padrão "antigos": quem enviou primeiro é revisado primeiro. É a ordem justa
+  // quando há fila, e evita que anúncio antigo fique esquecido no fim da pilha.
+  const [ordem, setOrdem] = useState<'antigos' | 'recentes'>('antigos');
+  const [periodo, setPeriodo] = useState<'todos' | 'hoje' | '7dias' | 'antigos'>('todos');
 
   // Qual anúncio está sendo moderado agora. Sem isso, `updateStatus.isPending`
   // é global e uma única aprovação punha spinner e travava o botão das 176
@@ -186,21 +190,52 @@ export default function AdminListings() {
     .filter((c) => contagemPorCategoria[c.id] > 0)
     .sort((a, b) => contagemPorCategoria[b.id] - contagemPorCategoria[a.id]);
 
-  const termo = busca.trim().toLowerCase();
-  const listings = todos.filter((l) => {
-    if (filtroCategoria === 'sem-categoria') {
-      if (l.categoryId != null) return false;
-    } else if (filtroCategoria !== 'todas' && l.categoryId !== filtroCategoria) {
-      return false;
-    }
-    if (filtroTipo !== 'todos' && l.type !== filtroTipo) return false;
-    if (soPendencia && pendenciasDe(l).length === 0) return false;
-    if (termo && !l.title.toLowerCase().includes(termo) && !(l.sellerName ?? '').toLowerCase().includes(termo)) return false;
+  // ─── Período ─────────────────────────────────────────────
+  // Cortes calculados uma vez, para o filtro não recriar Date por linha.
+  const agora = Date.now();
+  const inicioDeHoje = new Date();
+  inicioDeHoje.setHours(0, 0, 0, 0);
+  const CORTE_HOJE = inicioDeHoje.getTime();
+  const CORTE_7DIAS = agora - 7 * 24 * 60 * 60 * 1000;
+
+  const dataDe = (l: Listing) => new Date(l.createdAt).getTime();
+
+  const noPeriodo = (l: Listing) => {
+    const t = dataDe(l);
+    if (!Number.isFinite(t)) return periodo === 'todos'; // data corrompida: só em "tudo"
+    if (periodo === 'hoje') return t >= CORTE_HOJE;
+    if (periodo === '7dias') return t >= CORTE_7DIAS;
+    // "Mais de 7 dias": o que está encalhado há tempo e merece atenção.
+    if (periodo === 'antigos') return t < CORTE_7DIAS;
     return true;
-  });
+  };
+
+  const contagemPeriodo = {
+    todos: todos.length,
+    hoje: todos.filter((l) => dataDe(l) >= CORTE_HOJE).length,
+    '7dias': todos.filter((l) => dataDe(l) >= CORTE_7DIAS).length,
+    antigos: todos.filter((l) => dataDe(l) < CORTE_7DIAS).length,
+  };
+
+  const termo = busca.trim().toLowerCase();
+  const listings = todos
+    .filter((l) => {
+      if (filtroCategoria === 'sem-categoria') {
+        if (l.categoryId != null) return false;
+      } else if (filtroCategoria !== 'todas' && l.categoryId !== filtroCategoria) {
+        return false;
+      }
+      if (filtroTipo !== 'todos' && l.type !== filtroTipo) return false;
+      if (soPendencia && pendenciasDe(l).length === 0) return false;
+      if (!noPeriodo(l)) return false;
+      if (termo && !l.title.toLowerCase().includes(termo) && !(l.sellerName ?? '').toLowerCase().includes(termo)) return false;
+      return true;
+    })
+    .sort((a, b) => (ordem === 'antigos' ? dataDe(a) - dataDe(b) : dataDe(b) - dataDe(a)));
 
   const totalComPendencia = todos.filter((l) => pendenciasDe(l).length > 0).length;
-  const filtroAtivo = filtroCategoria !== 'todas' || filtroTipo !== 'todos' || soPendencia || termo !== '';
+  const filtroAtivo = filtroCategoria !== 'todas' || filtroTipo !== 'todos'
+    || soPendencia || periodo !== 'todos' || termo !== '';
 
   const handleApprove = (id: string) => {
     setEmAndamento(id);
@@ -250,6 +285,14 @@ export default function AdminListings() {
     if (hours < 1) return 'agora';
     if (hours < 24) return `${hours}h atrás`;
     return `${Math.floor(hours / 24)}d atrás`;
+  };
+
+  /** Data e hora exatas, para o `title` do elemento. "3d atrás" não diz quando. */
+  const dataCompleta = (dateStr: string) => {
+    const d = new Date(dateStr);
+    return Number.isFinite(d.getTime())
+      ? d.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
+      : 'data desconhecida';
   };
 
   if (isLoading) {
@@ -356,6 +399,39 @@ export default function AdminListings() {
             </Chip>
           </div>
 
+          {/* Data de envio. Ordem padrão é o mais antigo primeiro: quem enviou
+              antes é revisado antes, e sem isso o anúncio velho some no fim da
+              pilha enquanto os novos chegam por cima. */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="mr-1 text-[10px] font-heading uppercase tracking-wider text-muted-foreground">Enviado</span>
+            {([
+              { valor: 'todos', rotulo: 'Qualquer data' },
+              { valor: 'hoje', rotulo: 'Hoje' },
+              { valor: '7dias', rotulo: 'Últimos 7 dias' },
+              { valor: 'antigos', rotulo: 'Mais de 7 dias' },
+            ] as const).map((op) => (
+              <Chip
+                key={op.valor}
+                ativo={periodo === op.valor}
+                onClick={() => setPeriodo(op.valor)}
+                perigo={op.valor === 'antigos' && contagemPeriodo.antigos > 0}
+              >
+                {op.rotulo} ({contagemPeriodo[op.valor]})
+              </Chip>
+            ))}
+
+            <span className="mx-2 h-4 w-px bg-border" />
+            <span className="mr-1 text-[10px] font-heading uppercase tracking-wider text-muted-foreground">Ordem</span>
+            <Chip ativo={ordem === 'antigos'} onClick={() => setOrdem('antigos')}>
+              <ArrowDownWideNarrow className="mr-1 inline h-3 w-3" />
+              Mais antigos
+            </Chip>
+            <Chip ativo={ordem === 'recentes'} onClick={() => setOrdem('recentes')}>
+              <ArrowUpNarrowWide className="mr-1 inline h-3 w-3" />
+              Mais recentes
+            </Chip>
+          </div>
+
           <input
             type="text"
             value={busca}
@@ -420,7 +496,10 @@ export default function AdminListings() {
                           </div>
                           <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
                             <span>Vendedor: <span className="text-foreground">{listing.sellerName || listing.sellerId}</span></span>
-                            <span className="flex items-center gap-1">
+                            <span
+                              className="flex items-center gap-1"
+                              title={`Enviado em ${dataCompleta(listing.createdAt)}`}
+                            >
                               <Clock className="h-3 w-3" />
                               {timeAgo(listing.createdAt)}
                             </span>
@@ -495,6 +574,7 @@ export default function AdminListings() {
                   setFiltroCategoria('todas');
                   setFiltroTipo('todos');
                   setSoPendencia(false);
+                  setPeriodo('todos');
                   setBusca('');
                 }}
               >

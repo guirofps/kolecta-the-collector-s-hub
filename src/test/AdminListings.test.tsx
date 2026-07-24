@@ -260,6 +260,72 @@ describe('AdminListings (fila de aprovação)', () => {
     expect(screen.queryByText('Completo')).not.toBeInTheDocument();
   });
 
+  // ── Data de envio ──────────────────────────────────────────────────────────
+  // Com 600 anúncios na fila, quem enviou primeiro tem que ser revisado
+  // primeiro, senão o anúncio antigo some no fundo enquanto os novos empilham
+  // por cima.
+
+  const diasAtras = (n: number) =>
+    new Date(Date.now() - n * 24 * 60 * 60 * 1000).toISOString();
+
+  /** Títulos na ordem em que aparecem na tela. */
+  const tituloNaOrdem = () =>
+    [...document.querySelectorAll('h3')].map((h) => h.textContent);
+
+  it('começa pelo mais antigo, que é a ordem justa da fila', () => {
+    renderFila([
+      makeListing({ id: 'novo', title: 'Chegou hoje', createdAt: diasAtras(0) }),
+      makeListing({ id: 'velho', title: 'Espera ha 20 dias', createdAt: diasAtras(20) }),
+      makeListing({ id: 'meio', title: 'Espera ha 3 dias', createdAt: diasAtras(3) }),
+    ]);
+    expect(tituloNaOrdem()).toEqual(['Espera ha 20 dias', 'Espera ha 3 dias', 'Chegou hoje']);
+  });
+
+  it('inverte para o mais recente quando pedido', () => {
+    renderFila([
+      makeListing({ id: 'novo', title: 'Chegou hoje', createdAt: diasAtras(0) }),
+      makeListing({ id: 'velho', title: 'Espera ha 20 dias', createdAt: diasAtras(20) }),
+    ]);
+    fireEvent.click(screen.getByRole('button', { name: /Mais recentes/ }));
+    expect(tituloNaOrdem()).toEqual(['Chegou hoje', 'Espera ha 20 dias']);
+  });
+
+  it('filtra os encalhados ha mais de 7 dias', () => {
+    renderFila([
+      makeListing({ id: 'a', title: 'Chegou hoje', createdAt: diasAtras(0) }),
+      makeListing({ id: 'b', title: 'Espera ha 20 dias', createdAt: diasAtras(20) }),
+      makeListing({ id: 'c', title: 'Espera ha 10 dias', createdAt: diasAtras(10) }),
+    ]);
+    fireEvent.click(screen.getByRole('button', { name: /^Mais de 7 dias \(2\)$/ }));
+    expect(tituloNaOrdem()).toEqual(['Espera ha 20 dias', 'Espera ha 10 dias']);
+  });
+
+  it('filtra só o que chegou hoje', () => {
+    renderFila([
+      makeListing({ id: 'a', title: 'Chegou hoje', createdAt: new Date().toISOString() }),
+      makeListing({ id: 'b', title: 'Ontem', createdAt: diasAtras(1) }),
+    ]);
+    fireEvent.click(screen.getByRole('button', { name: /^Hoje \(1\)$/ }));
+    expect(tituloNaOrdem()).toEqual(['Chegou hoje']);
+  });
+
+  it('a contagem de cada periodo bate com a fila inteira', () => {
+    renderFila([
+      makeListing({ id: 'a', createdAt: new Date().toISOString() }),
+      makeListing({ id: 'b', createdAt: diasAtras(3) }),
+      makeListing({ id: 'c', createdAt: diasAtras(30) }),
+    ]);
+    expect(screen.getByRole('button', { name: /^Qualquer data \(3\)$/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Hoje \(1\)$/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Últimos 7 dias \(2\)$/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Mais de 7 dias \(1\)$/ })).toBeInTheDocument();
+  });
+
+  it('não descarta anúncio com data corrompida na visão geral', () => {
+    renderFila([makeListing({ id: 'x', title: 'Data quebrada', createdAt: 'nao-e-data' })]);
+    expect(screen.getByText('Data quebrada')).toBeInTheDocument();
+  });
+
   it('busca por título', () => {
     renderFila([
       makeListing({ id: 'a', title: 'Funko do teste' }),
