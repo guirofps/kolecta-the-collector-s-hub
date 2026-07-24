@@ -12,6 +12,7 @@ import ProductCard from '@/components/ProductCard';
 import VerificationBadge from '@/components/VerificationBadge';
 import { FounderBadgeFor } from '@/components/FounderBadge';
 import { onlyPublic } from '@/lib/listing-visibility';
+import ProductDescription from '@/components/ProductDescription';
 import ReportListingDialog from '@/components/ReportListingDialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -450,9 +451,7 @@ export default function ProductDetail() {
             </TabsList>
             <TabsContent value="description" className="mt-4">
               <div className="p-6 rounded-lg border border-border bg-card">
-                <p className="text-sm text-foreground/90 leading-relaxed">
-                  {listing.description ?? 'Sem descrição disponível.'}
-                </p>
+                <ProductDescription texto={listing.description} />
               </div>
             </TabsContent>
             <TabsContent value="details" className="mt-4">

@@ -17,6 +17,7 @@ import { formatBRL } from '@/lib/currency';
 // (mint, near_mint...) e não batia com o que o wizard salva (`novo-lacrado`),
 // então a fila mostrava o código cru em todo anúncio.
 import { conditionLabel } from '@/lib/conditions';
+import ProductDescription from '@/components/ProductDescription';
 import {
   fieldsForCategory, parseAttributes, formatFieldValue, isFieldApplicable,
 } from '@/lib/category-fields';
@@ -619,7 +620,9 @@ export default function AdminListings() {
                         {selectedListing.brand && <Badge variant="outline" className="text-xs">{selectedListing.brand}</Badge>}
                         {selectedListing.scale && <Badge variant="outline" className="text-xs">Escala {selectedListing.scale}</Badge>}
                       </div>
-                      <p className="text-sm text-muted-foreground">{selectedListing.description || 'Sem descrição'}</p>
+                      {/* Formatada também aqui: é o texto que o comprador vai
+                          ler, então a moderação precisa ver o resultado final. */}
+                      <ProductDescription texto={selectedListing.description} />
                     </div>
                   </div>
 

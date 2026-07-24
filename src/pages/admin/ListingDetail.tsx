@@ -8,7 +8,9 @@ import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import EmptyState from '@/components/EmptyState';
+import ProductDescription from '@/components/ProductDescription';
 import { formatBRL } from '@/lib/currency';
+import { conditionLabel } from '@/lib/conditions';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog';
@@ -220,8 +222,10 @@ export default function AdminListingDetail() {
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <span>{categoryName}</span>
                 </div>
-                <Badge variant="secondary">{listing.condition}</Badge>
-                {listing.description && <p className="text-sm leading-relaxed">{listing.description}</p>}
+                {/* Rótulo legível, não o código do banco: aqui saía
+                    "novo-lacrado" em vez de "Novo na embalagem". */}
+                <Badge variant="secondary">{conditionLabel(listing.condition)}</Badge>
+                <ProductDescription texto={listing.description} />
                 {attributes.some(([, v]) => v) && (
                   <>
                     <Separator className="line-tech" />
