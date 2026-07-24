@@ -14,6 +14,7 @@ import heroBg from '@/assets/hero-bg.jpg';
 import miniGtNsx from '@/assets/mini-gt-nsx.webp';
 import { CATEGORY_ART } from '@/lib/category-art';
 import { metaTrackCustom } from '@/lib/meta-pixel';
+import { useAuth } from '@/contexts/AuthContext';
 
 // ─── Config da campanha de Fundador ──────────────────────────
 // Números da oferta em um só lugar. Ajuste aqui, o layout acompanha.
@@ -125,6 +126,25 @@ function TimerBlock({ value, label }: { value: string; label: string }) {
 }
 
 function SignupCta({ label = 'Quero ser Fundador' }: { label?: string }) {
+  const { isAuthenticated } = useAuth();
+
+  // Quem JÁ tem conta cai aqui sempre que toca numa rota ainda fechada (a
+  // página pública de um anúncio, por exemplo): o gate manda para `/` e a
+  // landing aparece. Oferecer "Quero ser Fundador" nesse momento faz a pessoa
+  // achar que perdeu a sessão e precisa se cadastrar de novo. Foi o que o
+  // vendedor da POKEDOM TCG relatou. Para quem está logado, o caminho é voltar
+  // ao painel.
+  if (isAuthenticated) {
+    return (
+      <Button variant="kolecta" size="lg" className="text-base px-10" asChild>
+        <Link to="/painel/anuncios">
+          Ir para meus anúncios
+          <ArrowRight className="h-5 w-5 ml-2" />
+        </Link>
+      </Button>
+    );
+  }
+
   return (
     <Button variant="kolecta" size="lg" className="text-base px-10" asChild>
       {/* Evento customizado: mede o clique na landing separado do cadastro concluído. */}
@@ -178,6 +198,7 @@ function MockListingCard({ featured }: { featured?: boolean }) {
 export default function LaunchCountdown() {
   const [time, setTime] = useState<Countdown>(() => getCountdown());
   const launchLabel = formatLaunchLabel();
+  const { isAuthenticated } = useAuth();
 
   useEffect(() => {
     const prev = document.title;
@@ -278,9 +299,13 @@ export default function LaunchCountdown() {
             <p className="font-heading text-xs font-bold uppercase tracking-wider text-primary/90">
               Vagas limitadas. Não haverá segunda rodada.
             </p>
-            <Link to="/entrar" className="text-sm text-white/50 hover:text-white/80 transition-colors">
-              Já tem conta? Entrar
-            </Link>
+            {/* "Entrar" para quem já está logado reforçaria a impressão de que
+                a sessão caiu. Ver o comentário em SignupCta. */}
+            {!isAuthenticated && (
+              <Link to="/entrar" className="text-sm text-white/50 hover:text-white/80 transition-colors">
+                Já tem conta? Entrar
+              </Link>
+            )}
           </motion.div>
 
           <motion.div

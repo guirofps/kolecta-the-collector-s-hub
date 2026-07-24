@@ -26,7 +26,15 @@ const OPEN_PREFIXES = [
   '/privacidade',
 ];
 
-function isOpenRoute(pathname: string): boolean {
+/**
+ * A rota é acessível no pré-lançamento?
+ *
+ * Exportado porque as telas precisam saber ANTES de oferecer um link. Sem isso,
+ * o painel convidava o vendedor a clicar em "Ver anúncio" (rota `/produto/:id`,
+ * fechada), o gate expulsava para `/` e ele caía na landing achando que tinha
+ * perdido a sessão. Foi o que o vendedor da POKEDOM TCG relatou.
+ */
+export function isOpenRoute(pathname: string): boolean {
   if (pathname === '/') return true;
   return OPEN_PREFIXES.some(
     (prefix) => pathname === prefix || pathname.startsWith(prefix + '/'),

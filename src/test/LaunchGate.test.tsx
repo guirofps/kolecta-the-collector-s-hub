@@ -12,7 +12,7 @@ vi.mock("@/hooks/use-launch-gate", () => ({
   useLaunchGate: () => mockState(),
 }));
 
-import LaunchGate from "@/components/LaunchGate";
+import LaunchGate, { isOpenRoute } from "@/components/LaunchGate";
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -38,6 +38,39 @@ function renderAt(path: string) {
     </MemoryRouter>,
   );
 }
+
+/**
+ * `isOpenRoute` é exportada para as telas consultarem ANTES de oferecer um link.
+ * Sem isso o painel convidava o vendedor a abrir a página pública do anúncio,
+ * o gate expulsava para `/` e ele achava que tinha perdido a sessão.
+ */
+describe("isOpenRoute", () => {
+  it("mantém o marketplace fechado", () => {
+    // Se algum destes virar `true` sem decisão, o site abre antes da hora.
+    expect(isOpenRoute("/produto/abc")).toBe(false);
+    expect(isOpenRoute("/busca")).toBe(false);
+    expect(isOpenRoute("/categorias")).toBe(false);
+    expect(isOpenRoute("/categoria/funko-pop")).toBe(false);
+    expect(isOpenRoute("/modo-lance")).toBe(false);
+    expect(isOpenRoute("/vendedor/abc")).toBe(false);
+    expect(isOpenRoute("/comunidade")).toBe(false);
+  });
+
+  it("deixa o vendedor trabalhar no painel", () => {
+    expect(isOpenRoute("/painel")).toBe(true);
+    expect(isOpenRoute("/painel/anuncios")).toBe(true);
+    expect(isOpenRoute("/painel/anuncios/abc/editar")).toBe(true);
+    expect(isOpenRoute("/conta")).toBe(true);
+    expect(isOpenRoute("/entrar")).toBe(true);
+    expect(isOpenRoute("/")).toBe(true);
+  });
+
+  it("não confunde prefixo parecido com rota liberada", () => {
+    // "/painelzinho" não pode passar só por começar com "/painel".
+    expect(isOpenRoute("/painelzinho")).toBe(false);
+    expect(isOpenRoute("/contato")).toBe(false);
+  });
+});
 
 describe("LaunchGate", () => {
   beforeEach(() => {

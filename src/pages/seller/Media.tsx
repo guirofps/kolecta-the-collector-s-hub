@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Check, Star, Zap, Crown, Megaphone, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useMyListings, useMyFounder, useIsFounderActive } from '@/hooks/use-api';
+import { isOpenRoute } from '@/components/LaunchGate';
 import { isListingFeatured } from '@/lib/api';
 import type { Listing } from '@/lib/api';
 
@@ -161,8 +162,12 @@ export default function SellerMediaPage() {
                             <span className="font-heading font-bold text-[hsl(var(--kolecta-gold))]">{remaining}d restantes</span>
                           </div>
                         </div>
+                        {/* Antes do lançamento a página pública está fechada e o
+                            link expulsava o vendedor do painel. Ver LaunchGate. */}
                         <Button variant="ghost" size="sm" className="self-start shrink-0" asChild>
-                          <Link to={`/produto/${l.id}`}>Ver anúncio</Link>
+                          <Link to={isOpenRoute('/produto/x') ? `/produto/${l.id}` : `/painel/anuncios/${l.id}/editar`}>
+                            {isOpenRoute('/produto/x') ? 'Ver anúncio' : 'Editar anúncio'}
+                          </Link>
                         </Button>
                       </CardContent>
                     </Card>

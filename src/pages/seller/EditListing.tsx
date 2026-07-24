@@ -13,6 +13,7 @@ import { mockCategories } from '@/lib/mock-data';
 import { CONDITIONS } from '@/lib/conditions';
 import ProductDescription from '@/components/ProductDescription';
 import RejectionNotice from '@/components/RejectionNotice';
+import { isOpenRoute } from '@/components/LaunchGate';
 import { useListing, useUpdateListing, useUploadImage, useCategories } from '@/hooks/use-api';
 import type { CreateListingPayload } from '@/lib/api';
 import { toast } from 'sonner';
@@ -241,11 +242,15 @@ export default function EditListing() {
             <Badge variant={listing.status === 'active' ? 'default' : 'secondary'}>
               {STATUS_LABEL[listing.status] ?? listing.status}
             </Badge>
-            <Link to={`/produto/${listing.id}`}>
-              <Button variant="ghost" size="sm" className="gap-1.5">
-                <Eye className="h-4 w-4" /> Ver anúncio
-              </Button>
-            </Link>
+            {/* Só depois do lançamento: a página pública está fechada até lá, e
+                o link expulsava o vendedor do painel. */}
+            {isOpenRoute('/produto/x') && (
+              <Link to={`/produto/${listing.id}`}>
+                <Button variant="ghost" size="sm" className="gap-1.5">
+                  <Eye className="h-4 w-4" /> Ver anúncio
+                </Button>
+              </Link>
+            )}
             <Button onClick={handleSave} disabled={saving} className="glow-primary gap-1.5">
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
               Salvar alterações

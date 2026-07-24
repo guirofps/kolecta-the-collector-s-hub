@@ -11,6 +11,7 @@ import { useMyListings, useDeleteListing, useTogglePauseListing, usePublishListi
 import type { Listing } from '@/lib/api';
 import EmptyState from '@/components/EmptyState';
 import RejectionNotice from '@/components/RejectionNotice';
+import { isOpenRoute } from '@/components/LaunchGate';
 import { saveDraft, draftFromListing } from '@/lib/listing-draft';
 import { hasLaunched } from '@/lib/launch';
 import { toast } from 'sonner';
@@ -63,6 +64,9 @@ export default function SellerListings() {
   const creditsAvailable = founder?.credits?.available ?? 0;
   // Só depois da seleção (25/07). Ver useIsFounderActive.
   const canFeature = useIsFounderActive() && creditsAvailable > 0;
+  // A vitrine pública só abre no lançamento. Perguntamos ao próprio gate em vez
+  // de repetir a regra aqui: mudou a allowlist, isto acompanha.
+  const paginaPublicaDisponivel = isOpenRoute('/produto/x');
 
   const filtered = (myProducts || []).filter((p) => {
     if (activeTab !== 'todos' && p.status !== activeTab) return false;
@@ -205,7 +209,14 @@ export default function SellerListings() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <Link to={`/produto/${product.id}`} className="text-sm font-medium truncate hover:text-primary transition-colors">
+                        {/* No painel, clicar no próprio anúncio leva a GERENCIAR,
+                            não à página pública. Antes levava a /produto/:id, que
+                            está fechada no pré-lançamento: o vendedor era expulso
+                            para a landing e achava que tinha caído a sessão. */}
+                        <Link
+                          to={`/painel/anuncios/${product.id}/editar`}
+                          className="text-sm font-medium truncate hover:text-primary transition-colors"
+                        >
                           {product.title}
                         </Link>
                         <Badge className={`text-[10px] shrink-0 ${statusColors[product.status] || ''}`}>
@@ -245,9 +256,14 @@ export default function SellerListings() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="bg-popover border-border">
-                        <DropdownMenuItem className="gap-2 text-sm" onClick={() => navigate(`/produto/${product.id}`)}>
-                          <Eye className="h-3.5 w-3.5" /> Ver anúncio
-                        </DropdownMenuItem>
+                        {/* A página pública do anúncio só existe depois do
+                            lançamento. Oferecer o link antes disso jogava o
+                            vendedor para fora do painel. */}
+                        {paginaPublicaDisponivel && (
+                          <DropdownMenuItem className="gap-2 text-sm" onClick={() => navigate(`/produto/${product.id}`)}>
+                            <Eye className="h-3.5 w-3.5" /> Ver anúncio
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuItem className="gap-2 text-sm" onClick={() => navigate(`/painel/anuncios/${product.id}/editar`)}>
                           <Pencil className="h-3.5 w-3.5" /> Editar
                         </DropdownMenuItem>
