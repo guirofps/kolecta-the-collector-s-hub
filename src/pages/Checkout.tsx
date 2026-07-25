@@ -406,7 +406,25 @@ export default function CheckoutPage() {
 
     // Um listingId por item do grupo (MVP: 1 item por seller)
     const listingItems = group.items.map(i => ({ listingId: i.product.id }));
-    const addressId = selectedAddressId !== 'custom' ? selectedAddressId : undefined;
+    // Os DOIS caminhos são válidos — a política de entrega é do comprador.
+    // Endereço salvo vai por id; o digitado vai inteiro e o backend o salva na
+    // conta dele. Antes o digitado era descartado: pedido sem destino, cartão
+    // recusado pela Pagar.me (falta o billing_address) e etiqueta impossível.
+    const usandoSalvo = selectedAddressId !== 'custom';
+    const addressId = usandoSalvo ? selectedAddressId : undefined;
+    const shippingAddress = usandoSalvo
+      ? undefined
+      : {
+          recipientName: nome.trim(),
+          street: rua.trim(),
+          number: numero.trim(),
+          complement: complemento.trim() || undefined,
+          neighborhood: bairro.trim() || undefined,
+          city: cidade.trim(),
+          state: estado.trim(),
+          zip: cep.replace(/\D/g, ''),
+          country: 'BR',
+        };
     // CPF + telefone do comprador (só dígitos) — exigidos pela Pagar.me na transação.
     const buyerCpf = cpf.replace(/\D/g, '') || undefined;
     const buyerPhone = phone.replace(/\D/g, '') || undefined;
@@ -454,6 +472,7 @@ export default function CheckoutPage() {
       const result = await createCheckout.mutateAsync({
         items: listingItems,
         addressId,
+        shippingAddress,
         shippingInCents,
         // Qual transportadora, não só quanto custou: a etiqueta automática
         // precisa emitir no MESMO serviço que o comprador escolheu e pagou.
