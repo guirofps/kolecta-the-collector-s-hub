@@ -127,6 +127,8 @@ interface FormData {
   edition: string;
   /** Código interno de estoque do vendedor. Opcional. */
   sku: string;
+  /** Unidades disponíveis. String porque vem de <input>; validado na hora. */
+  stock: string;
   description: string;
   photos: string[];
   price: string;
@@ -163,6 +165,9 @@ const initialForm: FormData = {
   year: '',
   edition: '',
   sku: '',
+  // Nasce em 1: peça única é o caso da maioria em colecionável, então quem
+  // vende uma peça só não precisa preencher nada.
+  stock: '1',
   description: '',
   photos: [],
   price: '',
@@ -296,6 +301,11 @@ export default function CreateListing() {
         if (!form.category) return 'Escolha a categoria';
         if (!form.condition) return 'Escolha a condição do item';
         if (form.description.trim().length < MIN_DESCRIPTION) return `A descrição precisa de pelo menos ${MIN_DESCRIPTION} caracteres`;
+        // Quantidade só existe em venda direta. Zero e vazio não passam: um
+        // anúncio no ar com estoque zero é uma venda que não pode ser cumprida.
+        if (form.type === 'direct' && !(Number(form.stock) >= 1)) {
+          return 'Informe quantas unidades você tem (no mínimo 1)';
+        }
         return missingCategoryField();
       }
       case 3:
@@ -357,6 +367,8 @@ export default function CreateListing() {
       year: cf.year || form.year || undefined,
       edition: cf.edition || form.edition || undefined,
       sku: form.sku.trim() || undefined,
+      // Leilão é de um item específico, então não carrega quantidade.
+      stock: isAuction ? undefined : Math.max(1, Number(form.stock) || 1),
       condition: form.condition,
       type: form.type as 'direct' | 'auction',
       priceInCents: !isAuction && form.price ? toCents(form.price) : undefined,
@@ -887,6 +899,33 @@ function StepDetails({ form, update, categories }: { form: FormData; update: (f:
             Opcional. Seu código de estoque, para achar a peça no seu controle. Só você vê.
           </p>
         </div>
+
+        {/* Quantidade: pedido dos lojistas que têm várias unidades da mesma
+            peça. Nasce em 1, que é o caso da maioria em colecionável, então
+            quem vende peça única não precisa fazer nada. Em leilão não aparece:
+            leilão é de um item específico, e dois lances no mesmo lote não têm
+            como ser atendidos. */}
+        {form.type === 'direct' && (
+          <div>
+            <Label htmlFor="stock">
+              Quantidade em estoque <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="stock"
+              type="number"
+              inputMode="numeric"
+              min={1}
+              placeholder="ex: 1"
+              value={form.stock}
+              onChange={(e) => update('stock', e.target.value)}
+              className="mt-1.5 max-w-[160px]"
+            />
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              Quantas unidades iguais você tem. Peça única é 1. O anúncio sai do
+              ar sozinho quando o estoque zerar.
+            </p>
+          </div>
+        )}
 
         <div>
           <Label className="mb-3 block">Condição *</Label>

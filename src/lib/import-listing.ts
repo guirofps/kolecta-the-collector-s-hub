@@ -127,6 +127,14 @@ export const COLUNAS: ColunaModelo[] = [
     exemplo: 'HW-R34-001',
   },
   {
+    chave: 'stock', titulo: 'Quantidade', obrigatoria: false,
+    // Em branco vira 1, que é o caso da maioria em colecionável. Marcar como
+    // obrigatória quebraria as planilhas que os vendedores já montaram, e o
+    // efeito prático seria o mesmo: todo mundo digitando 1.
+    ajuda: 'Quantas unidades iguais. Em branco = 1',
+    exemplo: '1',
+  },
+  {
     chave: 'year', titulo: 'Ano', obrigatoria: false,
     ajuda: 'Opcional', exemplo: '2023',
   },
@@ -221,6 +229,15 @@ export function lerPreco(bruto: string): number | null {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
+/**
+ * Quantidade em estoque da planilha. Vazio vira 1, que é o caso da maioria em
+ * colecionável e evita quebrar as planilhas montadas antes desta coluna existir.
+ */
+export function lerEstoque(bruto: string): number {
+  const n = Number((bruto ?? '').replace(',', '.').trim());
+  return Number.isInteger(n) && n >= 1 ? n : 1;
+}
+
 /** Divide as URLs de foto e descarta o que não for link. */
 export function lerFotos(bruto: string): string[] {
   return (bruto ?? '')
@@ -280,6 +297,17 @@ export function validarLinha(
     const n = Number(val(chave).replace(',', '.'));
     if (!Number.isFinite(n) || n <= 0) {
       add(chave, `${rotulo} inválido. Sem isso o frete sai errado.`);
+    }
+  }
+
+  // Quantidade: vazio é aceito e vira 1 (ver lerEstoque). Só recusa o que foi
+  // preenchido errado, como 0 ou texto, porque anúncio no ar com estoque zero
+  // é uma venda que não pode ser cumprida.
+  const estoqueCru = val('stock');
+  if (estoqueCru) {
+    const n = Number(estoqueCru.replace(',', '.'));
+    if (!Number.isInteger(n) || n < 1) {
+      add('stock', 'Quantidade inválida. Use um número inteiro a partir de 1, ou deixe em branco.');
     }
   }
 

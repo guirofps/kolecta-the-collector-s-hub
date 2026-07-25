@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   gerarTemplateCsv, lerCsv, validarLinha, validarPlanilha,
-  lerPreco, lerFotos, COLUNAS,
+  lerPreco, lerFotos, lerEstoque, COLUNAS,
 } from '@/lib/import-listing';
 
 /** Linha completa e válida, para os testes mudarem só o que interessa. */
@@ -174,5 +174,44 @@ describe('validação da planilha', () => {
     expect(r.validas).toBe(2);
     expect(r.erros).toHaveLength(1);
     expect(r.erros[0].linha).toBe(3); // 2ª linha de dados = linha 3 no Excel
+  });
+});
+
+/**
+ * Quantidade em estoque.
+ *
+ * Coluna nova: os lojistas pediram para poder anunciar várias unidades da mesma
+ * peça. Vazio vira 1 para não quebrar as planilhas montadas antes dela existir.
+ */
+describe('quantidade em estoque', () => {
+  it('vazio vira 1, que é o caso da peça única', () => {
+    expect(lerEstoque('')).toBe(1);
+    expect(lerEstoque('   ')).toBe(1);
+  });
+
+  it('lê o número que o lojista pôs', () => {
+    expect(lerEstoque('12')).toBe(12);
+  });
+
+  it('não aceita zero, negativo, fração nem texto', () => {
+    // Zero passando seria anúncio no ar sem ter o que vender.
+    expect(lerEstoque('0')).toBe(1);
+    expect(lerEstoque('-3')).toBe(1);
+    expect(lerEstoque('2,5')).toBe(1);
+    expect(lerEstoque('muitos')).toBe(1);
+  });
+
+  it('a planilha aceita a coluna em branco', () => {
+    expect(errosDe({ stock: '' }).some((e) => e.campo === 'stock')).toBe(false);
+  });
+
+  it('mas recusa o que foi preenchido errado', () => {
+    expect(errosDe({ stock: '0' }).some((e) => e.campo === 'stock')).toBe(true);
+    expect(errosDe({ stock: 'abc' }).some((e) => e.campo === 'stock')).toBe(true);
+  });
+
+  it('a coluna entra no modelo, como opcional', () => {
+    expect(COLUNAS.map((c) => c.chave)).toContain('stock');
+    expect(COLUNAS.find((c) => c.chave === 'stock')?.obrigatoria).toBe(false);
   });
 });

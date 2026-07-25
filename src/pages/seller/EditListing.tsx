@@ -56,6 +56,8 @@ interface EditForm {
   categoryFields: Record<string, unknown>;
   /** Código interno de estoque do vendedor. Opcional. */
   sku: string;
+  /** Unidades disponíveis. String porque vem de <input>. */
+  stock: string;
   description: string;
   photos: string[];
   price: string; // em reais (string), convertido p/ centavos ao salvar
@@ -77,6 +79,7 @@ const emptyForm: EditForm = {
   edition: '',
   categoryFields: {},
   sku: '',
+  stock: '1',
   description: '',
   photos: [],
   price: '',
@@ -137,6 +140,8 @@ export default function EditListing() {
         ...parseAttributes(listing.attributes),
       },
       sku: listing.sku ?? '',
+      // O backend ainda não devolve `stock`; cai em 1 até passar a devolver.
+      stock: listing.stock != null ? String(listing.stock) : '1',
       description: listing.description ?? '',
       photos: parseImages(listing.images),
       price: listing.priceInCents != null ? String(listing.priceInCents / 100) : '',
@@ -214,6 +219,12 @@ export default function EditListing() {
       return;
     }
 
+    // Estoque zero num anúncio no ar é venda que não pode ser cumprida.
+    if (listing?.type !== 'auction' && !(Number(form.stock) >= 1)) {
+      toast.error('Informe quantas unidades você tem (no mínimo 1).');
+      return;
+    }
+
     const isAuction = listing?.type === 'auction';
     // F7: em leilão, `priceInCents` é sempre null e o lance inicial mora na
     // tabela de auction (editável no gerenciador de leilões). Editar preço aqui
@@ -250,6 +261,8 @@ export default function EditListing() {
       edition: texto('edition') ?? (form.edition || undefined),
       attributes: hasAttributes ? JSON.stringify(cf) : undefined,
       sku: form.sku.trim() || undefined,
+      // Leilão é de um item específico e não carrega quantidade.
+      stock: listing?.type === 'auction' ? undefined : Math.max(1, Number(form.stock) || 1),
       condition: form.condition || undefined,
       priceInCents,
       images: JSON.stringify(form.photos),
@@ -405,6 +418,29 @@ export default function EditListing() {
                 />
                 <p className="mt-1 text-[11px] text-muted-foreground">Opcional. Só você vê.</p>
               </div>
+
+              {/* Controle de estoque pós-publicação: é aqui que o lojista repõe
+                  depois de vender, ou corrige a contagem. Leilão não tem
+                  quantidade, é um item específico. */}
+              {listing?.type !== 'auction' && (
+                <div>
+                  <Label htmlFor="stock">
+                    Quantidade em estoque <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="stock"
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    placeholder="ex: 1"
+                    value={form.stock}
+                    onChange={(e) => updateField('stock', e.target.value)}
+                  />
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Repõe aqui depois de vender. Zerou, o anúncio sai do ar.
+                  </p>
+                </div>
+              )}
             </div>
 
             <div>

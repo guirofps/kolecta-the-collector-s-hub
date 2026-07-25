@@ -1179,6 +1179,8 @@ export interface Listing {
   // Código interno do vendedor, para casar a venda aqui com o controle de
   // estoque que ele já usa. Opcional: só lojista costuma trabalhar com SKU.
   sku?: string | null;
+  /** Unidades disponíveis. Ainda não devolvido pelo backend (ver pendências). */
+  stock?: number | null;
   // Moderação. O backend grava os três ao aprovar/reprovar. `rejectionReason` é
   // o que o vendedor precisa ler para corrigir: sem exibir isso, ele vê
   // "Reprovado" e não tem como saber o que mudar.
@@ -1437,6 +1439,15 @@ export interface CreateListingPayload {
   edition?: string;
   // Código interno de estoque do vendedor. Opcional.
   sku?: string;
+  /**
+   * Quantas unidades iguais o vendedor tem. Peça única é 1, que é o caso da
+   * maioria em colecionável; lojista com caixa fechada põe o número real.
+   *
+   * ATENÇÃO: o backend ainda NÃO grava este campo (ver docs/pendencias-backend).
+   * Até gravar, o valor é enviado e descartado. Por isso o estoque não aparece
+   * em lugar nenhum para o comprador: melhor não mostrar do que mostrar errado.
+   */
+  stock?: number;
   condition: string;
   type: 'direct' | 'auction';
   priceInCents?: number;
