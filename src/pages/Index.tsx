@@ -1,12 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useEffect, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowRight, ShieldCheck, Search, TrendingUp, Package, Users, Loader2, Store } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
 import ProductCard from '@/components/ProductCard';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import {
   toProduct,
   destaques as pegarDestaques,
@@ -92,6 +91,12 @@ function CategoryIcon({ slug, size = 32 }: { slug: string; size?: number }) {
   }
 }
 
+// Atalhos do hero. Escolhidos entre o que o catálogo realmente tem: no acervo
+// de hoje devolvem 57, 39, 10 e 8 resultados. Atalho que cai numa lista vazia
+// é pior do que não existir, então valem uma conferida quando o mix de
+// categorias mudar.
+const ATALHOS_BUSCA = ['Hot Wheels', 'Mini GT', 'Kaido House', 'Pokémon'];
+
 // Quanto a home puxa de uma vez. Precisa cobrir o catálogo inteiro para a
 // contagem por categoria bater com a realidade; se um dia não cobrir mais, a
 // home passa a dizer "mais de N" em vez de mentir o total.
@@ -125,19 +130,9 @@ export default function Index() {
 }
 
 function HomeContent() {
-  const navigate = useNavigate();
-  const [termo, setTermo] = useState('');
-
   useEffect(() => {
     trackEvent('view_home');
   }, []);
-
-  const buscar = (e: React.FormEvent) => {
-    e.preventDefault();
-    const q = termo.trim();
-    trackEvent('search', { q, origem: 'home' });
-    navigate(q ? `/busca?q=${encodeURIComponent(q)}` : '/busca');
-  };
 
   // Uma requisição só alimenta todas as seções. Antes pedia 40 para mostrar 5;
   // com 136 anúncios no ar, a home ficava com cara de catálogo vazio. O filtro
@@ -207,28 +202,32 @@ function HomeContent() {
               Compre, venda e dê lances em miniaturas diecast, cards e artigos exclusivos. Plataforma criada por colecionadores, para colecionadores.
             </motion.p>
 
-            {/* Busca no hero: quem chega num marketplace procura um item
-                específico. Antes o botão levava para /busca com o campo vazio,
-                e a pessoa tinha que descobrir onde digitar. */}
-            <motion.form
+            {/* Atalhos, não um segundo campo de busca: o header já tem o dele
+                fixo no topo, e dois campos na mesma tela é escolha demais para
+                quem acabou de chegar. Aqui a pessoa entra direto no que o
+                catálogo tem de verdade. */}
+            <motion.div
               variants={fadeUp}
               custom={3}
-              onSubmit={buscar}
-              className="mx-auto mb-4 flex w-full max-w-xl gap-2"
-              role="search"
+              className="mx-auto mb-6 flex max-w-xl flex-wrap items-center justify-center gap-2"
             >
-              <Input
-                value={termo}
-                onChange={(e) => setTermo(e.target.value)}
-                placeholder="Busque por Hot Wheels, Pokémon, Mini GT..."
-                aria-label="Buscar no catálogo"
-                className="h-12 border-white/20 bg-white/10 text-white placeholder:text-white/40 focus-visible:ring-primary"
-              />
-              <Button type="submit" variant="kolecta" size="lg" className="h-12 shrink-0 px-6">
-                <Search className="h-5 w-5" />
-                <span className="ml-2 hidden sm:inline">Buscar</span>
+              <Button variant="kolecta" size="lg" className="px-7" asChild>
+                <Link to="/busca">
+                  <Search className="mr-2 h-5 w-5" />
+                  Explorar coleção
+                </Link>
               </Button>
-            </motion.form>
+              {ATALHOS_BUSCA.map((termo) => (
+                <Link
+                  key={termo}
+                  to={`/busca?q=${encodeURIComponent(termo)}`}
+                  onClick={() => trackEvent('search', { q: termo, origem: 'atalho-home' })}
+                  className="rounded-full border border-white/20 px-3.5 py-1.5 text-xs text-white/70 transition-colors hover:border-primary/50 hover:text-white"
+                >
+                  {termo}
+                </Link>
+              ))}
+            </motion.div>
 
             <motion.div variants={fadeUp} custom={4} className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-[11px] text-white/60">
               <span className="flex items-center gap-1.5">
