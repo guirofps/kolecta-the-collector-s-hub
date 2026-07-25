@@ -10,6 +10,7 @@
 
 import type { Listing } from './api';
 import { isListingFeatured } from './api';
+import { leilaoAberto } from './leilao';
 import type { Product, ProductCondition } from './mock-data';
 
 // ─── Conversão para o formato do ProductCard ────────────────────────────────
@@ -125,11 +126,16 @@ export function novidades(ativos: Listing[], quantos = 20, excluir: Listing[] = 
     .slice(0, quantos);
 }
 
-/** Leilões abertos, o que termina primeiro na frente. Encerrado não entra. */
+/**
+ * Leilões realmente abertos, o que termina primeiro na frente.
+ *
+ * A regra do que está aberto vive em lib/leilao. O filtro anterior só olhava
+ * `endsAt` no futuro, e todo leilão do acervo vem com 2099-01-01: a vitrine
+ * anunciava dezenas de leilões que não aceitavam lance nenhum.
+ */
 export function leiloes(ativos: Listing[], agora: Date = new Date()): Listing[] {
   return ativos
-    .filter((l) => l.type === 'auction')
-    .filter((l) => !l.endsAt || new Date(l.endsAt).getTime() > agora.getTime())
+    .filter((l) => leilaoAberto(l, agora))
     .sort((a, b) => {
       const ta = a.endsAt ? new Date(a.endsAt).getTime() : Infinity;
       const tb = b.endsAt ? new Date(b.endsAt).getTime() : Infinity;

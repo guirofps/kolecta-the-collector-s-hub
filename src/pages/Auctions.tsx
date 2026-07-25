@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useAuctions } from '@/hooks/use-api';
 import { formatBRL } from '@/lib/currency';
 import { AuctionWithListing } from '@/lib/api';
+import { leilaoDaListaAberto } from '@/lib/leilao';
 import { Gavel, SlidersHorizontal, X, ChevronDown, Timer, Clock } from 'lucide-react';
 
 const sortOptions = [
@@ -71,7 +72,10 @@ export default function AuctionsPage() {
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   const sorted = useMemo(() => {
-    const list = [...auctions];
+    // Só o que aceita lance. Todo leilão do acervo vem com fim em 2099, uma
+    // sentinela de leilão criado e nunca iniciado: a página anunciava dezenas
+    // deles e o botão de dar lance não funcionava em nenhum (ver lib/leilao).
+    const list = auctions.filter((a) => leilaoDaListaAberto(a));
     switch (sortBy) {
       case 'ending_soon':
         return list.sort((a, b) => new Date(a.endsAt).getTime() - new Date(b.endsAt).getTime());
