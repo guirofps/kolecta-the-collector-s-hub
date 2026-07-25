@@ -78,6 +78,7 @@ import ConnectSuccessPage from "./pages/connect/Success";
 import { CartProvider } from "./contexts/CartContext";
 import CartDrawer from "./components/CartDrawer";
 import { MetaPixelPageView, MetaPixelSignup } from "./components/MetaPixel";
+import { Analytics } from "@vercel/analytics/react";
 import { Navigate } from "react-router-dom";
 
 const queryClient = new QueryClient();
@@ -101,6 +102,12 @@ const App = () => (
           <CartDrawer />
           <ScrollToTop />
           <MetaPixelPageView />
+          {/* Medição de tráfego própria. O Meta Pixel mede para a campanha; este
+              mede para nós, e o número não fica preso na conta de anúncios.
+              Não usa cookie nem identifica a pessoa, então não entra no fluxo de
+              consentimento. Fora do <Routes> de propósito: conta a navegação
+              inteira, e um erro dentro dele não derrubaria a página. */}
+          <Analytics />
           {CLERK_ENABLED && <MetaPixelSignup />}
           {CLERK_ENABLED && <ConsentSync />}
           {showDevUserSwitcher && <DevUserSwitcher />}
