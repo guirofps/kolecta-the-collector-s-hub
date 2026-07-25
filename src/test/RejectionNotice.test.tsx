@@ -52,6 +52,19 @@ describe('RejectionNotice', () => {
     expect(container.textContent).toContain('A terceira foto está desfocada.');
   });
 
+  // Formato real que a moderação manda hoje: motivo, dois pontos, e o detalhe
+  // que a tela detectou. É o que diz ao vendedor o que preencher.
+  it('mostra o detalhe junto do motivo', () => {
+    const { container } = r(
+      '- Fotos insuficientes ou de baixa qualidade: o anúncio tem 1 foto e o mínimo é 2\n'
+      + '- Faltam informações obrigatórias da categoria: fabricante da miniatura, escala',
+    );
+    const itens = [...container.querySelectorAll('li')].map((li) => li.textContent);
+    expect(itens).toHaveLength(2);
+    expect(itens[0]).toContain('o mínimo é 2');
+    expect(itens[1]).toContain('fabricante da miniatura, escala');
+  });
+
   it('não interpreta o texto da moderação como HTML', () => {
     const { container } = r('Motivo <b>com marcação</b>');
     expect(container.querySelector('b')).toBeNull();

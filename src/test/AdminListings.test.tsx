@@ -266,6 +266,65 @@ describe('AdminListings (fila de aprovação)', () => {
     );
   });
 
+  // ── Detalhe do motivo ──────────────────────────────────────────────────────
+  // "Faltam informações obrigatórias da categoria" não diz o que preencher. A
+  // tela sabe quais campos são, e sem passar isso adiante o vendedor reenvia
+  // no chute e leva a mesma reprovação.
+
+  it('diz QUAIS campos da categoria faltam', () => {
+    renderFila([makeListing({
+      images: JSON.stringify(['a.jpg', 'b.jpg']),
+      weightGrams: 300, widthCm: 10, heightCm: 10, lengthCm: 10,
+      attributes: JSON.stringify({}),
+    })]);
+    fireEvent.click(screen.getByText('Reprovar'));
+    fireEvent.click(screen.getByText('Confirmar Reprovação'));
+
+    const enviado = mutate.mock.calls[0][0].reason as string;
+    expect(enviado).toContain('Faltam informações obrigatórias da categoria:');
+    // Os campos que a categoria de teste exige entram no texto.
+    expect(enviado).toMatch(/número|linha/i);
+  });
+
+  it('diz quantas fotos tem e quantas precisa', () => {
+    renderFila([makeListing({
+      images: JSON.stringify(['so-uma.jpg']),
+      weightGrams: 300, widthCm: 10, heightCm: 10, lengthCm: 10,
+      attributes: JSON.stringify({ numero: '#1', line: 'Marvel' }),
+    })]);
+    fireEvent.click(screen.getByText('Reprovar'));
+    fireEvent.click(screen.getByText('Confirmar Reprovação'));
+
+    const enviado = mutate.mock.calls[0][0].reason as string;
+    expect(enviado).toContain('tem 1 foto');
+    expect(enviado).toContain('mínimo é 2');
+  });
+
+  it('diz se falta peso, dimensões ou os dois', () => {
+    renderFila([makeListing({
+      images: JSON.stringify(['a.jpg', 'b.jpg']),
+      weightGrams: 300, // tem peso, faltam as medidas
+      attributes: JSON.stringify({ numero: '#1', line: 'Marvel' }),
+    })]);
+    fireEvent.click(screen.getByText('Reprovar'));
+    fireEvent.click(screen.getByText('Confirmar Reprovação'));
+
+    const enviado = mutate.mock.calls[0][0].reason as string;
+    expect(enviado).toContain('falta dimensões');
+    expect(enviado).not.toContain('falta peso');
+  });
+
+  it('o detalhe aparece no diálogo antes de confirmar', () => {
+    renderFila([makeListing({
+      images: JSON.stringify(['a.jpg', 'b.jpg']),
+      weightGrams: 300, widthCm: 10, heightCm: 10, lengthCm: 10,
+      attributes: JSON.stringify({}),
+    })]);
+    fireEvent.click(screen.getByText('Reprovar'));
+    // O admin confere o que vai ser mandado, não confirma no escuro.
+    expect(screen.getAllByText(/número|linha/i).length).toBeGreaterThan(0);
+  });
+
   // ── Vários motivos de uma vez ──────────────────────────────────────────────
   // Anúncio de importação costuma ter mais de um problema. Mandar um motivo por
   // vez faria o vendedor corrigir, reenviar e levar outra reprovação em seguida.

@@ -287,6 +287,49 @@ export default function AdminListings() {
     return sugeridos;
   };
 
+  /**
+   * O detalhe concreto por trás de cada motivo, para este anúncio.
+   *
+   * "Faltam informações obrigatórias da categoria" não diz ao vendedor o que
+   * preencher, e a tela JÁ sabe: mostra "fabricante da miniatura, escala" no
+   * selo da linha. Sem passar isso adiante, ele reenvia no chute e leva a
+   * mesma reprovação de novo. O detalhe é anexado ao motivo na hora de montar
+   * o texto, então vale para o painel dele e para o e-mail.
+   */
+  const detalhesDoMotivo = (l: Listing): Record<string, string> => {
+    const detalhes: Record<string, string> = {};
+
+    const fotos = parseImages(l.images).length;
+    if (fotos < MIN_PHOTOS) {
+      detalhes['Fotos insuficientes ou de baixa qualidade'] =
+        `o anúncio tem ${fotos} ${fotos === 1 ? 'foto' : 'fotos'} e o mínimo é ${MIN_PHOTOS}`;
+    }
+
+    const frete = resumoFrete(l);
+    if (frete.faltando) {
+      const temPeso = typeof l.weightGrams === 'number' && l.weightGrams > 0;
+      const temDims = [l.widthCm, l.heightCm, l.lengthCm].every(
+        (d) => typeof d === 'number' && d > 0,
+      );
+      const falta = [!temPeso && 'peso', !temDims && 'dimensões'].filter(Boolean);
+      detalhes['Peso ou dimensões faltando (o frete sai errado sem isso)'] =
+        `falta ${falta.join(' e ')}`;
+    }
+
+    const valores = valoresDoAnuncio(l);
+    const vazios = fieldsForCategory(slugCategoria(l.categoryId))
+      .filter((c) => c.required && isFieldApplicable(c, valores))
+      .filter((c) => formatFieldValue(valores[c.key]) === null)
+      .map((c) => c.label.toLowerCase());
+    if (vazios.length > 0) {
+      detalhes['Faltam informações obrigatórias da categoria'] = vazios.join(', ');
+    }
+
+    return detalhes;
+  };
+
+  const detalhes = selectedListing ? detalhesDoMotivo(selectedListing) : {};
+
   const toggleMotivo = (motivo: string) => {
     setRejectReasons((atuais) =>
       atuais.includes(motivo) ? atuais.filter((m) => m !== motivo) : [...atuais, motivo],
@@ -305,7 +348,9 @@ export default function AdminListings() {
     // Vai como lista com "- ": o painel do vendedor e o e-mail formatam isso
     // em itens legíveis (ver lib/description-format). Com vários motivos, um
     // parágrafo corrido esconderia metade do que precisa ser corrigido.
-    const linhas = rejectReasons.map((m) => `- ${m}`);
+    // Cada motivo leva junto o detalhe que a tela detectou, quando existe:
+    // "Faltam informações obrigatórias da categoria: fabricante, escala".
+    const linhas = rejectReasons.map((m) => (detalhes[m] ? `- ${m}: ${detalhes[m]}` : `- ${m}`));
     const observacao = rejectNotes.trim();
     const motivo = [
       ...linhas,
@@ -862,7 +907,17 @@ export default function AdminListings() {
                       >
                         {marcado && <Check className="h-3 w-3" />}
                       </span>
-                      {reason}
+                      <span className="min-w-0">
+                        {reason}
+                        {/* O que a tela detectou neste anúncio. Aparece aqui
+                            para o admin conferir antes de mandar, e vai junto
+                            no texto que o vendedor recebe. */}
+                        {detalhes[reason] && (
+                          <span className="mt-0.5 block text-xs font-normal opacity-80">
+                            {detalhes[reason]}
+                          </span>
+                        )}
+                      </span>
                     </button>
                   );
                 })}
