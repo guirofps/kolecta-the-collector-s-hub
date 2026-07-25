@@ -17,6 +17,10 @@ import { isOpenRoute } from '@/components/LaunchGate';
 import { useListing, useUpdateListing, useUploadImage, useCategories } from '@/hooks/use-api';
 import type { CreateListingPayload } from '@/lib/api';
 import { toast } from 'sonner';
+import CategoryFieldsEditor from '@/components/CategoryFieldsEditor';
+import {
+  fieldsForCategory, parseAttributes, formatFieldValue, isFieldApplicable,
+} from '@/lib/category-fields';
 
 const MAX_PHOTOS = 8;
 
@@ -43,6 +47,12 @@ interface EditForm {
   scale: string;
   year: string;
   edition: string;
+  /**
+   * Campos específicos da categoria (jogo, personagem, raridade, título da
+   * obra…). Vivem no JSON `attributes` do anúncio; as chaves com coluna própria
+   * (brand/line/scale/year/edition) também são espelhadas no topo ao salvar.
+   */
+  categoryFields: Record<string, unknown>;
   /** Código interno de estoque do vendedor. Opcional. */
   sku: string;
   description: string;
@@ -64,6 +74,7 @@ const emptyForm: EditForm = {
   scale: '',
   year: '',
   edition: '',
+  categoryFields: {},
   sku: '',
   description: '',
   photos: [],
@@ -114,6 +125,16 @@ export default function EditListing() {
       scale: listing.scale ?? '',
       year: listing.year ?? '',
       edition: listing.edition ?? '',
+      // `attributes` guarda os campos da categoria; as colunas próprias entram
+      // como reserva para o anúncio antigo, criado antes do JSON existir.
+      categoryFields: {
+        brand: listing.brand ?? '',
+        line: listing.line ?? '',
+        scale: listing.scale ?? '',
+        year: listing.year ?? '',
+        edition: listing.edition ?? '',
+        ...parseAttributes(listing.attributes),
+      },
       sku: listing.sku ?? '',
       description: listing.description ?? '',
       photos: parseImages(listing.images),
@@ -128,6 +149,27 @@ export default function EditListing() {
   const updateField = (field: keyof EditForm, value: string | string[]) => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
+
+  const updateCatField = (key: string, value: string) => {
+    setForm((prev) => ({
+      ...prev,
+      categoryFields: { ...prev.categoryFields, [key]: value },
+    }));
+  };
+
+  /** Slug da categoria escolhida — é por ele que os campos são resolvidos. */
+  const categorySlug =
+    (categories ?? []).find((c) => c.id === form.category)?.slug ?? null;
+
+  /**
+   * O que ainda falta para o anúncio poder ir ao ar. Mesma régua da peneira do
+   * backend, mostrada aqui como aviso: o vendedor que veio corrigir uma
+   * reprovação precisa ver o que falta antes de salvar e ser reprovado de novo.
+   */
+  const faltandoNaCategoria = fieldsForCategory(categorySlug)
+    .filter((c) => c.required && isFieldApplicable(c, form.categoryFields))
+    .filter((c) => formatFieldValue(form.categoryFields[c.key]) === null)
+    .map((c) => c.label);
 
   const handleFileSelect = (file: File) => {
     if (form.photos.length >= MAX_PHOTOS) return;
@@ -170,15 +212,26 @@ export default function EditListing() {
       return Number.isFinite(n) && n > 0 ? n : undefined;
     };
 
+    // Mesma regra do wizard de criação: o mapa completo vai para `attributes`,
+    // e as chaves que têm coluna própria são espelhadas no topo do registro.
+    // Sem enviar `attributes`, o que o vendedor preenchesse aqui não seria
+    // gravado em lugar nenhum.
+    const cf = form.categoryFields ?? {};
+    const texto = (k: string) => formatFieldValue(cf[k]) ?? undefined;
+    const hasAttributes = Object.values(cf).some(
+      (v) => formatFieldValue(v) !== null,
+    );
+
     const payload: Partial<CreateListingPayload> = {
       title: form.title.trim(),
       description: form.description || undefined,
       categoryId: form.category || undefined,
-      brand: form.brand || undefined,
-      line: form.line || undefined,
-      scale: form.scale || undefined,
-      year: form.year || undefined,
-      edition: form.edition || undefined,
+      brand: texto('brand') ?? (form.brand || undefined),
+      line: texto('line') ?? (form.line || undefined),
+      scale: texto('scale') ?? (form.scale || undefined),
+      year: texto('year') ?? (form.year || undefined),
+      edition: texto('edition') ?? (form.edition || undefined),
+      attributes: hasAttributes ? JSON.stringify(cf) : undefined,
       sku: form.sku.trim() || undefined,
       condition: form.condition || undefined,
       priceInCents,
@@ -304,30 +357,26 @@ export default function EditListing() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div>
-                <Label>Marca</Label>
-                <Input value={form.brand} onChange={(e) => updateField('brand', e.target.value)} />
+            {/* Campos da categoria. Antes eram cinco caixas de texto fixas
+                (Marca/Linha/Escala/Ano/Edição) iguais para toda categoria: um
+                card pedia escala, e o "Jogo / Universo" que ele precisa não
+                existia em lugar nenhum. */}
+            <CategoryFieldsEditor
+              categorySlug={categorySlug}
+              values={form.categoryFields}
+              onChange={updateCatField}
+            />
+
+            {faltandoNaCategoria.length > 0 && (
+              <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3">
+                <p className="text-xs text-destructive">
+                  Falta preencher para o anúncio ir ao ar:{' '}
+                  <strong>{faltandoNaCategoria.join(', ')}</strong>.
+                </p>
               </div>
-              <div>
-                <Label>Linha</Label>
-                <Input value={form.line} onChange={(e) => updateField('line', e.target.value)} />
-              </div>
-              <div>
-                <Label>Escala</Label>
-                <Input value={form.scale} onChange={(e) => updateField('scale', e.target.value)} />
-              </div>
-              <div>
-                <Label>Ano</Label>
-                <Input value={form.year} onChange={(e) => updateField('year', e.target.value)} />
-              </div>
-            </div>
+            )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <Label>Edição</Label>
-                <Input value={form.edition} onChange={(e) => updateField('edition', e.target.value)} />
-              </div>
               <div>
                 <Label htmlFor="sku">SKU / Código interno</Label>
                 <Input
