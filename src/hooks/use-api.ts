@@ -1257,6 +1257,39 @@ export function useInstallmentsSimulation() {
 }
 
 
+// ── useDownloadLabel (baixar o PDF da etiqueta) ─────────────────────────────
+// O arquivo vem do nosso backend, que busca no Melhor Envio na hora. O vendedor
+// não precisa de conta lá — e nem saberia que ela existe.
+
+export function useDownloadLabel(orderId: string) {
+  const { getToken } = useAuth();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async () => {
+      const token = await getToken();
+      const blob = await api.shipping.labelPdf(token || '', orderId);
+      // Download sem navegar: o link precisa do cabeçalho de autenticação, então
+      // não dá para usar um <a href> direto.
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `etiqueta-${orderId.slice(0, 8)}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    },
+    onError: (err: any) => {
+      toast({
+        title: 'Não foi possível baixar a etiqueta',
+        description: err?.message ?? 'Tente novamente em alguns instantes.',
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
 // ── useRetryLabel (reemitir etiqueta que falhou) ────────────────────────────
 // A emissão normal é automática, no pagamento/arremate. Isto é só o "tentar de
 // novo" para quando ela falha — tipicamente saldo zerado na carteira do Melhor

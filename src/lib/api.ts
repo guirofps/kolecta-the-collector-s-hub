@@ -783,6 +783,24 @@ export const api = {
         body: JSON.stringify(body),
       }).then((r) => r.options),
 
+    // Baixa o PDF da etiqueta pela NOSSA autenticação. Não devolve link do
+    // Melhor Envio: aquilo é página de painel e cai no login de uma conta que
+    // não é do vendedor.
+    labelPdf: async (token: string, orderId: string) => {
+      const res = await fetch(
+        `${BASE_URL}/api/shipping/label/${orderId}/pdf`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      if (!res.ok) {
+        let msg = 'Não foi possível baixar a etiqueta.';
+        try {
+          msg = (await res.json())?.message ?? msg;
+        } catch { /* resposta sem corpo JSON */ }
+        throw new Error(msg);
+      }
+      return res.blob();
+    },
+
     // Reemite a etiqueta de um pedido cuja emissão automática falhou (o caso
     // típico é saldo insuficiente na carteira do Melhor Envio). Não escolhe
     // serviço: quem escolheu foi o COMPRADOR, no checkout, e é o que ele pagou.

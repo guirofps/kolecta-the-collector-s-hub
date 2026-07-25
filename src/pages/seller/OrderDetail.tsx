@@ -25,7 +25,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
 import {
   useOrderById, useUpdateOrderStatus, useMarkDelivered, useStartConversationFromOrder,
-  useRetryLabel,
+  useRetryLabel, useDownloadLabel,
 } from '@/hooks/use-api';
 import { api } from '@/lib/api';
 import type {
@@ -517,6 +517,7 @@ export default function SellerOrderDetailPage() {
 
 function ShippingLabelPanel({ order }: { order: Order }) {
   const retry = useRetryLabel(order.id);
+  const download = useDownloadLabel(order.id);
   const status = order.shippingLabelStatus ?? null;
   const pronta = status === 'ready' && !!order.shippingLabelUrl;
   const falhou = status === 'failed';
@@ -534,10 +535,17 @@ function ShippingLabelPanel({ order }: { order: Order }) {
             <span className="block mt-1">O frete já foi pago pela Kolecta — é só imprimir, colar e postar.</span>
           </div>
         </div>
-        <Button asChild className="w-full" variant="outline-gold" size="sm">
-          <a href={order.shippingLabelUrl!} target="_blank" rel="noopener noreferrer">
-            <Tag className="h-4 w-4 mr-2" /> Baixar etiqueta (PDF)
-          </a>
+        <Button
+          className="w-full"
+          variant="outline-gold"
+          size="sm"
+          disabled={download.isPending}
+          onClick={() => download.mutate()}
+        >
+          {download.isPending
+            ? <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            : <Tag className="h-4 w-4 mr-2" />}
+          Baixar etiqueta (PDF)
         </Button>
       </div>
     );
