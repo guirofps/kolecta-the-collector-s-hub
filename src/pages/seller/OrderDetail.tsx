@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatBRL } from '@/lib/currency';
+import { montarExtrato } from '@/lib/order-breakdown';
 import EmptyState from '@/components/EmptyState';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
@@ -180,10 +181,12 @@ export default function SellerOrderDetailPage() {
       : statusConfig[localStatus];
   const activeIdx = getActiveIndex(localStatus);
 
-  const gross = order.totalInCents;
-  const commission = order.platformFeeInCents ?? 0;
-  const net = order.sellerNetInCents ?? gross - commission;
-  const commissionRate = gross > 0 ? commission / gross : 0;
+  // A conta antiga era `platformFee / total`, com o total incluindo frete. Isso
+  // dividia a comissão MAIS o custo da etiqueta pelo valor cheio do pedido, e
+  // num item barato com frete caro dava "Comissão Kolecta (64%)". A comissão
+  // incide sobre o item; a etiqueta é outra coisa. Ver lib/order-breakdown.
+  const extrato = montarExtrato(order);
+  const net = extrato.liquidoInCents;
   // "Liberado" só quando o pedido vira 'completed' (release efetivo pelo cron).
   // Confirmado mas ainda em 'delivered' = retido na janela de 48h.
   const payoutStatus =
@@ -227,12 +230,21 @@ export default function SellerOrderDetailPage() {
                   </div>
                   <div className="text-right text-sm">
                     <p className="text-muted-foreground">x1</p>
-                    <p className="font-medium">{formatBRL(gross / 100)}</p>
+                    {/* Preço do ITEM. Antes mostrava o total do pedido, então o
+                        frete aparecia como se fosse parte do preço da peça. */}
+                    <p className="font-medium">{formatBRL(extrato.itemInCents / 100)}</p>
                   </div>
                 </div>
                 <Separator className="opacity-50" />
-                <div className="flex justify-end">
-                  <span className="font-heading font-bold text-xl text-kolecta-gold">{formatBRL(gross / 100)}</span>
+                {extrato.freteInCents > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Frete</span>
+                    <span>{formatBRL(extrato.freteInCents / 100)}</span>
+                  </div>
+                )}
+                <div className="flex items-baseline justify-between">
+                  <span className="text-sm text-muted-foreground">Total</span>
+                  <span className="font-heading font-bold text-xl text-kolecta-gold">{formatBRL(extrato.totalInCents / 100)}</span>
                 </div>
               </CardContent>
             </Card>
@@ -373,14 +385,56 @@ export default function SellerOrderDetailPage() {
             <Card className="bg-gradient-card">
               <CardHeader><CardTitle className="font-heading text-lg">Financeiro</CardTitle></CardHeader>
               <CardContent className="space-y-3 text-sm">
+                {/* O que o comprador pagou, aberto. Antes era uma linha só de
+                    "valor bruto" com o frete embutido, e o vendedor não tinha
+                    como saber quanto daquilo era o item dele. */}
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Valor bruto</span>
-                  <span>{formatBRL(gross / 100)}</span>
+                  <span className="text-muted-foreground">Valor do item</span>
+                  <span>{formatBRL(extrato.itemInCents / 100)}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Comissão Kolecta ({(commissionRate * 100).toFixed(0)}%)</span>
-                  <span className="text-kolecta-red">-{formatBRL(commission / 100)}</span>
+                {extrato.freteInCents > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">
+                      Frete{order.shippingServiceName ? ` (${order.shippingServiceName})` : ''}
+                    </span>
+                    <span>{formatBRL(extrato.freteInCents / 100)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between border-t border-border/50 pt-3">
+                  <span className="text-muted-foreground">Total pago pelo comprador</span>
+                  <span>{formatBRL(extrato.totalInCents / 100)}</span>
                 </div>
+
+                {/* Descontos separados quando dá para afirmar o que é cada um. */}
+                {extrato.detalhe ? (
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">
+                        Comissão Kolecta ({(extrato.detalhe.taxaSobreItem * 100).toFixed(0)}% do item)
+                      </span>
+                      <span className="text-kolecta-red">
+                        -{formatBRL(extrato.detalhe.comissaoInCents / 100)}
+                      </span>
+                    </div>
+                    {extrato.detalhe.etiquetaInCents > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Etiqueta de envio</span>
+                        <span className="text-kolecta-red">
+                          -{formatBRL(extrato.detalhe.etiquetaInCents / 100)}
+                        </span>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  extrato.descontosInCents > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Descontos da plataforma</span>
+                      <span className="text-kolecta-red">
+                        -{formatBRL(extrato.descontosInCents / 100)}
+                      </span>
+                    </div>
+                  )
+                )}
                 <Separator className="opacity-50" />
                 <div className="flex justify-between items-center">
                   <span className="font-heading font-semibold">Valor líquido</span>
