@@ -29,3 +29,11 @@ scripts/email-fundadores/*.csv
 scripts/email-fundadores/preview/
 scripts/email-fundadores/enviados.json
 emails/preview/
+
+# Documentacao de trabalho fica so na maquina: o repositorio e publico e esses
+# arquivos carregam dado de negocio (pendencias, estrategia) e ate e-mail de
+# vendedor. As excecoes sao o README, que e a cara do repositorio, e o .agent/,
+# que e configuracao de ferramenta e nao documentacao.
+*.md
+!README.md
+!.agent/**/*.md
