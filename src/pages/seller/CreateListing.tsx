@@ -562,7 +562,19 @@ export default function CreateListing() {
         )}
 
         {/* Navigation */}
-        <div className="flex items-center justify-between mt-8 pt-6 border-t border-border">
+        {/* O que falta aparece ACIMA dos botões no celular. Antes era
+            `hidden sm:flex`: no telefone, o botão "Próximo" ficava cinza e o
+            vendedor não tinha como saber o motivo. É a tela onde a maioria
+            anuncia, então era justamente onde a explicação faltava. */}
+        {step < 5 && missingForStep() && (
+          <div className="mt-8 flex items-start gap-1.5 rounded-md border border-accent/30 bg-accent/5 p-2.5 text-xs text-muted-foreground sm:hidden">
+            <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-accent" />
+            {missingForStep()}
+          </div>
+        )}
+        <div className={`flex items-center justify-between pt-6 border-t border-border ${
+          step < 5 && missingForStep() ? 'mt-3 sm:mt-8' : 'mt-8'
+        }`}>
           <Button
             variant="ghost"
             onClick={() => setStep((s) => Math.max(1, s - 1))}
@@ -573,7 +585,7 @@ export default function CreateListing() {
 
           {step < 5 ? (
             <div className="flex items-center gap-3">
-              {/* Diz o que falta, senão o vendedor trava sem saber o motivo. */}
+              {/* Mesma mensagem, ao lado do botão quando há largura para isso. */}
               {missingForStep() && (
                 <span className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground">
                   <AlertCircle className="h-3.5 w-3.5 text-accent shrink-0" />
@@ -1509,25 +1521,28 @@ function ShippingFields({ form, update }: { form: FormData; update: (f: keyof Fo
         </p>
       </div>
 
+      {/* Os exemplos levam "ex:" na frente. Antes eram números crus ("300",
+          "16"), e em campo vazio isso parece valor já preenchido: muita gente
+          passava direto achando que estava pronto, e o anúncio ia sem frete. */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div>
           <Label htmlFor="weightGrams">Peso (g) <span className="text-destructive">*</span></Label>
-          <Input id="weightGrams" type="number" inputMode="numeric" placeholder="300" min={1}
+          <Input id="weightGrams" type="number" inputMode="numeric" placeholder="ex: 300" min={1}
             value={form.weightGrams} onChange={(e) => update('weightGrams', e.target.value)} className="mt-1.5" />
         </div>
         <div>
           <Label htmlFor="widthCm">Largura (cm) <span className="text-destructive">*</span></Label>
-          <Input id="widthCm" type="number" inputMode="numeric" placeholder="16" min={1}
+          <Input id="widthCm" type="number" inputMode="numeric" placeholder="ex: 16" min={1}
             value={form.widthCm} onChange={(e) => update('widthCm', e.target.value)} className="mt-1.5" />
         </div>
         <div>
           <Label htmlFor="heightCm">Altura (cm) <span className="text-destructive">*</span></Label>
-          <Input id="heightCm" type="number" inputMode="numeric" placeholder="6" min={1}
+          <Input id="heightCm" type="number" inputMode="numeric" placeholder="ex: 6" min={1}
             value={form.heightCm} onChange={(e) => update('heightCm', e.target.value)} className="mt-1.5" />
         </div>
         <div>
           <Label htmlFor="lengthCm">Compr. (cm) <span className="text-destructive">*</span></Label>
-          <Input id="lengthCm" type="number" inputMode="numeric" placeholder="12" min={1}
+          <Input id="lengthCm" type="number" inputMode="numeric" placeholder="ex: 12" min={1}
             value={form.lengthCm} onChange={(e) => update('lengthCm', e.target.value)} className="mt-1.5" />
         </div>
       </div>

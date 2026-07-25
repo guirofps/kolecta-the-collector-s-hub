@@ -543,24 +543,25 @@ export default function EditListing() {
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {/* "ex:" na frente: número cru em campo vazio parece preenchido. */}
               <div>
                 <Label>Peso (g) <span className="text-destructive">*</span></Label>
-                <Input type="number" inputMode="numeric" placeholder="300" min={1}
+                <Input type="number" inputMode="numeric" placeholder="ex: 300" min={1}
                   value={form.weightGrams} onChange={(e) => updateField('weightGrams', e.target.value)} />
               </div>
               <div>
                 <Label>Largura (cm) <span className="text-destructive">*</span></Label>
-                <Input type="number" inputMode="numeric" placeholder="16" min={1}
+                <Input type="number" inputMode="numeric" placeholder="ex: 16" min={1}
                   value={form.widthCm} onChange={(e) => updateField('widthCm', e.target.value)} />
               </div>
               <div>
                 <Label>Altura (cm) <span className="text-destructive">*</span></Label>
-                <Input type="number" inputMode="numeric" placeholder="6" min={1}
+                <Input type="number" inputMode="numeric" placeholder="ex: 6" min={1}
                   value={form.heightCm} onChange={(e) => updateField('heightCm', e.target.value)} />
               </div>
               <div>
                 <Label>Comprimento (cm) <span className="text-destructive">*</span></Label>
-                <Input type="number" inputMode="numeric" placeholder="12" min={1}
+                <Input type="number" inputMode="numeric" placeholder="ex: 12" min={1}
                   value={form.lengthCm} onChange={(e) => updateField('lengthCm', e.target.value)} />
               </div>
             </div>
