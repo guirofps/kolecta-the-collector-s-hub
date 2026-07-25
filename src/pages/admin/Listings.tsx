@@ -244,6 +244,9 @@ export default function AdminListings() {
   const [progresso, setProgresso] = useState<{ feitos: number; total: number } | null>(null);
   // Reprovação em lote reusa o mesmo diálogo de motivos da reprovação avulsa.
   const [reprovarLote, setReprovarLote] = useState(false);
+  // Cada anúncio leva o motivo que a tela detectou NELE. Um texto único para o
+  // lote inteiro estaria errado na maioria: um está sem foto, outro sem frete.
+  const [usarDetectado, setUsarDetectado] = useState(true);
 
   /**
    * O que está faltando neste anúncio. Alimenta o selo na linha e o filtro
@@ -363,8 +366,12 @@ export default function AdminListings() {
   /** Os anúncios selecionados que ainda estão visíveis, na ordem da tela. */
   const selecionadosVisiveis = listings.filter((l) => selecionados.has(l.id));
 
-  const executarLote = (status: 'active' | 'rejected', motivoPara?: (l: Listing) => string) => {
-    const itens = selecionadosVisiveis.map((l) => ({
+  const executarLote = (
+    status: 'active' | 'rejected',
+    motivoPara?: (l: Listing) => string,
+    alvo: Listing[] = selecionadosVisiveis,
+  ) => {
+    const itens = alvo.map((l) => ({
       id: l.id,
       reason: motivoPara ? motivoPara(l) : undefined,
     }));
@@ -406,17 +413,6 @@ export default function AdminListings() {
     executarLote('active');
   };
 
-  const reprovarSelecionados = () => {
-    setReprovarLote(false);
-    // O motivo é montado POR anúncio: os motivos marcados são os mesmos, mas o
-    // detalhe (quantas fotos tem, quais campos faltam) é o daquele anúncio.
-    executarLote('rejected', (l) => {
-      const det = detalhesDoMotivo(l);
-      const linhas = rejectReasons.map((m) => (det[m] ? `- ${m}: ${det[m]}` : `- ${m}`));
-      const observacao = rejectNotes.trim();
-      return [...linhas, ...(observacao ? ['', observacao] : [])].join('\n');
-    });
-  };
 
   /**
    * TODOS os motivos que a tela já detectou, não só o primeiro.
@@ -487,6 +483,54 @@ export default function AdminListings() {
   };
 
   const detalhes = selectedListing ? detalhesDoMotivo(selectedListing) : {};
+
+  // ─── Reprovação em lote ──────────────────────────────────
+  // Fica DEPOIS de `motivosSugeridos` e `detalhesDoMotivo` de propósito: são
+  // const, e usá-las antes da declaração estoura em tempo de execução sem o
+  // typecheck reclamar.
+
+  /**
+   * Motivos que vão para ESTE anúncio numa reprovação em lote.
+   *
+   * O padrão é o que a tela detectou nele. Reprovar 271 anúncios com o mesmo
+   * texto estaria errado na maioria: um está sem foto, outro sem frete, outro
+   * sem a marca. O que o admin marca à mão entra por cima, para o que vale
+   * para o lote todo e a detecção não enxerga.
+   */
+  const motivosParaLote = (l: Listing): string[] => {
+    const detectados = usarDetectado ? motivosSugeridos(l) : [];
+    // Set: não duplica quando o admin marca à mão algo que já foi detectado.
+    return [...new Set([...detectados, ...rejectReasons])];
+  };
+
+  /** Só entra no lote quem tem ao menos um motivo. Reprovar sem dizer o que
+      corrigir é o que trava o vendedor, então quem ficaria sem texto sai. */
+  const reprovaveisEmLote = selecionadosVisiveis.filter((l) => motivosParaLote(l).length > 0);
+  const semMotivoNoLote = selecionadosVisiveis.length - reprovaveisEmLote.length;
+
+  /** Quantos anúncios caem em cada motivo detectado. O admin vê a composição
+      do lote antes de disparar, em vez de confiar no escuro. */
+  const resumoMotivos = (() => {
+    const conta = new Map<string, number>();
+    for (const l of selecionadosVisiveis) {
+      for (const m of motivosSugeridos(l)) conta.set(m, (conta.get(m) ?? 0) + 1);
+    }
+    return [...conta.entries()].sort((a, b) => b[1] - a[1]);
+  })();
+
+  const reprovarSelecionados = () => {
+    setReprovarLote(false);
+    executarLote(
+      'rejected',
+      (l) => {
+        const det = detalhesDoMotivo(l);
+        const linhas = motivosParaLote(l).map((m) => (det[m] ? `- ${m}: ${det[m]}` : `- ${m}`));
+        const observacao = rejectNotes.trim();
+        return [...linhas, ...(observacao ? ['', observacao] : [])].join('\n');
+      },
+      reprovaveisEmLote,
+    );
+  };
 
   const toggleMotivo = (motivo: string) => {
     setRejectReasons((atuais) =>
@@ -735,11 +779,12 @@ export default function AdminListings() {
                     size="sm"
                     className="h-8 border-destructive/40 text-xs text-destructive hover:bg-destructive/10"
                     onClick={() => {
-                      // Sem sugestão automática: os motivos valem para todos os
-                      // marcados, então quem escolhe é o admin. O detalhe (quais
-                      // campos faltam) continua sendo por anúncio, no envio.
+                      // Nada marcado à mão: o motivo de cada anúncio sai da
+                      // detecção da própria tela. O que for marcado aqui é
+                      // acréscimo, para o que a detecção não enxerga.
                       setRejectReasons([]);
                       setRejectNotes('');
+                      setUsarDetectado(true);
                       setReprovarLote(true);
                     }}
                   >
@@ -1230,37 +1275,86 @@ export default function AdminListings() {
           <DialogContent className="max-w-md bg-card border-border">
             <DialogHeader>
               <DialogTitle className="font-heading text-lg font-bold uppercase text-accent">
-                Reprovar {selecionadosVisiveis.length}{' '}
-                {selecionadosVisiveis.length === 1 ? 'anúncio' : 'anúncios'}
+                Reprovar {reprovaveisEmLote.length}{' '}
+                {reprovaveisEmLote.length === 1 ? 'anúncio' : 'anúncios'}
               </DialogTitle>
               <DialogDescription className="text-sm text-muted-foreground">
-                Os motivos marcados valem para todos. Cada vendedor ainda recebe
-                o detalhe do anúncio dele, como quais campos faltaram.
+                Cada anúncio é reprovado pelo motivo que a tela detectou nele.
+                Não precisa escolher nada.
               </DialogDescription>
             </DialogHeader>
+
             <div className="space-y-3">
-              {rejectReasons.length > 0 && (
-                <p className="text-[11px] text-muted-foreground">
-                  {rejectReasons.length} {rejectReasons.length === 1 ? 'motivo marcado' : 'motivos marcados'}
-                </p>
+              {/* Composição do lote: o admin vê que os 271 não têm o mesmo
+                  problema antes de disparar, em vez de confiar no escuro. */}
+              <label className="flex cursor-pointer items-start gap-2.5 rounded-md border border-primary/30 bg-primary/5 p-3">
+                <button
+                  type="button"
+                  role="checkbox"
+                  aria-checked={usarDetectado}
+                  onClick={() => setUsarDetectado((v) => !v)}
+                  className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
+                    usarDetectado ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground/40'
+                  }`}
+                >
+                  {usarDetectado && <Check className="h-3 w-3" />}
+                </button>
+                <span className="min-w-0 text-xs leading-relaxed">
+                  <strong className="text-foreground">Usar o motivo detectado de cada anúncio</strong>
+                  {resumoMotivos.length > 0 ? (
+                    <span className="mt-1.5 block space-y-0.5 text-muted-foreground">
+                      {resumoMotivos.map(([motivo, qtd]) => (
+                        <span key={motivo} className="block">
+                          {qtd}× {motivo.replace(/\s*\(.*\)$/, '')}
+                        </span>
+                      ))}
+                    </span>
+                  ) : (
+                    <span className="mt-1 block text-muted-foreground">
+                      Nenhuma pendência detectada nos selecionados.
+                    </span>
+                  )}
+                </span>
+              </label>
+
+              {semMotivoNoLote > 0 && (
+                <div className="flex gap-2 rounded-md border border-destructive/30 bg-destructive/5 p-3">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                  <p className="text-xs leading-relaxed text-muted-foreground">
+                    <strong className="text-destructive">{semMotivoNoLote} ficam de fora</strong>{' '}
+                    por não ter motivo. Reprovar sem dizer o que corrigir é o que
+                    trava o vendedor. Marque um motivo abaixo para incluí-los.
+                  </p>
+                </div>
               )}
-              <ListaMotivos marcados={rejectReasons} onToggle={toggleMotivo} detalhes={{}} />
+
+              <details className="rounded-md border border-border">
+                <summary className="cursor-pointer px-3 py-2 text-xs text-muted-foreground hover:text-foreground">
+                  Acrescentar motivo para todos (opcional)
+                  {rejectReasons.length > 0 && ` · ${rejectReasons.length} marcado${rejectReasons.length > 1 ? 's' : ''}`}
+                </summary>
+                <div className="border-t border-border p-3">
+                  <ListaMotivos marcados={rejectReasons} onToggle={toggleMotivo} detalhes={{}} />
+                </div>
+              </details>
+
               <Textarea
                 placeholder="Observações adicionais (vão para todos)..."
                 value={rejectNotes}
                 onChange={(e) => setRejectNotes(e.target.value)}
-                rows={3}
+                rows={2}
               />
             </div>
+
             <DialogFooter>
               <Button variant="ghost" onClick={() => setReprovarLote(false)}>Cancelar</Button>
               <Button
                 variant="accent"
                 onClick={reprovarSelecionados}
-                disabled={rejectReasons.length === 0}
+                disabled={reprovaveisEmLote.length === 0}
               >
                 <X className="h-4 w-4" />
-                Reprovar {selecionadosVisiveis.length}
+                Reprovar {reprovaveisEmLote.length}
               </Button>
             </DialogFooter>
           </DialogContent>

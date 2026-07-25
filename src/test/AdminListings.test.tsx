@@ -610,45 +610,116 @@ describe('AdminListings (moderação em lote)', () => {
     expect(screen.queryByText('2 selecionados')).toBeNull();
   });
 
-  it('reprovação em lote exige motivo e manda um texto por anúncio', () => {
-    renderFila(doisAnuncios());
+  // ── Reprovação em lote ────────────────────────────────────────────────────
+  // Reprovar 271 anúncios com o MESMO texto estaria errado na maioria: um está
+  // sem foto, outro sem frete, outro sem a marca. A tela já detecta a pendência
+  // de cada um, então é isso que vai para cada vendedor.
+
+  const doisProblemasDiferentes = () => [
+    makeListing({
+      id: 'sem-foto', title: 'Só tem uma foto',
+      images: JSON.stringify(['x.jpg']),
+      weightGrams: 300, widthCm: 10, heightCm: 10, lengthCm: 10,
+      attributes: JSON.stringify({ numero: '#1', line: 'Marvel' }),
+    }),
+    makeListing({
+      id: 'sem-frete', title: 'Fotos ok, falta frete',
+      images: JSON.stringify(['x.jpg', 'y.jpg']),
+      attributes: JSON.stringify({ numero: '#1', line: 'Marvel' }),
+    }),
+  ];
+
+  it('reprova sem o admin escolher nada, usando o motivo de cada anúncio', () => {
+    renderFila(doisProblemasDiferentes());
     fireEvent.click(screen.getByText(/Selecionar os 2 desta lista/));
     fireEvent.click(screen.getByText(/^Reprovar 2$/));
-
-    // Nada vem sugerido: os motivos valem para todos, então quem escolhe é o
-    // admin. Sem marcar nada, o botão fica travado.
-    const confirmar = screen.getAllByText(/^Reprovar 2$/)[1].closest('button')!;
-    expect(confirmar.disabled).toBe(true);
-
-    fireEvent.click(screen.getByText('Suspeita de falsificação ou item não autêntico'));
+    // Nada marcado à mão e o botão já libera: o motivo vem da detecção.
     fireEvent.click(screen.getAllByText(/^Reprovar 2$/)[1]);
 
-    const arg = bulkMutate.mock.calls[0][0];
-    expect(arg.status).toBe('rejected');
-    expect(arg.itens).toHaveLength(2);
-    // Cada item leva seu próprio texto, e não uma referência compartilhada.
-    for (const item of arg.itens) {
-      expect(item.reason).toContain('falsificação');
-    }
+    const itens = bulkMutate.mock.calls[0][0].itens;
+    const porId = Object.fromEntries(itens.map((i: { id: string; reason: string }) => [i.id, i.reason]));
+
+    // Cada um recebe o SEU problema, não um texto genérico compartilhado.
+    expect(porId['sem-foto']).toContain('Fotos insuficientes');
+    expect(porId['sem-foto']).not.toContain('Peso ou dimensões');
+    expect(porId['sem-frete']).toContain('Peso ou dimensões');
+    expect(porId['sem-frete']).not.toContain('Fotos insuficientes');
   });
 
-  it('o detalhe da reprovação é o do anúncio de cada um', () => {
+  it('o detalhe também é o do anúncio de cada um', () => {
+    renderFila(doisProblemasDiferentes());
+    fireEvent.click(screen.getByText(/Selecionar os 2 desta lista/));
+    fireEvent.click(screen.getByText(/^Reprovar 2$/));
+    fireEvent.click(screen.getAllByText(/^Reprovar 2$/)[1]);
+
+    const itens = bulkMutate.mock.calls[0][0].itens;
+    const porId = Object.fromEntries(itens.map((i: { id: string; reason: string }) => [i.id, i.reason]));
+    expect(porId['sem-foto']).toContain('tem 1 foto e o mínimo é 2');
+    expect(porId['sem-frete']).toContain('falta peso e dimensões');
+  });
+
+  it('mostra a composição do lote antes de disparar', () => {
+    renderFila(doisProblemasDiferentes());
+    fireEvent.click(screen.getByText(/Selecionar os 2 desta lista/));
+    fireEvent.click(screen.getByText(/^Reprovar 2$/));
+    // Um de cada tipo: o admin vê que não são o mesmo problema.
+    expect(screen.getByText(/1× Fotos insuficientes/)).toBeInTheDocument();
+    expect(screen.getByText(/1× Peso ou dimensões faltando/)).toBeInTheDocument();
+  });
+
+  it('anúncio sem pendência fica de fora, e a tela avisa', () => {
     renderFila([
-      makeListing({ id: 'a', title: 'Só uma foto aqui', images: JSON.stringify(['x.jpg']) }),
       makeListing({
-        id: 'b', title: 'Fotos ok mas sem frete',
-        images: JSON.stringify(['x.jpg', 'y.jpg']),
+        id: 'ok', title: 'Anúncio completo',
+        images: JSON.stringify(['a.jpg', 'b.jpg']),
+        weightGrams: 300, widthCm: 10, heightCm: 10, lengthCm: 10,
+        attributes: JSON.stringify({ numero: '#1', line: 'Marvel' }),
+      }),
+      makeListing({
+        id: 'ruim', title: 'Anúncio sem foto',
+        images: JSON.stringify(['a.jpg']),
+        weightGrams: 300, widthCm: 10, heightCm: 10, lengthCm: 10,
         attributes: JSON.stringify({ numero: '#1', line: 'Marvel' }),
       }),
     ]);
     fireEvent.click(screen.getByText(/Selecionar os 2 desta lista/));
     fireEvent.click(screen.getByText(/^Reprovar 2$/));
-    fireEvent.click(screen.getByText('Fotos insuficientes ou de baixa qualidade'));
+
+    // O botão promete 1, não 2: reprovar sem motivo trava o vendedor.
+    expect(screen.getByText(/1 ficam de fora|1 ficam/)).toBeInTheDocument();
+    fireEvent.click(screen.getAllByText(/^Reprovar 1$/)[0]);
+
+    const itens = bulkMutate.mock.calls[0][0].itens;
+    expect(itens.map((i: { id: string }) => i.id)).toEqual(['ruim']);
+  });
+
+  it('motivo marcado à mão entra em todos, junto do detectado', () => {
+    renderFila(doisProblemasDiferentes());
+    fireEvent.click(screen.getByText(/Selecionar os 2 desta lista/));
+    fireEvent.click(screen.getByText(/^Reprovar 2$/));
+    fireEvent.click(screen.getByText('Suspeita de falsificação ou item não autêntico'));
     fireEvent.click(screen.getAllByText(/^Reprovar 2$/)[1]);
 
     const itens = bulkMutate.mock.calls[0][0].itens;
-    // O primeiro tem 1 foto e o segundo tem 2: mesmo motivo, detalhes distintos.
-    expect(itens[0].reason).toContain('tem 1 foto');
-    expect(itens[1].reason).not.toContain('tem 1 foto');
+    for (const item of itens) {
+      expect(item.reason).toContain('falsificação');
+    }
+    // E o detectado continua lá: o marcado é acréscimo, não substituição.
+    const porId = Object.fromEntries(itens.map((i: { id: string; reason: string }) => [i.id, i.reason]));
+    expect(porId['sem-foto']).toContain('Fotos insuficientes');
+  });
+
+  it('a observação livre vai junto de todos', () => {
+    renderFila(doisProblemasDiferentes());
+    fireEvent.click(screen.getByText(/Selecionar os 2 desta lista/));
+    fireEvent.click(screen.getByText(/^Reprovar 2$/));
+    fireEvent.change(screen.getByPlaceholderText(/vão para todos/i), {
+      target: { value: 'Reenviem com foto do verso.' },
+    });
+    fireEvent.click(screen.getAllByText(/^Reprovar 2$/)[1]);
+
+    for (const item of bulkMutate.mock.calls[0][0].itens) {
+      expect(item.reason).toContain('Reenviem com foto do verso.');
+    }
   });
 });
