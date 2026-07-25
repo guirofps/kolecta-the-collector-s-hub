@@ -22,9 +22,17 @@ import {
   fieldsForCategory, parseAttributes, formatFieldValue, isFieldApplicable,
 } from '@/lib/category-fields';
 
+// O texto vai inteiro para o vendedor, no painel e no e-mail de reprovação.
+// Por isso cada motivo diz o que corrigir, não só o que está errado: "peso e
+// dimensões faltando" deixa a pessoa sem saber o que fazer.
 const rejectReasons = [
   'Fotos insuficientes ou de baixa qualidade',
   'Título ou descrição inadequados',
+  // Frete errado sai caro para os dois lados, e era o motivo que faltava.
+  'Peso ou dimensões faltando (o frete sai errado sem isso)',
+  'Peso ou dimensões incompatíveis com o item',
+  'Categoria errada para este item',
+  'Faltam informações obrigatórias da categoria',
   'Preço fora dos padrões de mercado',
   'Produto não se enquadra nas categorias permitidas',
   'Suspeita de falsificação ou item não autêntico',
@@ -249,10 +257,28 @@ export default function AdminListings() {
     );
   };
 
+  /**
+   * Motivo sugerido a partir do que a tela já detectou de errado.
+   * Com centenas de anúncios na fila, escolher o motivo à mão a cada
+   * reprovação cansa e leva a gente a clicar sempre no primeiro da lista.
+   * A sugestão continua editável: é um atalho, não uma decisão.
+   */
+  const motivoSugerido = (l: Listing): string => {
+    const faltas = pendenciasDe(l);
+    if (faltas.some((f) => f.includes('frete'))) {
+      return 'Peso ou dimensões faltando (o frete sai errado sem isso)';
+    }
+    if (faltas.some((f) => f.includes('foto'))) return 'Fotos insuficientes ou de baixa qualidade';
+    if (faltas.some((f) => f.includes('sem categoria'))) return 'Categoria errada para este item';
+    // Sobrou pendência de campo obrigatório da categoria.
+    if (faltas.length > 0) return 'Faltam informações obrigatórias da categoria';
+    return '';
+  };
+
   const openReject = (listing: Listing) => {
     setSelectedListing(listing);
     setRejectDialogOpen(true);
-    setRejectReason('');
+    setRejectReason(motivoSugerido(listing));
     setRejectNotes('');
   };
 

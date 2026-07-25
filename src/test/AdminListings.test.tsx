@@ -202,6 +202,56 @@ describe('AdminListings (fila de aprovação)', () => {
     );
   });
 
+  // ── Motivo da reprovação ───────────────────────────────────────────────────
+  // O texto vai inteiro para o vendedor, no painel e no e-mail. Com centenas de
+  // anúncios na fila, escolher à mão a cada reprovação leva a clicar sempre no
+  // primeiro da lista, então a tela sugere a partir do que já detectou.
+
+  it('oferece motivo sobre peso e dimensões', () => {
+    renderFila([makeListing()]);
+    fireEvent.click(screen.getByText('Reprovar'));
+    expect(screen.getByText(/Peso ou dimensões faltando/)).toBeInTheDocument();
+  });
+
+  it('sugere o motivo de frete quando é isso que falta', () => {
+    // Anúncio completo, menos peso e medidas.
+    renderFila([makeListing({
+      attributes: JSON.stringify({ numero: '#1', line: 'Marvel' }),
+    })]);
+    fireEvent.click(screen.getByText('Reprovar'));
+    fireEvent.click(screen.getByText('Confirmar Reprovação'));
+    expect(mutate).toHaveBeenCalledWith(
+      expect.objectContaining({ reason: expect.stringContaining('Peso ou dimensões') }),
+      expect.anything(),
+    );
+  });
+
+  it('sugere o motivo de fotos quando faltam fotos', () => {
+    renderFila([makeListing({
+      images: JSON.stringify(['so-uma.jpg']),
+      weightGrams: 300, widthCm: 10, heightCm: 10, lengthCm: 10,
+      attributes: JSON.stringify({ numero: '#1', line: 'Marvel' }),
+    })]);
+    fireEvent.click(screen.getByText('Reprovar'));
+    fireEvent.click(screen.getByText('Confirmar Reprovação'));
+    expect(mutate).toHaveBeenCalledWith(
+      expect.objectContaining({ reason: expect.stringContaining('Fotos insuficientes') }),
+      expect.anything(),
+    );
+  });
+
+  it('a sugestão é editável: o admin pode trocar', () => {
+    renderFila([makeListing()]);
+    fireEvent.click(screen.getByText('Reprovar'));
+    // Vem sugerido frete, mas o admin escolhe outro.
+    fireEvent.click(screen.getByText('Suspeita de falsificação ou item não autêntico'));
+    fireEvent.click(screen.getByText('Confirmar Reprovação'));
+    expect(mutate).toHaveBeenCalledWith(
+      expect.objectContaining({ reason: expect.stringContaining('falsificação') }),
+      expect.anything(),
+    );
+  });
+
   // ── Campos por categoria ───────────────────────────────────────────────────
   // Regressão: o painel mostrava as colunas cruas do banco, então carta
   // colecionável aparecia com "Escala: não informada" em vermelho, sendo que
