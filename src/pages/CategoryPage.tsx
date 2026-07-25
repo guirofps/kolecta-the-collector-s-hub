@@ -182,7 +182,7 @@ export default function CategoryPage() {
     price: l.priceInCents != null ? l.priceInCents / 100 : undefined,
     seller: {
       id: l.sellerId,
-      name: l.sellerName ?? 'Vendedor Kolecta',
+      name: l.sellerName || 'Vendedor Kolecta',
       slug: l.sellerId,
       avatar: '/placeholder.svg',
       // F30: sem dado real de verificação/reputação, não inventamos selo nem nota.

@@ -71,7 +71,7 @@ function listingToCartProduct(listing: Listing) {
     price: listing.priceInCents != null ? listing.priceInCents / 100 : undefined,
     seller: {
       id: listing.sellerId,
-      name: listing.sellerName ?? 'Vendedor Kolecta',
+      name: listing.sellerName || 'Vendedor Kolecta',
       slug: listing.sellerId,
       avatar: '/placeholder.svg',
       verified: false,
@@ -330,7 +330,7 @@ export default function ProductDetail() {
                 <Link
                   to={`/vendedor/${listing.sellerId}`}
                   className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center shrink-0 text-secondary-foreground font-heading font-bold uppercase transition-colors hover:bg-secondary/70"
-                  aria-label={`Ver loja de ${listing.sellerName ?? 'vendedor'}`}
+                  aria-label={`Ver loja de ${listing.sellerName || 'vendedor'}`}
                 >
                   {(listing.sellerName || 'V')[0]}
                 </Link>
@@ -340,7 +340,7 @@ export default function ProductDetail() {
                       to={`/vendedor/${listing.sellerId}`}
                       className="text-sm font-medium text-foreground truncate hover:text-primary hover:underline transition-colors"
                     >
-                      {listing.sellerName ?? 'Vendedor Kolecta'}
+                      {listing.sellerName || 'Vendedor Kolecta'}
                     </Link>
                     <VerificationBadge verified={true} />
                     <FounderBadgeFor userId={listing.sellerId} />
