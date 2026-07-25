@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save, Eye, Loader2, ImagePlus, X, AlertCircle, Package } from 'lucide-react';
+import { ArrowLeft, Save, Eye, Loader2, ImagePlus, X, AlertCircle, Package, Star } from 'lucide-react';
 import SellerLayout from '@/components/layout/SellerLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { mockCategories } from '@/lib/mock-data';
 import { CONDITIONS } from '@/lib/conditions';
 import { freteFaltando, AVISO_EMBALAGEM } from '@/lib/frete';
+import { definirCapa } from '@/lib/fotos-anuncio';
 import ProductDescription from '@/components/ProductDescription';
 import RejectionNotice from '@/components/RejectionNotice';
 import { isOpenRoute } from '@/components/LaunchGate';
@@ -490,11 +491,26 @@ export default function EditListing() {
                   <button
                     type="button"
                     onClick={() => removePhoto(i)}
-                    className="absolute top-1 right-1 w-6 h-6 rounded-full bg-background/80 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                    aria-label="Remover foto"
+                    className="absolute top-1 right-1 flex h-6 w-6 items-center justify-center rounded-full bg-background/80 opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100"
+                    aria-label={`Remover foto ${i + 1}`}
                   >
                     <X className="h-3 w-3" />
                   </button>
+
+                  {/* Escolher a capa sem refazer o upload. A capa é sempre a
+                      primeira do array, e antes a única forma de trocar era
+                      apagar todas as fotos e subir de novo na ordem certa. */}
+                  {i > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setForm((p) => ({ ...p, photos: definirCapa(p.photos, i) }))}
+                      className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 bg-background/85 py-1 text-[10px] font-medium text-foreground opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100"
+                      aria-label={`Usar foto ${i + 1} como capa`}
+                    >
+                      <Star className="h-3 w-3" />
+                      Usar como capa
+                    </button>
+                  )}
                 </div>
               ))}
 

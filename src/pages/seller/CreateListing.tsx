@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, ArrowRight, Check, ShoppingCart, Gavel, Upload,
-  X, ImagePlus, AlertCircle, Eye, Loader2, Sparkles, Copy, ListPlus, Package,
+  X, ImagePlus, AlertCircle, Eye, Loader2, Sparkles, Copy, ListPlus, Package, Star,
 } from 'lucide-react';
 import SellerLayout from '@/components/layout/SellerLayout';
 import { Button } from '@/components/ui/button';
@@ -23,6 +23,7 @@ import { loadDraft, saveDraft, clearDraft } from '@/lib/listing-draft';
 import { CONDITIONS } from '@/lib/conditions';
 import { MIN_PHOTOS, MAX_PHOTOS } from '@/lib/photos';
 import { freteFaltando, AVISO_EMBALAGEM } from '@/lib/frete';
+import { definirCapa, removerFoto } from '@/lib/fotos-anuncio';
 import { fieldsForCategory, formatFieldValue, isFieldApplicable } from '@/lib/category-fields';
 import ProductDescription from '@/components/ProductDescription';
 import { useCreateListing, useUploadImage, useCategories, useAddresses } from '@/hooks/use-api';
@@ -464,7 +465,12 @@ export default function CreateListing() {
   };
 
   const removePhoto = (index: number) => {
-    update('photos', form.photos.filter((_, i) => i !== index));
+    update('photos', removerFoto(form.photos, index));
+  };
+
+  /** A capa é a primeira do array; escolher uma traz ela para a frente. */
+  const setCapa = (index: number) => {
+    update('photos', definirCapa(form.photos, index));
   };
 
   return (
@@ -548,7 +554,7 @@ export default function CreateListing() {
           >
             {step === 1 && <StepType form={form} update={update} />}
             {step === 2 && <StepDetails form={form} update={update} categories={categories} />}
-            {step === 3 && <StepPhotos form={form} onFilesSelect={handleFilesSelect} removePhoto={removePhoto} uploadingCount={uploadingCount} />}
+            {step === 3 && <StepPhotos form={form} onFilesSelect={handleFilesSelect} removePhoto={removePhoto} setCapa={setCapa} uploadingCount={uploadingCount} />}
             {step === 4 && <StepPricing form={form} update={update} />}
             {step === 5 && <StepReview form={form} categories={categories} />}
           </motion.div>
@@ -1277,11 +1283,13 @@ function StepPhotos({
   form,
   onFilesSelect,
   removePhoto,
+  setCapa,
   uploadingCount,
 }: {
   form: FormData;
   onFilesSelect: (files: File[]) => void;
   removePhoto: (i: number) => void;
+  setCapa: (i: number) => void;
   uploadingCount: number;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -1353,11 +1361,27 @@ function StepPhotos({
               <Badge className="absolute top-1 left-1 text-[9px] bg-primary text-primary-foreground">Capa</Badge>
             )}
             <button
+              type="button"
               onClick={() => removePhoto(i)}
-              className="absolute top-1 right-1 w-6 h-6 rounded-full bg-background/80 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+              className="absolute top-1 right-1 flex h-6 w-6 items-center justify-center rounded-full bg-background/80 opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100"
+              aria-label={`Remover foto ${i + 1}`}
             >
               <X className="h-3 w-3" />
             </button>
+
+            {/* A capa é a primeira do array. Sem isto, a única forma de trocar
+                seria apagar as fotos e subir de novo na ordem certa. */}
+            {i > 0 && (
+              <button
+                type="button"
+                onClick={() => setCapa(i)}
+                className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 bg-background/85 py-1 text-[10px] font-medium text-foreground opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100"
+                aria-label={`Usar foto ${i + 1} como capa`}
+              >
+                <Star className="h-3 w-3" />
+                Usar como capa
+              </button>
+            )}
           </div>
         ))}
 
