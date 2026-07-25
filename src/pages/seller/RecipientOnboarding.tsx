@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Separator } from '@/components/ui/separator';
 import { useRecipient } from '@/hooks/use-api';
+import { useToast } from '@/hooks/use-toast';
 import type {
   CreateRecipientPayload,
   RecipientAddress,
@@ -20,6 +21,9 @@ import type {
 
 // Só dígitos — para documentos/telefone/CEP/valores.
 const digits = (v: string) => v.replace(/\D/g, '');
+// CEP na tela com o traço; no payload vão só os 8 dígitos.
+const formatCep = (v: string) => (v.length > 5 ? `${v.slice(0, 5)}-${v.slice(5)}` : v);
+const cepValido = (v: string) => digits(v).length === 8;
 const reaisToCents = (v: string) => Math.round(parseFloat(v.replace(',', '.')) || 0) * 100;
 
 const EMPTY_ADDRESS: RecipientAddress = {
@@ -29,19 +33,31 @@ const EMPTY_ADDRESS: RecipientAddress = {
 
 /** Campos de endereço reutilizados (PF `address`, PJ `main_address` e sócio). */
 function AddressFields({
-  value, onChange, idPrefix,
+  value, onChange, idPrefix, showZipError,
 }: {
   value: RecipientAddress;
   onChange: (a: RecipientAddress) => void;
   idPrefix: string;
+  showZipError?: boolean;
 }) {
   const set = (k: keyof RecipientAddress, v: string) => onChange({ ...value, [k]: v });
+  const zipInvalido = showZipError && !cepValido(value.zipCode);
   return (
     <div className="grid grid-cols-2 gap-3">
       <div className="col-span-2 sm:col-span-1">
         <Label htmlFor={`${idPrefix}-zip`}>CEP</Label>
-        <Input id={`${idPrefix}-zip`} inputMode="numeric" maxLength={8}
-          value={value.zipCode} onChange={(e) => set('zipCode', digits(e.target.value))} />
+        {/* O campo guardava só dígitos mas limitava a 8 CARACTERES: colar ou
+            autopreencher "01310-100" cortava no traço e sobravam 7 dígitos,
+            calados. Era o que estourava a validação lá no fim do formulário.
+            Agora o corte é por dígito e o traço é só exibição. */}
+        <Input id={`${idPrefix}-zip`} inputMode="numeric" placeholder="00000-000"
+          aria-invalid={zipInvalido || undefined}
+          className={zipInvalido ? 'border-destructive focus-visible:ring-destructive' : undefined}
+          value={formatCep(value.zipCode)}
+          onChange={(e) => set('zipCode', digits(e.target.value).slice(0, 8))} />
+        {zipInvalido && (
+          <p className="text-xs text-destructive mt-1">Informe os 8 dígitos do CEP.</p>
+        )}
       </div>
       <div className="col-span-2 sm:col-span-1">
         <Label htmlFor={`${idPrefix}-state`}>UF</Label>
@@ -112,6 +128,7 @@ function KycCard({ kyc }: { kyc: RecipientKycLink }) {
 
 export default function RecipientOnboardingPage() {
   const { statusQuery, onboardMutation, kycLinkMutation } = useRecipient();
+  const { toast } = useToast();
   const status = statusQuery.data;
 
   const [type, setType] = useState<'individual' | 'company'>('individual');
@@ -132,6 +149,8 @@ export default function RecipientOnboardingPage() {
     monthlyIncome: '', professionalOccupation: '', phone: '',
   });
   const [partnerAddress, setPartnerAddress] = useState<RecipientAddress>(EMPTY_ADDRESS);
+  // Só marca campo em vermelho depois da primeira tentativa de envio.
+  const [submetido, setSubmetido] = useState(false);
 
   const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -140,6 +159,28 @@ export default function RecipientOnboardingPage() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    // Barra o CEP incompleto aqui: o backend recusa com
+    // "mainAddress.zipCode deve ter 8 dígitos", que aparece como um toast
+    // vermelho no topo enquanto o campo culpado está lá embaixo, sem marca
+    // nenhuma — e o formulário é longo.
+    setSubmetido(true);
+    const cepsFaltando = [
+      { label: type === 'individual' ? 'seu endereço' : 'endereço da empresa', ok: cepValido(address.zipCode) },
+      ...(type === 'company'
+        ? [{ label: 'endereço do representante legal', ok: cepValido(partnerAddress.zipCode) }]
+        : []),
+    ].filter((c) => !c.ok);
+
+    if (cepsFaltando.length > 0) {
+      toast({
+        title: 'CEP incompleto',
+        description: `Informe os 8 dígitos do CEP: ${cepsFaltando.map((c) => c.label).join(' e ')}.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
     const payload: CreateRecipientPayload = {
       type,
       name: form.name,
@@ -343,7 +384,7 @@ export default function RecipientOnboardingPage() {
                 <h2 className="font-heading text-lg font-bold uppercase">
                   {type === 'individual' ? 'Endereço' : 'Endereço da empresa'}
                 </h2>
-                <AddressFields value={address} onChange={setAddress} idPrefix="addr" />
+                <AddressFields value={address} onChange={setAddress} idPrefix="addr" showZipError={submetido} />
               </CardContent></Card>
 
               {/* Representante legal (PJ) */}
@@ -387,7 +428,7 @@ export default function RecipientOnboardingPage() {
                   </div>
                   <Separator />
                   <p className="text-sm font-heading font-bold uppercase text-muted-foreground">Endereço do representante</p>
-                  <AddressFields value={partnerAddress} onChange={setPartnerAddress} idPrefix="p-addr" />
+                  <AddressFields value={partnerAddress} onChange={setPartnerAddress} idPrefix="p-addr" showZipError={submetido} />
                 </CardContent></Card>
               )}
 
