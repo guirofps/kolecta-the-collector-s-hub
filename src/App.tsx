@@ -63,6 +63,7 @@ import AdminListings from "./pages/admin/Listings";
 import AdminUsers from "./pages/admin/Users";
 import AdminFounders from "./pages/admin/Founders";
 import AdminReports from "./pages/admin/Reports";
+import AdminAnalytics from "./pages/admin/Analytics";
 import AdminDisputes from "./pages/admin/Disputes";
 import AdminSellerVerification from "./pages/admin/SellerVerification";
 import AdminListingDetail from "./pages/admin/ListingDetail";
@@ -187,6 +188,7 @@ const App = () => (
             <Route path="/admin/comissoes-e-taxas" element={<ProtectedRoute role="admin"><AdminCommissionsAndFees /></ProtectedRoute>} />
             <Route path="/admin/financeiro" element={<ProtectedRoute role="admin"><AdminFinancial /></ProtectedRoute>} />
             <Route path="/admin/midia" element={<ProtectedRoute role="admin"><AdminMedia /></ProtectedRoute>} />
+            <Route path="/admin/analytics" element={<ProtectedRoute role="admin"><AdminAnalytics /></ProtectedRoute>} />
             <Route path="/admin/relatorios" element={<ProtectedRoute role="admin"><AdminReports /></ProtectedRoute>} />
             <Route path="/admin/configuracoes" element={<ProtectedRoute role="admin"><AdminSettings /></ProtectedRoute>} />
 
