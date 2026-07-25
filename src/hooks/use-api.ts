@@ -928,10 +928,19 @@ export function useSavedCard() {
   });
 
   const saveMutation = useMutation({
-    // Recebe o card_token já tokenizado no front (PCI) e o troca por um cartão salvo.
-    mutationFn: async (cardToken: string) => {
+    // Recebe o card_token já tokenizado no front (PCI) e o troca por um cartão
+    // salvo. CPF/telefone seguem junto quando informados: a Pagar.me exige os
+    // dois no customer para autorizar a cobrança do lance.
+    mutationFn: async (vars: {
+      cardToken: string;
+      cpf?: string;
+      phone?: string;
+    }) => {
       const token = await getToken();
-      return api.cards.save(token!, cardToken);
+      return api.cards.save(token!, vars.cardToken, {
+        cpf: vars.cpf,
+        phone: vars.phone,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['saved-card'] });

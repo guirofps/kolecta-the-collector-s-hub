@@ -31,6 +31,11 @@ export default function PaymentsPage() {
   const [cardName, setCardName] = useState('');
   const [cardExp, setCardExp] = useState('');
   const [cardCvv, setCardCvv] = useState('');
+  // Documento e telefone do titular: a Pagar.me exige os DOIS no customer para
+  // autorizar a retenção do lance. Aceita CPF (11) e CNPJ (14) — há lojas
+  // cadastradas como empresa.
+  const [cardDoc, setCardDoc] = useState('');
+  const [cardPhone, setCardPhone] = useState('');
   const [cardError, setCardError] = useState('');
   const [tokenizing, setTokenizing] = useState(false);
 
@@ -39,6 +44,8 @@ export default function PaymentsPage() {
     setCardName('');
     setCardExp('');
     setCardCvv('');
+    setCardDoc('');
+    setCardPhone('');
     setCardError('');
   };
 
@@ -57,6 +64,20 @@ export default function PaymentsPage() {
       setCardError('Informe o nome impresso no cartão');
       return;
     }
+    const docDigits = cardDoc.replace(/\D/g, '');
+    if (docDigits.length !== 11 && docDigits.length !== 14) {
+      setCardError('Informe o CPF (11 dígitos) ou CNPJ (14 dígitos) do titular');
+      return;
+    }
+    if (docDigits.length === 11 && !isValidCpf(docDigits)) {
+      setCardError('CPF inválido');
+      return;
+    }
+    const phoneDigitsCard = cardPhone.replace(/\D/g, '');
+    if (phoneDigitsCard.length < 10) {
+      setCardError('Informe um telefone com DDD');
+      return;
+    }
     setTokenizing(true);
     try {
       const cardToken = await tokenizeCard({
@@ -65,7 +86,11 @@ export default function PaymentsPage() {
         expiry: cardExp,
         cvv: cardCvv,
       });
-      await saveMutation.mutateAsync(cardToken);
+      await saveMutation.mutateAsync({
+        cardToken,
+        cpf: docDigits,
+        phone: phoneDigitsCard,
+      });
       handleAddCardOpenChange(false);
     } catch (err) {
       setCardError(
@@ -286,6 +311,27 @@ export default function PaymentsPage() {
                     placeholder="123" />
                 </div>
               </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="cardDoc">CPF ou CNPJ do titular *</Label>
+                  <Input id="cardDoc" inputMode="numeric" className="bg-background font-mono"
+                    value={cardDoc}
+                    onChange={e => setCardDoc(e.target.value.replace(/\D/g, '').slice(0, 14))}
+                    placeholder="Somente números" />
+                </div>
+                <div>
+                  <Label htmlFor="cardPhone">Telefone com DDD *</Label>
+                  <Input id="cardPhone" inputMode="numeric" autoComplete="tel"
+                    className="bg-background font-mono" value={cardPhone}
+                    onChange={e => setCardPhone(formatPhone(e.target.value))}
+                    placeholder="(11) 90000-0000" />
+                </div>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                A operadora exige documento e telefone do titular para autorizar a
+                retenção do lance.
+              </p>
 
               {cardError && <p className="text-xs text-destructive">{cardError}</p>}
               <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">

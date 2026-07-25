@@ -560,10 +560,16 @@ export const api = {
       ),
 
     // Salva/substitui a partir de um card_token tokenizado no front (PCI).
-    save: (token: string, cardToken: string) =>
+    // CPF/telefone vão junto: a Pagar.me exige documento E telefone no customer
+    // para autorizar cartão — sem eles o lance é recusado depois.
+    save: (
+      token: string,
+      cardToken: string,
+      titular?: { cpf?: string; phone?: string },
+    ) =>
       request<{ data: SavedCard }>('/api/cards', {
         method: 'POST',
-        body: JSON.stringify({ cardToken }),
+        body: JSON.stringify({ cardToken, ...titular }),
         token,
       }).then(r => r.data),
 
