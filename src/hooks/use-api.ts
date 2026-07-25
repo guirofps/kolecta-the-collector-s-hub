@@ -1229,7 +1229,7 @@ export function useCreateCheckout() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (body: { items: { listingId: string }[]; addressId?: string; shippingInCents?: number; deliveryMethod?: 'shipping' | 'pickup'; useWalletBalance?: boolean; buyerCpf?: string; buyerPhone?: string; paymentMethod?: 'pix' | 'credit_card'; cardToken?: string; installments?: number }) => {
+    mutationFn: async (body: { items: { listingId: string }[]; addressId?: string; shippingInCents?: number; shippingServiceId?: number; shippingServiceName?: string; deliveryMethod?: 'shipping' | 'pickup'; useWalletBalance?: boolean; buyerCpf?: string; buyerPhone?: string; paymentMethod?: 'pix' | 'credit_card'; cardToken?: string; installments?: number }) => {
       const token = await getToken();
       return api.orders.createCheckout(token!, body);
     },

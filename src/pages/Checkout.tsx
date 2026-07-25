@@ -422,6 +422,10 @@ export default function CheckoutPage() {
         items: listingItems,
         addressId,
         shippingInCents,
+        // Qual transportadora, não só quanto custou: a etiqueta automática
+        // precisa emitir no MESMO serviço que o comprador escolheu e pagou.
+        shippingServiceId: isPickup ? undefined : shipOpt?.serviceId,
+        shippingServiceName: isPickup ? undefined : shipOpt?.label,
         deliveryMethod,
         useWalletBalance,
         buyerCpf,
