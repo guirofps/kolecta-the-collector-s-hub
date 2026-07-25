@@ -192,30 +192,15 @@ export default function CheckoutPage() {
     toast({ title: 'Código PIX copiado!' });
   }
 
-  // ── ViaCEP ────────────────────────────────────────────────────────────
-  const fetchCep = useCallback(async (rawCep: string) => {
-    const digits = rawCep.replace(/\D/g, '');
+  // ── Cotação de frete (Melhor Envio) ───────────────────────────────────
+  // Separada do ViaCEP de propósito: o endereço SALVO já vem completo e não
+  // precisa de consulta de CEP, mas precisa de cotação igual. Enquanto isso
+  // morava dentro do fetchCep, escolher um endereço salvo preenchia tudo e não
+  // trazia frete nenhum — só digitar o CEP na mão cotava.
+  const cotarFretes = useCallback(async (digits: string) => {
     if (digits.length !== 8) return;
-    setCepInlineError('');
     setCepLoading(true);
-    setCepError(false);
     try {
-      const res = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
-      const data = await res.json();
-      if (data.erro) {
-        setCepError(true);
-        setIsCepFilled(false);
-        return;
-      }
-
-      setRua(data.logradouro || '');
-      setBairro(data.bairro || '');
-      setCidade(data.localidade || '');
-      setEstado(data.uf || '');
-      setIsCepFilled(true);
-
-      // Cotação real de frete por vendedor (Melhor Envio). A origem e o pacote
-      // são resolvidos no backend a partir do listing_id.
       const results = await Promise.all(
         groups.map(async (g) => {
           try {
@@ -252,6 +237,34 @@ export default function CheckoutPage() {
       if (anyEmpty && Object.values(optionsBySlug).every(o => o.length === 0)) {
         setCepError(true);
       }
+    } finally {
+      setCepLoading(false);
+    }
+  }, [groups]);
+
+  // ── ViaCEP ────────────────────────────────────────────────────────────
+  const fetchCep = useCallback(async (rawCep: string) => {
+    const digits = rawCep.replace(/\D/g, '');
+    if (digits.length !== 8) return;
+    setCepInlineError('');
+    setCepLoading(true);
+    setCepError(false);
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
+      const data = await res.json();
+      if (data.erro) {
+        setCepError(true);
+        setIsCepFilled(false);
+        return;
+      }
+
+      setRua(data.logradouro || '');
+      setBairro(data.bairro || '');
+      setCidade(data.localidade || '');
+      setEstado(data.uf || '');
+      setIsCepFilled(true);
+
+      await cotarFretes(digits);
     } catch {
       setCepError(true);
       setIsCepFilled(false);
@@ -273,7 +286,27 @@ export default function CheckoutPage() {
     setBairro(addr.neighborhood);
     setCidade(addr.city);
     setEstado(addr.state);
+    // O endereço salvo já está completo — não precisa do ViaCEP, mas precisa
+    // da cotação. Sem esta chamada o comprador escolhia o endereço e a lista de
+    // fretes ficava vazia, sem nenhum aviso.
+    void cotarFretes(addr.zip.replace(/\D/g, ''));
   }
+
+  // Pré-seleciona o endereço padrão assim que endereços e carrinho chegam.
+  // O checkout abria em "custom" mesmo para quem já tem endereço salvo, então
+  // o comprador precisava escolher na mão só para o frete aparecer.
+  // Espera `groups` porque a cotação é por vendedor: rodar com o carrinho ainda
+  // vazio devolveria zero opções e travaria a tela sem erro nenhum.
+  const [enderecoPreSelecionado, setEnderecoPreSelecionado] = useState(false);
+  useEffect(() => {
+    if (enderecoPreSelecionado) return;
+    if (savedAddresses.length === 0 || groups.length === 0) return;
+    const padrao = savedAddresses.find(a => a.isDefault) ?? savedAddresses[0];
+    if (!padrao) return;
+    setEnderecoPreSelecionado(true);
+    applySavedAddress(padrao.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [savedAddresses, groups, enderecoPreSelecionado]);
 
   // Opções de frete do vendedor + retirada pessoal (sempre disponível).
   const optionsFor = (slug: string): ShippingOption[] => [
