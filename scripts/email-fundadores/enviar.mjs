@@ -118,7 +118,10 @@ for (const r of todos) {
   let tipo = null;
   if (anuncios >= MIN_CANDIDATO) tipo = 'preselecionado';
   else if (anuncios >= MIN_QUASE_LA) tipo = 'quase-la';
-  if (!tipo) continue;
+  // Abaixo de 3, inclusive quem tem zero anúncio válido: são pessoas com perfil
+  // de vendedor que ainda não engrenaram. O e-mail delas não cita número, só
+  // fala em "poucos anúncios" (ver 'comece' no template).
+  else tipo = 'comece';
   if (GRUPO !== 'todos' && GRUPO !== tipo) continue;
   if (SO_ESTE && email !== SO_ESTE.toLowerCase()) continue;
 
@@ -137,8 +140,11 @@ destinatarios.sort((a, b) => b.anuncios - a.anuncios);
 
 const preSel = destinatarios.filter((d) => d.tipo === 'preselecionado').length;
 const quase = destinatarios.filter((d) => d.tipo === 'quase-la').length;
+const comece = destinatarios.filter((d) => d.tipo === 'comece').length;
 console.log(`Base: ${todos.length} cadastros`);
-console.log(`Vão receber: ${destinatarios.length} (${preSel} pré-selecionados, ${quase} quase lá)\n`);
+console.log(
+  `Vão receber: ${destinatarios.length} (${preSel} pré-selecionados, ${quase} quase lá, ${comece} começando)\n`,
+);
 
 // ── Gera os previews, sempre ──────────────────────────────────────────────
 fs.rmSync(SAIDA, { recursive: true, force: true });

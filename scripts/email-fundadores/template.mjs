@@ -76,38 +76,56 @@ function item(texto) {
  * @param {string} p.nome        primeiro nome de quem recebe
  * @param {number} p.anuncios    quantos anúncios a pessoa já publicou
  * @param {string} p.whatsapp    URL completa do wa.me
- * @param {'preselecionado'|'quase-la'} p.tipo
+ * @param {'preselecionado'|'quase-la'|'comece'} p.tipo
  * @param {number} p.faltam      só para 'quase-la': quantos anúncios faltam
+ *
+ * O tipo 'comece' é para quem tem de 0 a 2 anúncios. Não cita número: o texto
+ * de "faltam 4" soa como cobrança para quem mal começou, e a contagem varia
+ * demais nesse grupo. Fala em "poucos anúncios" e trata a pessoa como lojista
+ * em potencial, que é o que ela é.
  */
 export function montarEmail({ nome, anuncios, whatsapp, tipo, faltam = 0 }) {
   const preSelecionado = tipo === 'preselecionado';
+  const comecando = tipo === 'comece';
   const n = esc(nome);
 
   const preheader = preSelecionado
     ? `Você entrou na pré-seleção dos 100 Membros Fundadores. O resultado sai dia 25.`
-    : `Falta ${faltam === 1 ? 'só 1 anúncio' : `${faltam} anúncios`} para você concorrer a Membro Fundador.`;
+    : comecando
+      ? `Faltam poucos anúncios para você concorrer a Membro Fundador da Kolecta.`
+      : `Falta${faltam === 1 ? ' só 1 anúncio' : `m ${faltam} anúncios`} para você concorrer a Membro Fundador.`;
 
   const titulo = preSelecionado
     ? `${n}, você está na pré-seleção`
-    : `${n}, falta pouco`;
+    : comecando
+      ? `${n}, falta pouco para você concorrer`
+      : `${n}, falta pouco`;
 
   const abertura = preSelecionado
     ? `Você publicou <strong style="color:${GOLD};">${anuncios} anúncio${anuncios > 1 ? 's' : ''}</strong> na Kolecta e com isso entrou na pré-seleção dos <strong>100 Membros Fundadores</strong> da plataforma.`
-    : `Você já publicou <strong style="color:${GOLD};">${anuncios} anúncio${anuncios > 1 ? 's' : ''}</strong> na Kolecta. Falta <strong style="color:${GOLD};">${faltam === 1 ? 'apenas 1' : faltam}</strong> para você entrar na pré-seleção dos 100 Membros Fundadores.`;
+    : comecando
+      ? `Você criou sua conta na Kolecta e agora <strong>faltam poucos anúncios</strong> para entrar na
+         pré-seleção dos <strong>100 Membros Fundadores</strong> da plataforma. São
+         <strong style="color:${GOLD};">5 anúncios publicados</strong>, e quem chega lá concorre.`
+      : `Você já publicou <strong style="color:${GOLD};">${anuncios} anúncio${anuncios > 1 ? 's' : ''}</strong> na Kolecta. Falta${faltam === 1 ? ' <strong style="color:' + GOLD + ';">apenas 1</strong>' : `m <strong style="color:${GOLD};">${faltam}</strong>`} para você entrar na pré-seleção dos 100 Membros Fundadores.`;
 
   const recado = preSelecionado
     ? `Para ser transparente: a pré-seleção não é a vaga. São 100 lugares e a escolha final é feita
        por nós, olhando caso a caso, com prioridade para quem vende de verdade. O resultado sai no
        dia <strong style="color:${TEXTO};">25 de julho</strong>, junto com o lançamento.`
-    : `Assim que o quinto anúncio entrar, você passa a concorrer automaticamente. O resultado da
-       seleção sai no dia <strong style="color:${TEXTO};">25 de julho</strong>, junto com o lançamento.`;
+    : comecando
+      ? `Se você é lojista ou vende colecionável com alguma frequência, essa é a hora: o Fundador
+         paga menos comissão nos primeiros 6 meses, tem selo no perfil e destaque na vitrine. Não
+         importa o que aconteceu com os anúncios que você já criou, o que conta é chegar aos cinco.`
+      : `Assim que o quinto anúncio entrar, você passa a concorrer automaticamente. O resultado da
+         seleção sai no dia <strong style="color:${TEXTO};">25 de julho</strong>, junto com o lançamento.`;
 
   // Sem número configurado o botão sairia morto. Deixamos isso gritante no
   // preview em vez de gerar um e-mail que não leva a lugar nenhum.
   const cta = preSelecionado
     ? botao(whatsapp ? esc(whatsapp) : '#FALTA-CONFIGURAR-WHATSAPP',
             whatsapp ? 'Falar com a Kolecta no WhatsApp' : 'FALTA CONFIGURAR O WHATSAPP')
-    : botao(`${SITE}/painel/anuncios/novo`, 'Publicar meu próximo anúncio');
+    : botao(`${SITE}/painel/anuncios/novo`, comecando ? 'Publicar meu anúncio' : 'Publicar meu próximo anúncio');
 
   const legendaCta = preSelecionado
     ? `Fale com a gente antes do dia 25. Quem conversa conosco sai na frente na escolha.`
@@ -280,9 +298,32 @@ Você recebeu este e-mail porque criou uma conta em kolecta.com.br.
 Se não quiser mais receber, responda com "sair".`;
   }
 
+  if (tipo === 'comece') {
+    return `${nome}, falta pouco para você concorrer a Membro Fundador da Kolecta.
+
+Você criou sua conta e agora faltam poucos anúncios para entrar na pré-seleção dos 100 Membros Fundadores. São 5 anúncios publicados, e quem chega lá concorre.
+
+Se você é lojista ou vende colecionável com alguma frequência, essa é a hora: o Fundador paga menos comissão nos primeiros 6 meses, tem selo no perfil e destaque na vitrine. Não importa o que aconteceu com os anúncios que você já criou, o que conta é chegar aos cinco.
+
+O que o Fundador leva:
+- Comissão de 9% em vez de 11%, pelos 6 primeiros meses
+- 5 créditos de destaque para os seus anúncios
+- Selo de Fundador numerado, do #001 ao #100, no perfil para sempre
+- Canal direto com a equipe, sem fila de suporte
+
+Publicar meu anúncio:
+https://kolecta.com.br/painel/anuncios/novo
+
+Kolecta, o hub dos colecionadores.
+Lançamento em 25 de julho de 2026.
+
+Você recebeu este e-mail porque criou uma conta em kolecta.com.br.
+Se não quiser mais receber, responda com "sair".`;
+  }
+
   return `${nome}, falta pouco para você concorrer a Membro Fundador da Kolecta.
 
-Você já publicou ${anuncios} anúncio${anuncios > 1 ? 's' : ''}. Falta ${faltam === 1 ? 'apenas 1' : faltam} para entrar na pré-seleção dos 100 Membros Fundadores.
+Você já publicou ${anuncios} anúncio${anuncios > 1 ? 's' : ''}. Falta${faltam === 1 ? ' apenas 1' : `m ${faltam}`} para entrar na pré-seleção dos 100 Membros Fundadores.
 
 Assim que o quinto anúncio entrar, você passa a concorrer automaticamente. O resultado sai dia 25 de julho, junto com o lançamento.
 
@@ -303,7 +344,8 @@ Se não quiser mais receber, responda com "sair".`;
 }
 
 export function assunto({ nome, tipo, faltam = 0 }) {
-  return tipo === 'preselecionado'
-    ? `${nome}, você entrou na pré-seleção de Membro Fundador`
-    : `${nome}, falta ${faltam === 1 ? '1 anúncio' : `${faltam} anúncios`} para concorrer a Fundador`;
+  if (tipo === 'preselecionado') return `${nome}, você entrou na pré-seleção de Membro Fundador`;
+  // Sem número para quem mal começou: "faltam 5" no assunto lê como cobrança.
+  if (tipo === 'comece') return `${nome}, falta pouco para você concorrer a Fundador`;
+  return `${nome}, falta${faltam === 1 ? ' 1 anúncio' : `m ${faltam} anúncios`} para concorrer a Fundador`;
 }
