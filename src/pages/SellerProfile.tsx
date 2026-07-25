@@ -7,6 +7,7 @@ import ProductCard from '@/components/ProductCard';
 import LoadingSkeleton from '@/components/LoadingSkeleton';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { FounderBadgeFor } from '@/components/FounderBadge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
@@ -216,6 +217,10 @@ export default function SellerProfilePage() {
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-2 mb-1">
               <h1 className="font-heading text-3xl font-extrabold italic uppercase">{seller.name || 'Vendedor Kolecta'}</h1>
+              {/* O selo aparecia na página do anúncio mas não aqui, que é a
+                  vitrine da loja: quem clicava no nome do vendedor para ver
+                  quem ele é perdia justamente a informação. */}
+              <FounderBadgeFor userId={slug} />
               {seller.isVerified && (
                 <Badge className="bg-primary/10 text-primary border-primary/30">
                   <ShieldCheck className="h-3.5 w-3.5 mr-1" />

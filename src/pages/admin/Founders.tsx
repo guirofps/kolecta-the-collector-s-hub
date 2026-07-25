@@ -16,6 +16,17 @@ import type { FounderCandidate } from '@/lib/api';
 const LANDING_MIN = 51;
 const LANDING_MAX = 100;
 
+/**
+ * O #000 é a casa: a conta da marca-mãe, fundadora zero da Kolecta. Fica fora
+ * da faixa pública de propósito, porque não disputa vaga com ninguém, e por
+ * isso a validação precisava abri-lo à parte. Sem esta exceção não havia como
+ * conceder o número, nem por aqui nem por lugar nenhum da interface.
+ *
+ * Continua sendo UM só: a faixa 1 a 50 é dos códigos de convite do evento e a
+ * de 51 a 100 é a da seleção, ambas concedidas por outros caminhos.
+ */
+const NUMERO_DA_CASA = 0;
+
 function initialsOf(name: string | null, fallback: string) {
   const src = (name ?? '').trim();
   if (!src) return fallback.slice(0, 2).toUpperCase();
@@ -55,8 +66,8 @@ export default function AdminFounders() {
   const parsedNumber = Number(number);
   const numberValid =
     Number.isInteger(parsedNumber) &&
-    parsedNumber >= LANDING_MIN &&
-    parsedNumber <= LANDING_MAX;
+    (parsedNumber === NUMERO_DA_CASA ||
+      (parsedNumber >= LANDING_MIN && parsedNumber <= LANDING_MAX));
 
   const doGrant = () => {
     if (!target || !numberValid) return;
@@ -172,8 +183,9 @@ export default function AdminFounders() {
           <DialogHeader>
             <DialogTitle className="font-heading">Conceder selo de Fundador</DialogTitle>
             <DialogDescription>
-              {target?.name ?? target?.email ?? 'Candidato'} — escolha o número do
-              selo (faixa {LANDING_MIN}–{LANDING_MAX}). O número é permanente.
+              {target?.name ?? target?.email ?? 'Candidato'}: escolha o número do
+              selo (faixa {LANDING_MIN} a {LANDING_MAX}, ou {NUMERO_DA_CASA} para
+              a conta da casa). O número é permanente.
             </DialogDescription>
           </DialogHeader>
 
@@ -181,7 +193,7 @@ export default function AdminFounders() {
             <label className="text-xs font-medium text-muted-foreground">Número do fundador</label>
             <Input
               type="number"
-              min={LANDING_MIN}
+              min={NUMERO_DA_CASA}
               max={LANDING_MAX}
               value={number}
               onChange={(e) => setNumber(e.target.value)}
@@ -189,7 +201,7 @@ export default function AdminFounders() {
             />
             {!numberValid && number !== '' && (
               <p className="text-xs text-destructive">
-                O número deve estar entre {LANDING_MIN} e {LANDING_MAX}.
+                Use um número entre {LANDING_MIN} e {LANDING_MAX}, ou {NUMERO_DA_CASA} para a conta da casa.
               </p>
             )}
           </div>
