@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, ArrowRight, Check, ShoppingCart, Gavel, Upload,
-  X, ImagePlus, AlertCircle, Eye, Loader2, Sparkles, Copy, ListPlus,
+  X, ImagePlus, AlertCircle, Eye, Loader2, Sparkles, Copy, ListPlus, Package,
 } from 'lucide-react';
 import SellerLayout from '@/components/layout/SellerLayout';
 import { Button } from '@/components/ui/button';
@@ -22,6 +22,7 @@ import { parsePriceToCents } from '@/lib/currency';
 import { loadDraft, saveDraft, clearDraft } from '@/lib/listing-draft';
 import { CONDITIONS } from '@/lib/conditions';
 import { MIN_PHOTOS, MAX_PHOTOS } from '@/lib/photos';
+import { freteFaltando, AVISO_EMBALAGEM } from '@/lib/frete';
 import { fieldsForCategory, formatFieldValue, isFieldApplicable } from '@/lib/category-fields';
 import ProductDescription from '@/components/ProductDescription';
 import { useCreateListing, useUploadImage, useCategories, useAddresses } from '@/hooks/use-api';
@@ -181,6 +182,7 @@ const initialForm: FormData = {
 // catálogo, então o wizard bloqueia em vez de só "recomendar".
 const MIN_TITLE = 10;
 const MIN_DESCRIPTION = 30;
+
 /** Fotos enviadas ao mesmo tempo. 8 × 5 MB de uma vez estoura no 4G. */
 const UPLOAD_CONCURRENCY = 2;
 
@@ -314,7 +316,9 @@ export default function CreateListing() {
             return 'O preço mínimo para vender não pode ser menor que o lance inicial';
           }
         }
-        return null;
+        // Frete deixou de ser opcional: sem peso e medidas o cálculo sai errado
+        // e a diferença vira prejuízo de alguém (ver lib/frete).
+        return freteFaltando(form);
       }
       default:
         return null;
@@ -1481,37 +1485,49 @@ function StepPricing({ form, update }: { form: FormData; update: (f: keyof FormD
   );
 }
 
-// ─── Dados para envio (peso/dimensões, opcionais) ──────────
+// ─── Dados para envio (peso/dimensões, obrigatórios) ───────
 
 function ShippingFields({ form, update }: { form: FormData; update: (f: keyof FormData, v: any) => void }) {
   return (
     <div className="pt-6 mt-6 border-t border-border space-y-4">
       <div>
-        <h3 className="font-heading text-base font-bold uppercase mb-1">Dados para envio</h3>
+        <h3 className="font-heading text-base font-bold uppercase mb-1">
+          Dados para envio <span className="text-destructive">*</span>
+        </h3>
         <p className="text-xs text-muted-foreground">
-          Peso e dimensões do pacote embalado. Melhoram a precisão do frete —
-          se deixar em branco, usamos uma estimativa padrão de colecionável.
+          O frete é calculado com estes números. Errado aqui, sai errado na venda,
+          e a diferença sai do seu bolso.
         </p>
       </div>
+
+      {/* Texto em lib/frete, para esta tela e a de edição dizerem o mesmo. */}
+      <div className="flex gap-2 rounded-md border border-primary/30 bg-primary/5 p-3">
+        <Package className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          <strong className="text-foreground">{AVISO_EMBALAGEM.titulo}</strong>,{' '}
+          {AVISO_EMBALAGEM.texto}
+        </p>
+      </div>
+
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div>
-          <Label htmlFor="weightGrams">Peso (g)</Label>
-          <Input id="weightGrams" type="number" inputMode="numeric" placeholder="300"
+          <Label htmlFor="weightGrams">Peso (g) <span className="text-destructive">*</span></Label>
+          <Input id="weightGrams" type="number" inputMode="numeric" placeholder="300" min={1}
             value={form.weightGrams} onChange={(e) => update('weightGrams', e.target.value)} className="mt-1.5" />
         </div>
         <div>
-          <Label htmlFor="widthCm">Largura (cm)</Label>
-          <Input id="widthCm" type="number" inputMode="numeric" placeholder="16"
+          <Label htmlFor="widthCm">Largura (cm) <span className="text-destructive">*</span></Label>
+          <Input id="widthCm" type="number" inputMode="numeric" placeholder="16" min={1}
             value={form.widthCm} onChange={(e) => update('widthCm', e.target.value)} className="mt-1.5" />
         </div>
         <div>
-          <Label htmlFor="heightCm">Altura (cm)</Label>
-          <Input id="heightCm" type="number" inputMode="numeric" placeholder="6"
+          <Label htmlFor="heightCm">Altura (cm) <span className="text-destructive">*</span></Label>
+          <Input id="heightCm" type="number" inputMode="numeric" placeholder="6" min={1}
             value={form.heightCm} onChange={(e) => update('heightCm', e.target.value)} className="mt-1.5" />
         </div>
         <div>
-          <Label htmlFor="lengthCm">Compr. (cm)</Label>
-          <Input id="lengthCm" type="number" inputMode="numeric" placeholder="12"
+          <Label htmlFor="lengthCm">Compr. (cm) <span className="text-destructive">*</span></Label>
+          <Input id="lengthCm" type="number" inputMode="numeric" placeholder="12" min={1}
             value={form.lengthCm} onChange={(e) => update('lengthCm', e.target.value)} className="mt-1.5" />
         </div>
       </div>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save, Eye, Loader2, ImagePlus, X, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Save, Eye, Loader2, ImagePlus, X, AlertCircle, Package } from 'lucide-react';
 import SellerLayout from '@/components/layout/SellerLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,6 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { mockCategories } from '@/lib/mock-data';
 import { CONDITIONS } from '@/lib/conditions';
+import { freteFaltando, AVISO_EMBALAGEM } from '@/lib/frete';
 import ProductDescription from '@/components/ProductDescription';
 import RejectionNotice from '@/components/RejectionNotice';
 import { isOpenRoute } from '@/components/LaunchGate';
@@ -201,6 +202,15 @@ export default function EditListing() {
     if (!id) return;
     if (!form.title.trim()) {
       toast.error('O título é obrigatório.');
+      return;
+    }
+
+    // Mesma regra da criação (lib/frete). Separadas, esta tela deixaria salvar
+    // o que o wizard bloqueia, e o vendedor reprovado por "peso ou dimensões
+    // faltando" reenviaria sem corrigir.
+    const semFrete = freteFaltando(form);
+    if (semFrete) {
+      toast.error(`${semFrete}.`);
       return;
     }
 
@@ -512,32 +522,45 @@ export default function EditListing() {
         {/* Envio */}
         <Card className="bg-gradient-card border-border">
           <CardHeader>
-            <CardTitle className="font-heading text-xl">Dados para envio</CardTitle>
+            <CardTitle className="font-heading text-xl">
+              Dados para envio <span className="text-destructive">*</span>
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-xs text-muted-foreground">
-              Peso e dimensões do pacote embalado. Melhoram a precisão do frete —
-              em branco, usamos uma estimativa padrão de colecionável.
+              O frete é calculado com estes números. Errado aqui, sai errado na venda,
+              e a diferença sai do seu bolso.
             </p>
+
+            {/* Mesmo aviso do wizard (lib/frete): esta é a tela onde o vendedor
+                volta para corrigir depois de reprovação por frete incompleto. */}
+            <div className="flex gap-2 rounded-md border border-primary/30 bg-primary/5 p-3">
+              <Package className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                <strong className="text-foreground">{AVISO_EMBALAGEM.titulo}</strong>,{' '}
+                {AVISO_EMBALAGEM.texto}
+              </p>
+            </div>
+
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
-                <Label>Peso (g)</Label>
-                <Input type="number" inputMode="numeric" placeholder="300"
+                <Label>Peso (g) <span className="text-destructive">*</span></Label>
+                <Input type="number" inputMode="numeric" placeholder="300" min={1}
                   value={form.weightGrams} onChange={(e) => updateField('weightGrams', e.target.value)} />
               </div>
               <div>
-                <Label>Largura (cm)</Label>
-                <Input type="number" inputMode="numeric" placeholder="16"
+                <Label>Largura (cm) <span className="text-destructive">*</span></Label>
+                <Input type="number" inputMode="numeric" placeholder="16" min={1}
                   value={form.widthCm} onChange={(e) => updateField('widthCm', e.target.value)} />
               </div>
               <div>
-                <Label>Altura (cm)</Label>
-                <Input type="number" inputMode="numeric" placeholder="6"
+                <Label>Altura (cm) <span className="text-destructive">*</span></Label>
+                <Input type="number" inputMode="numeric" placeholder="6" min={1}
                   value={form.heightCm} onChange={(e) => updateField('heightCm', e.target.value)} />
               </div>
               <div>
-                <Label>Comprimento (cm)</Label>
-                <Input type="number" inputMode="numeric" placeholder="12"
+                <Label>Comprimento (cm) <span className="text-destructive">*</span></Label>
+                <Input type="number" inputMode="numeric" placeholder="12" min={1}
                   value={form.lengthCm} onChange={(e) => updateField('lengthCm', e.target.value)} />
               </div>
             </div>
