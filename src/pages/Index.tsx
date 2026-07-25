@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowRight, ShieldCheck, Search, TrendingUp, Package, Users, Loader2, Store } from 'lucide-react';
+import { ArrowRight, ShieldCheck, Search, TrendingUp, Package, Users, Loader2, Store, MessagesSquare, Heart, MessageSquare } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
 import ProductCard from '@/components/ProductCard';
 import { Button } from '@/components/ui/button';
@@ -14,7 +14,7 @@ import {
   lojas as pegarLojas,
   contagemPorCategoria,
 } from '@/lib/home-sections';
-import { useListings } from '@/hooks/use-api';
+import { useListings, useCommunityFeed } from '@/hooks/use-api';
 import { LIMITE_CATALOGO } from '@/lib/catalogo';
 import { COMMISSION_LABEL } from '@/lib/fees';
 import { useLaunchGate } from '@/hooks/use-launch-gate';
@@ -145,6 +145,10 @@ function HomeContent() {
   // que siga assim.
   const { data: listingsData, isLoading } = useListings(LIMITE_HOME);
   const ativos = useMemo(() => onlyPublic(listingsData ?? []), [listingsData]);
+
+  // Comunidade: consulta separada e leve, que não segura o resto da home.
+  const { data: feedComunidade } = useCommunityFeed({ sort: 'recent' });
+  const postsDaComunidade = feedComunidade?.data ?? [];
 
   const secoes = useMemo(() => {
     // A ordem importa: cada seção tira do bolo o que a anterior já usou, senão
@@ -510,6 +514,81 @@ function HomeContent() {
           </div>
         </section>
       )}
+
+      {/* ─── COMUNIDADE ───────────────────────────────── */}
+      {/* A Comunidade existe desde antes do lançamento e vivia só no menu, onde
+          ninguém tropeça nela. Aqui ela aparece no caminho de quem já está
+          rolando a home, com convite direto para publicar. */}
+      <section className="py-16 lg:py-20">
+        <div className="container mx-auto px-4">
+          <SectionHeader
+            title="Comunidade"
+            subtitle="Mostre a coleção, tire dúvida, ache quem coleciona o mesmo que você"
+            action={{ label: 'Ver a comunidade', href: '/comunidade' }}
+          />
+
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+            {/* Convite primeiro: a seção existe para gerar post, não só para
+                mostrar o que já tem. */}
+            <div className="flex flex-col justify-between rounded-lg border border-primary/30 bg-primary/5 p-6">
+              <div>
+                <MessagesSquare className="mb-3 h-7 w-7 text-primary" />
+                <h3 className="font-heading text-lg font-bold uppercase tracking-wider">
+                  Publique a sua
+                </h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                  Foto da estante, aquela peça que você caçou por meses, dúvida sobre
+                  originalidade. Colecionador gosta de ver coleção dos outros.
+                </p>
+              </div>
+              <Button variant="kolecta" className="mt-5 w-full" asChild>
+                <Link to="/comunidade">Publicar na comunidade</Link>
+              </Button>
+            </div>
+
+            {/* Posts recentes. Com a comunidade nova, é normal ter pouca coisa:
+                melhor mostrar dois de verdade do que encher com invenção. */}
+            {postsDaComunidade.slice(0, 2).map((post) => (
+              <Link
+                key={post.id}
+                to="/comunidade"
+                className="group flex flex-col overflow-hidden rounded-lg border border-border bg-card transition-colors hover:border-primary/40"
+              >
+                {post.images?.[0] && (
+                  <div className="aspect-[16/10] overflow-hidden bg-secondary">
+                    <img
+                      src={post.images[0]}
+                      alt=""
+                      aria-hidden="true"
+                      loading="lazy"
+                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
+                  </div>
+                )}
+                <div className="flex flex-1 flex-col p-4">
+                  <h3 className="font-medium leading-snug transition-colors group-hover:text-primary">
+                    {post.title}
+                  </h3>
+                  {post.body && (
+                    <p className="mt-1.5 line-clamp-2 text-sm text-muted-foreground">{post.body}</p>
+                  )}
+                  <div className="mt-auto flex items-center gap-3 pt-3 text-xs text-muted-foreground">
+                    <span className="truncate">{post.author?.name || 'Colecionador'}</span>
+                    <span className="flex shrink-0 items-center gap-1">
+                      <Heart className="h-3 w-3" />
+                      {post.likeCount}
+                    </span>
+                    <span className="flex shrink-0 items-center gap-1">
+                      <MessageSquare className="h-3 w-3" />
+                      {post.commentCount}
+                    </span>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
 
       {/* ─── POR QUE VENDER AQUI ──────────────────────── */}
       <section className="py-16 lg:py-20">

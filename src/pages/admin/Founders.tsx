@@ -10,7 +10,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog';
 import { Award, Search, Loader2, Medal } from 'lucide-react';
-import { useFounderCandidates, useGrantFounder } from '@/hooks/use-api';
+import { useFounderCandidates, useGrantFounder, useAdminUsers } from '@/hooks/use-api';
 import type { FounderCandidate } from '@/lib/api';
 
 const LANDING_MIN = 51;
@@ -57,6 +57,29 @@ export default function AdminFounders() {
         (c.email ?? '').toLowerCase().includes(q),
     );
   }, [candidates, search]);
+
+  // ─── Concessão por exceção ───────────────────────────────
+  // A lista de candidatos só traz quem cumpriu os 5 anúncios. Isso deixava de
+  // fora quem a equipe quer premiar por outro motivo: a conta da casa, um
+  // convidado, um lojista que fechou parceria. Não havia caminho nenhum na
+  // interface para essas pessoas, e o endpoint de concessão aceita qualquer
+  // usuário. Aqui a busca continua na lista de candidatos, e só cai nos demais
+  // usuários quando não achar nada lá, para não misturar as duas coisas.
+  const { data: usuarios } = useAdminUsers(500);
+
+  const fora = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (q.length < 2 || filtered.length > 0) return [];
+    const jaCandidato = new Set(candidates.map((c) => c.userId));
+    return (usuarios ?? [])
+      .filter((u) => !jaCandidato.has(u.id))
+      .filter(
+        (u) =>
+          (u.name ?? '').toLowerCase().includes(q) ||
+          (u.email ?? '').toLowerCase().includes(q),
+      )
+      .slice(0, 8);
+  }, [usuarios, candidates, filtered.length, search]);
 
   // Prefill do número com o próximo livre ao abrir o diálogo.
   useEffect(() => {
@@ -169,6 +192,50 @@ export default function AdminFounders() {
                     onClick={() => setTarget(c)}
                   >
                     Conceder selo
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {/* Quem não está na lista de candidatos. Aparece só quando a busca não
+            achou candidato nenhum, para a exceção não competir com o fluxo
+            normal nem virar o caminho preferido. */}
+        {fora.length > 0 && (
+          <div className="space-y-3">
+            <div className="rounded-md border border-primary/30 bg-primary/5 p-3">
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                <strong className="text-foreground">Fora da lista de candidatos.</strong>{' '}
+                Estas pessoas não cumpriram os 5 anúncios. Conceder aqui é exceção
+                da equipe: a conta da casa, um convidado, uma parceria fechada.
+              </p>
+            </div>
+            {fora.map((u) => (
+              <Card key={u.id} className="bg-gradient-card border-dashed">
+                <CardContent className="flex items-center gap-4 p-4">
+                  <Avatar className="h-10 w-10">
+                    <AvatarFallback>{initialsOf(u.name, u.email ?? u.id)}</AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate font-medium">{u.name ?? '(sem nome)'}</div>
+                    <div className="truncate text-xs text-muted-foreground">{u.email ?? u.id}</div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0"
+                    onClick={() =>
+                      setTarget({
+                        userId: u.id,
+                        name: u.name,
+                        email: u.email,
+                        submitted: 0,
+                        founderStatus: 'none',
+                      })
+                    }
+                  >
+                    Conceder por exceção
                   </Button>
                 </CardContent>
               </Card>

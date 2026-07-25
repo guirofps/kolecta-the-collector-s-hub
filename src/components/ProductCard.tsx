@@ -3,6 +3,7 @@ import { Heart, Gavel, ShieldCheck } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import AuctionCountdown from '@/components/AuctionCountdown';
+import { FounderBadgeFor } from '@/components/FounderBadge';
 import { Product, formatBRL, conditionLabel } from '@/lib/mock-data';
 import { trackEvent } from '@/lib/analytics';
 import { useFavorites } from '@/hooks/use-api';
@@ -140,13 +141,18 @@ export default function ProductCard({ product, className = '' }: ProductCardProp
         </div>
 
         {/* Seller */}
-        <div className="mt-2.5 pt-2.5 border-t border-border">
+        {/* Nome do vendedor com o selo de Fundador ao lado, como no modelo da
+            página de captação. O selo é uma consulta leve (0,3s) e o cache é por
+            usuário: numa vitrine, os mesmos vendedores se repetem em vários
+            cards e a consulta acontece uma vez só por vendedor. */}
+        <div className="mt-2.5 flex items-center gap-1.5 border-t border-border pt-2.5">
           <Link
             to={`/vendedor/${product.seller.slug}`}
-            className="text-[11px] text-muted-foreground hover:text-foreground transition-colors truncate block"
+            className="min-w-0 truncate text-[11px] text-muted-foreground transition-colors hover:text-foreground"
           >
             {product.seller.name}
           </Link>
+          <FounderBadgeFor userId={product.seller.id} className="shrink-0" />
         </div>
       </div>
     </div>
