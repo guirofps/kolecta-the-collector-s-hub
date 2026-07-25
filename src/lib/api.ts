@@ -783,13 +783,13 @@ export const api = {
         body: JSON.stringify(body),
       }).then((r) => r.options),
 
-    // Gera a etiqueta (escopo "cart + link ao painel"): adiciona o envio ao
-    // carrinho do Melhor Envio e devolve a URL do painel para o vendedor pagar
-    // e imprimir. Não movimenta dinheiro no nosso backend.
-    label: (token: string, body: GenerateLabelBody) =>
-      request<GenerateLabelResult>('/api/shipping/label', {
+    // Reemite a etiqueta de um pedido cuja emissão automática falhou (o caso
+    // típico é saldo insuficiente na carteira do Melhor Envio). Não escolhe
+    // serviço: quem escolheu foi o COMPRADOR, no checkout, e é o que ele pagou.
+    // Idempotente no backend — repetir não cria outro carrinho.
+    retryLabel: (token: string, orderId: string) =>
+      request<GenerateLabelResult>(`/api/shipping/label/${orderId}/retry`, {
         method: 'POST',
-        body: JSON.stringify(body),
         token,
       }),
   },
@@ -859,13 +859,13 @@ export interface GenerateLabelBody {
   from_document?: string; // CPF do vendedor
 }
 
-/** Retorno de `POST /api/shipping/label`. */
+/** Retorno da emissão de etiqueta. */
 export interface GenerateLabelResult {
-  success: boolean;
-  message: string;
-  cartId: number | string | null;
-  protocol: string | null;
-  panelUrl: string;
+  status: string;
+  cartId: string | null;
+  labelUrl: string | null;
+  trackingCode: string | null;
+  jaEstavaPronta: boolean;
 }
 
 export interface PaginationMeta {
@@ -1044,6 +1044,13 @@ export interface Order {
   status: OrderStatus;
   totalInCents: number;
   trackingCode?: string | null;
+  // Etiqueta emitida automaticamente pela Kolecta no Melhor Envio.
+  // pending | cart | paid | generated | ready | failed
+  shippingLabelStatus?: string | null;
+  shippingLabelUrl?: string | null;
+  shippingLabelError?: string | null;
+  shippingServiceName?: string | null;
+  shippingInCents?: number | null;
   createdAt: string;
   updatedAt: string;
   // Prazo para o vencedor pagar um arremate `pending_payment` (Fase 4).

@@ -1257,21 +1257,35 @@ export function useInstallmentsSimulation() {
 }
 
 
-// ── useGenerateLabel (vendedor gera etiqueta Melhor Envio) ──────────────────
+// ── useRetryLabel (reemitir etiqueta que falhou) ────────────────────────────
+// A emissão normal é automática, no pagamento/arremate. Isto é só o "tentar de
+// novo" para quando ela falha — tipicamente saldo zerado na carteira do Melhor
+// Envio. Não escolhe serviço: quem escolheu foi o comprador, no checkout.
 
-export function useGenerateLabel() {
+export function useRetryLabel(orderId: string) {
   const { getToken } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (body: import('@/lib/api').GenerateLabelBody) => {
+    mutationFn: async () => {
       const token = await getToken();
-      return api.shipping.label(token || '', body);
+      return api.shipping.retryLabel(token || '', orderId);
+    },
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ['order', orderId] });
+      queryClient.invalidateQueries({ queryKey: ['seller-orders'] });
+      toast({
+        title: 'Etiqueta emitida',
+        description: res.jaEstavaPronta
+          ? 'A etiqueta já estava pronta — confira seu e-mail.'
+          : 'Enviamos o PDF para o seu e-mail.',
+      });
     },
     onError: (err: any) => {
       toast({
-        title: 'Erro ao gerar etiqueta',
-        description: err.message ?? 'Não foi possível gerar a etiqueta. Tente novamente.',
+        title: 'Não foi possível emitir a etiqueta',
+        description: err.message ?? 'Tente novamente em alguns instantes.',
         variant: 'destructive',
       });
     },

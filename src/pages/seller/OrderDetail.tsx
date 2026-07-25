@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Truck, Package, CreditCard, CheckCircle2, Clock,
-  Copy, MessageSquare, ShieldCheck, User, MapPin, Tag, ExternalLink, Loader2, AlertCircle,
+  Copy, MessageSquare, ShieldCheck, User, MapPin, Tag, ExternalLink, Loader2, AlertCircle, AlertTriangle,
 } from 'lucide-react';
 import SellerLayout from '@/components/layout/SellerLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,7 +24,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
 import {
   useOrderById, useUpdateOrderStatus, useMarkDelivered, useStartConversationFromOrder,
-  useAddresses, useListing, useGenerateLabel,
+  useRetryLabel,
 } from '@/hooks/use-api';
 import { api } from '@/lib/api';
 import type {
@@ -105,7 +105,6 @@ export default function SellerOrderDetailPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [shipDialogOpen, setShipDialogOpen] = useState(false);
-  const [labelDialogOpen, setLabelDialogOpen] = useState(false);
   const [carrier, setCarrier] = useState('');
   const [trackingCode, setTrackingCode] = useState('');
   const [estimatedDate, setEstimatedDate] = useState('');
@@ -315,9 +314,7 @@ export default function SellerOrderDetailPage() {
                 )}
                 {(order.status === 'paid' || order.status === 'processing') && (
                   <>
-                    <Button className="w-full" variant="outline-gold" onClick={() => setLabelDialogOpen(true)}>
-                      <Tag className="h-4 w-4 mr-2" /> Gerar etiqueta
-                    </Button>
+                    <ShippingLabelPanel order={order} />
                     <Button className="w-full glow-primary" variant="kolecta" onClick={() => setShipDialogOpen(true)}>
                       <Truck className="h-4 w-4 mr-2" /> Confirmar envio
                     </Button>
@@ -448,243 +445,87 @@ export default function SellerOrderDetailPage() {
         </DialogContent>
       </Dialog>
 
-      {/* ── Gerar etiqueta (Melhor Envio) ──── */}
-      <GenerateLabelDialog order={order} open={labelDialogOpen} onOpenChange={setLabelDialogOpen} />
     </SellerLayout>
   );
 }
 
-// ── Diálogo de geração de etiqueta ───────────────────────────
-// Cota o frete (origem = endereço do vendedor; pacote = medidas do anúncio),
-// deixa escolher serviço/origem, e chama POST /api/shipping/label. O retorno é
-// a URL do painel Melhor Envio para o vendedor pagar e imprimir a etiqueta.
+// ── Painel da etiqueta ─────────────────────────────────
+// A etiqueta é emitida AUTOMATICAMENTE quando o pedido é pago (ou o leilão
+// arrematado), no serviço que o COMPRADOR escolheu e pagou no checkout, e o PDF
+// vai por e-mail ao vendedor.
+//
+// Antes aqui havia um diálogo que recotava o frete e deixava o vendedor escolher
+// serviço e origem de novo. Isso permitia despachar num serviço diferente do que
+// foi cobrado do comprador e criava um SEGUNDO carrinho no Melhor Envio — a
+// carteira da Kolecta era debitada duas vezes pelo mesmo pedido.
+//
+// O que sobrou é status + "tentar de novo" para quando a emissão falha.
 
-function GenerateLabelDialog({
-  order,
-  open,
-  onOpenChange,
-}: {
-  order: Order;
-  open: boolean;
-  onOpenChange: (o: boolean) => void;
-}) {
-  const { toast } = useToast();
-  const { query: addressQuery } = useAddresses();
-  const addresses = addressQuery.data ?? [];
-  const { data: listing } = useListing(order.listingId);
-  const generateLabel = useGenerateLabel();
+function ShippingLabelPanel({ order }: { order: Order }) {
+  const retry = useRetryLabel(order.id);
+  const status = order.shippingLabelStatus ?? null;
+  const pronta = status === 'ready' && !!order.shippingLabelUrl;
+  const falhou = status === 'failed';
+  const emAndamento = !!status && !pronta && !falhou;
 
-  const [originId, setOriginId] = useState('');
-  const [options, setOptions] = useState<ShippingQuoteOption[]>([]);
-  const [serviceId, setServiceId] = useState<string>('');
-  const [quoting, setQuoting] = useState(false);
-  const [weightKg, setWeightKg] = useState('');
-  const [widthCm, setWidthCm] = useState('');
-  const [heightCm, setHeightCm] = useState('');
-  const [lengthCm, setLengthCm] = useState('');
-  const [result, setResult] = useState<GenerateLabelResult | null>(null);
-
-  // Origem: preseleciona o endereço padrão do vendedor.
-  useEffect(() => {
-    if (!originId && addresses.length) {
-      const def = addresses.find((a) => a.isDefault) ?? addresses[0];
-      setOriginId(def.id);
-    }
-  }, [addresses, originId]);
-
-  // Volumes: prefill das medidas do anúncio (peso em g → kg), com defaults.
-  useEffect(() => {
-    if (!listing) return;
-    setWeightKg(listing.weightGrams != null ? String(listing.weightGrams / 1000) : '0.3');
-    setWidthCm(listing.widthCm != null ? String(listing.widthCm) : '16');
-    setHeightCm(listing.heightCm != null ? String(listing.heightCm) : '6');
-    setLengthCm(listing.lengthCm != null ? String(listing.lengthCm) : '12');
-  }, [listing]);
-
-  // Cota ao abrir.
-  useEffect(() => {
-    if (!open) return;
-    setResult(null);
-    let cancelled = false;
-    (async () => {
-      if (!order.address?.zip) return;
-      setQuoting(true);
-      try {
-        const opts = await api.shipping.quote({
-          to_cep: order.address.zip,
-          listing_id: order.listingId,
-        });
-        if (cancelled) return;
-        setOptions(opts);
-        const first = opts.find((o) => typeof o.raw?.id === 'number');
-        setServiceId(first?.raw?.id != null ? String(first.raw.id) : '');
-      } catch (e: any) {
-        if (!cancelled) toast({ title: 'Erro ao cotar frete', description: e.message, variant: 'destructive' });
-      } finally {
-        if (!cancelled) setQuoting(false);
-      }
-    })();
-    return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
-
-  const num = (s: string, d: number) => {
-    const n = Number(s.replace(',', '.'));
-    return Number.isFinite(n) && n > 0 ? n : d;
-  };
-
-  async function handleGenerate() {
-    if (!serviceId || !originId) return;
-    const res = await generateLabel.mutateAsync({
-      order_id: order.id,
-      service_id: Number(serviceId),
-      origin_address_id: originId,
-      volumes: {
-        weight_kg: num(weightKg, 0.3),
-        width_cm: Math.round(num(widthCm, 16)),
-        height_cm: Math.round(num(heightCm, 6)),
-        length_cm: Math.round(num(lengthCm, 12)),
-      },
-    });
-    setResult(res);
+  if (pronta) {
+    return (
+      <div className="rounded-md border border-emerald-500/30 bg-emerald-500/5 p-3 space-y-2">
+        <div className="flex items-start gap-2">
+          <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
+          <div className="text-xs text-muted-foreground">
+            <strong className="block text-foreground">Etiqueta enviada por e-mail</strong>
+            {order.shippingServiceName || 'Serviço escolhido pelo comprador'}
+            {order.trackingCode ? ` · ${order.trackingCode}` : ''}
+            <span className="block mt-1">O frete já foi pago pela Kolecta — é só imprimir, colar e postar.</span>
+          </div>
+        </div>
+        <Button asChild className="w-full" variant="outline-gold" size="sm">
+          <a href={order.shippingLabelUrl!} target="_blank" rel="noopener noreferrer">
+            <Tag className="h-4 w-4 mr-2" /> Baixar etiqueta (PDF)
+          </a>
+        </Button>
+      </div>
+    );
   }
 
-  const noAddress = !addressQuery.isLoading && addresses.length === 0;
+  if (falhou) {
+    return (
+      <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 space-y-2">
+        <div className="flex items-start gap-2">
+          <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+          <div className="text-xs text-muted-foreground">
+            <strong className="block text-foreground">Não conseguimos emitir a etiqueta</strong>
+            {order.shippingLabelError || 'Falha na comunicação com o Melhor Envio.'}
+          </div>
+        </div>
+        <Button
+          className="w-full"
+          variant="outline-gold"
+          size="sm"
+          disabled={retry.isPending}
+          onClick={() => retry.mutate()}
+        >
+          {retry.isPending
+            ? <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            : <Tag className="h-4 w-4 mr-2" />}
+          Tentar de novo
+        </Button>
+      </div>
+    );
+  }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="font-heading">Gerar etiqueta</DialogTitle>
-          <DialogDescription>
-            Adiciona o envio ao carrinho do Melhor Envio. Você finaliza o pagamento e imprime no painel.
-          </DialogDescription>
-        </DialogHeader>
-
-        {/* Sem endereço de origem cadastrado */}
-        {noAddress ? (
-          <div className="p-4 rounded-md bg-destructive/5 border border-destructive/30 flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
-            <div className="text-sm">
-              <p className="font-medium text-foreground">Cadastre um endereço de origem</p>
-              <p className="text-muted-foreground mt-0.5">É de lá que a etiqueta será postada.</p>
-              <Button variant="kolecta" size="sm" className="mt-3" asChild>
-                <Link to="/conta/enderecos">Cadastrar endereço</Link>
-              </Button>
-            </div>
-          </div>
-        ) : result ? (
-          // Sucesso: link para o painel
-          <div className="space-y-4 py-2">
-            <div className="p-4 rounded-md bg-emerald-500/5 border border-emerald-500/30 flex items-start gap-3">
-              <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0 mt-0.5" />
-              <div className="text-sm">
-                <p className="font-medium text-foreground">Envio no carrinho do Melhor Envio</p>
-                <p className="text-muted-foreground mt-0.5">{result.message}</p>
-                {result.protocol && (
-                  <p className="text-xs text-muted-foreground mt-1">Protocolo: {result.protocol}</p>
-                )}
-              </div>
-            </div>
-            <Button variant="kolecta" className="w-full glow-primary" asChild>
-              <a href={result.panelUrl} target="_blank" rel="noopener noreferrer">
-                <ExternalLink className="h-4 w-4 mr-2" /> Abrir painel Melhor Envio
-              </a>
-            </Button>
-          </div>
-        ) : (
-          <div className="space-y-4 py-2">
-            {/* Origem */}
-            <div className="space-y-2">
-              <Label>Endereço de origem</Label>
-              <Select value={originId} onValueChange={setOriginId}>
-                <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                <SelectContent>
-                  {addresses.map((a) => (
-                    <SelectItem key={a.id} value={a.id}>
-                      {a.label ? `${a.label} — ` : ''}{a.city}/{a.state} · CEP {a.zip}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Serviço (cotação) */}
-            <div className="space-y-2">
-              <Label>Serviço de envio</Label>
-              {quoting ? (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
-                  <Loader2 className="h-4 w-4 animate-spin" /> Cotando…
-                </div>
-              ) : options.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Nenhuma opção de frete retornada.</p>
-              ) : (
-                <RadioGroup value={serviceId} onValueChange={setServiceId} className="space-y-2">
-                  {options.map((o) => {
-                    const id = typeof o.raw?.id === 'number' ? String(o.raw.id) : '';
-                    return (
-                      <label
-                        key={id || o.service}
-                        htmlFor={`svc-${id}`}
-                        className={cn(
-                          'flex items-center gap-3 p-3 rounded-md border cursor-pointer transition-colors',
-                          serviceId === id ? 'border-kolecta-gold/60 bg-kolecta-gold/5' : 'border-border hover:border-primary/40',
-                          !id && 'opacity-50 cursor-not-allowed',
-                        )}
-                      >
-                        <RadioGroupItem value={id} id={`svc-${id}`} disabled={!id} />
-                        <div className="flex-1">
-                          <span className="text-sm font-medium">{o.carrier} {o.service}</span>
-                          <span className="text-xs text-muted-foreground ml-2">{o.delivery_time_days} dias úteis</span>
-                        </div>
-                        <span className="text-sm font-bold text-primary">{formatBRL(o.price)}</span>
-                      </label>
-                    );
-                  })}
-                </RadioGroup>
-              )}
-            </div>
-
-            {/* Pacote */}
-            <div className="space-y-2">
-              <Label>Pacote</Label>
-              <div className="grid grid-cols-4 gap-2">
-                <div>
-                  <Input value={weightKg} onChange={(e) => setWeightKg(e.target.value)} placeholder="0.3" />
-                  <span className="text-[10px] text-muted-foreground">Peso (kg)</span>
-                </div>
-                <div>
-                  <Input value={widthCm} onChange={(e) => setWidthCm(e.target.value)} placeholder="16" />
-                  <span className="text-[10px] text-muted-foreground">Larg (cm)</span>
-                </div>
-                <div>
-                  <Input value={heightCm} onChange={(e) => setHeightCm(e.target.value)} placeholder="6" />
-                  <span className="text-[10px] text-muted-foreground">Alt (cm)</span>
-                </div>
-                <div>
-                  <Input value={lengthCm} onChange={(e) => setLengthCm(e.target.value)} placeholder="12" />
-                  <span className="text-[10px] text-muted-foreground">Compr (cm)</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {!noAddress && !result && (
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancelar</Button>
-            <Button
-              variant="kolecta"
-              className="glow-primary"
-              disabled={!serviceId || !originId || generateLabel.isPending}
-              onClick={handleGenerate}
-            >
-              {generateLabel.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Tag className="h-4 w-4 mr-2" />}
-              Gerar etiqueta
-            </Button>
-          </DialogFooter>
-        )}
-      </DialogContent>
-    </Dialog>
+    <div className="flex items-start gap-2 rounded-md border border-border bg-muted/30 p-3">
+      <Clock className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+      <p className="text-xs text-muted-foreground">
+        {emAndamento
+          ? 'Estamos emitindo sua etiqueta no Melhor Envio.'
+          : 'A etiqueta é emitida automaticamente pela Kolecta.'}
+        <strong className="block mt-1 text-foreground">
+          Você recebe o PDF por e-mail — não precisa gerar nada aqui.
+        </strong>
+      </p>
+    </div>
   );
 }
