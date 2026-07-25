@@ -1506,7 +1506,10 @@ export interface MyBid {
 
 export interface AdminStats {
   totalUsers: number;
+  /** Volume bruto da tabela: inclui rascunho nunca enviado e reprovado. */
   totalListings: number;
+  /** Anúncios NO AR — é este que o painel mostra. */
+  activeListings: number;
   totalOrders: number;
   totalRevenueInCents: number;
   openDisputes: number;

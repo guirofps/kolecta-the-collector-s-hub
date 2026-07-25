@@ -84,6 +84,7 @@ const mockBid = {
 const mockStats = {
   totalUsers: 42,
   totalListings: 10,
+  activeListings: 4,
   totalOrders: 5,
   totalRevenueInCents: 150000,
   openDisputes: 2,

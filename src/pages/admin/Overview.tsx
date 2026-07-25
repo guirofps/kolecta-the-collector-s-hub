@@ -30,7 +30,9 @@ export default function AdminOverview() {
 
   const liveKpis = [
     { label: 'Usuários', value: stats ? String(stats.totalUsers) : '—', icon: Users },
-    { label: 'Anúncios', value: stats ? String(stats.totalListings) : '—', icon: Package },
+    // "No ar", não o total da tabela: o total conta rascunho nunca enviado e
+    // reprovado, e mostrava 878 com 136 na vitrine.
+    { label: 'Anúncios no ar', value: stats ? String(stats.activeListings) : '—', icon: Package },
     { label: 'Pedidos', value: stats ? String(stats.totalOrders) : '—', icon: TrendingUp },
     { label: 'Receita (taxas)', value: stats ? formatBRL(stats.totalRevenueInCents / 100) : '—', icon: DollarSign },
     { label: 'Leilões ativos', value: stats ? String(stats.activeAuctions) : '—', icon: Gavel },
