@@ -9,6 +9,7 @@ import VerificationBadge from '@/components/VerificationBadge';
 import { FounderBadgeFor } from '@/components/FounderBadge';
 import ProductGallery from '@/components/ProductGallery';
 import { useAuctionDetail, usePlaceBid, useSavedCard } from '@/hooks/use-api';
+import { isCardPaymentEnabled } from '@/lib/pagarme';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatBRL } from '@/lib/currency';
 import { conditionLabel } from '@/lib/mock-data';
@@ -216,6 +217,24 @@ export default function AuctionDetail() {
               ) : isSeller ? (
                 <div className="rounded-md bg-secondary/50 border border-border p-3 text-sm text-muted-foreground">
                   Você é o vendedor deste leilão e não pode dar lances.
+                </div>
+              ) : !isCardPaymentEnabled ? (
+                // Lance é garantido por pré-autorização no cartão. Com o cartão
+                // fechado, não há como dar lance — dizer isso aqui evita o
+                // usuário salvar cartão, tentar e levar erro do gateway.
+                <div className="rounded-md bg-muted/40 border border-border p-4">
+                  <p className="flex items-start gap-2 text-sm text-muted-foreground">
+                    <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-kolecta-gold" />
+                    <span>
+                      <strong className="block text-foreground mb-0.5">
+                        Lances suspensos temporariamente
+                      </strong>
+                      Os lances são garantidos por cartão de crédito, e o
+                      pagamento com cartão está em liberação com nosso provedor.
+                      Em breve os leilões voltam. As compras diretas seguem
+                      normais, por <strong>Pix</strong>.
+                    </span>
+                  </p>
                 </div>
               ) : cardQuery.isLoading ? (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">

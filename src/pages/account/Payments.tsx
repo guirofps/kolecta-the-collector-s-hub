@@ -219,7 +219,14 @@ export default function PaymentsPage() {
           {!isCardPaymentEnabled ? (
             <div className="rounded-md bg-muted/40 border border-border p-3 text-xs text-muted-foreground flex items-start gap-2">
               <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-              <p>Pagamento com cartão indisponível no momento.</p>
+              <p>
+                <strong className="block text-foreground mb-0.5">
+                  Cartão de crédito: em breve
+                </strong>
+                Estamos finalizando a liberação com nosso provedor de pagamento.
+                Enquanto isso, as compras são por <strong>Pix</strong> — e os
+                lances em leilão ficam suspensos, porque são garantidos por cartão.
+              </p>
             </div>
           ) : cardQuery.isLoading ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">

@@ -14,8 +14,21 @@ const PAGARME_PUBLIC_KEY = import.meta.env.VITE_PAGARME_PUBLIC_KEY as
 
 const TOKENS_URL = 'https://api.pagar.me/core/v5/tokens';
 
-/** Cartão só é oferecido quando a chave pública está configurada no build. */
-export const isCardPaymentEnabled = Boolean(PAGARME_PUBLIC_KEY);
+/**
+ * Cartão está FECHADO por padrão.
+ *
+ * A Pagar.me reprova por antifraude todas as cobranças no cartão — inclusive a
+ * pré-autorização do lance, que é 100% cartão. Enquanto o limiar da conta não
+ * for ajustado, a plataforma oferece só Pix.
+ *
+ * Precisa das duas coisas: a chave pública no build E o interruptor ligado
+ * (`VITE_CARTAO_HABILITADO=true`). Fechar por omissão é de propósito — se a
+ * variável sumir num redeploy, o pior caso é continuar só com Pix, e não voltar
+ * a oferecer um pagamento que sempre falha.
+ */
+export const isCardPaymentEnabled =
+  Boolean(PAGARME_PUBLIC_KEY) &&
+  (import.meta.env.VITE_CARTAO_HABILITADO as string | undefined) === 'true';
 
 export interface CardInput {
   /** Só dígitos. */
