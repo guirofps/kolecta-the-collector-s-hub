@@ -9,7 +9,8 @@ import { api } from '@/lib/api';
 import type { OrderStatus, CreateRecipientPayload } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { hasLaunched } from '@/lib/launch';
-import { CATALOGO_STALE_MS } from '@/lib/catalogo';
+import { CATALOGO_STALE_MS, LIMITE_CATALOGO } from '@/lib/catalogo';
+import { lerCatalogo, guardarCatalogo } from '@/lib/catalogo-cache';
 import { CLERK_ENABLED } from '@/lib/clerk';
 
 /**
@@ -203,9 +204,17 @@ export function useListing(id: string | undefined) {
 }
 
 export function useListings(limit = 20, offset = 0, q?: string) {
+  // Só o catálogo cheio, sem busca, aproveita o que ficou da visita anterior:
+  // uma consulta com termo é outra pergunta e teria outra resposta.
+  const usaCache = !q && offset === 0 && limit >= LIMITE_CATALOGO;
+
   return useQuery({
     queryKey: ['listings', limit, offset, q],
-    queryFn: () => api.listings.getAll(limit, offset, q),
+    queryFn: async () => {
+      const dados = await api.listings.getAll(limit, offset, q);
+      if (usaCache) guardarCatalogo(dados);
+      return dados;
+    },
     // A listagem leva vários segundos para responder. Com 60s, quem navegava
     // por mais de um minuto pagava a espera de novo; 5 min é bem mais do que a
     // diferença que um anúncio novo faz na vitrine (ver lib/catalogo).
@@ -213,6 +222,12 @@ export function useListings(limit = 20, offset = 0, q?: string) {
     // Mantém o que já estava na tela enquanto revalida, em vez de voltar para
     // o esqueleto de carregamento a cada troca de página.
     placeholderData: (anterior) => anterior,
+    // A vitrine da visita passada, para a página pintar na hora em vez de
+    // começar com vários segundos de esqueleto. Vem como `initialData` com
+    // `updatedAt` antigo de propósito: o React Query trata como já vencida e
+    // busca a lista atual por trás, sem tirar o conteúdo da tela.
+    initialData: usaCache ? lerCatalogo() : undefined,
+    initialDataUpdatedAt: 0,
   });
 }
 

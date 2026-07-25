@@ -344,7 +344,7 @@ function HomeContent() {
             <>
               <SectionHeader
                 title="Em Destaque"
-                subtitle="Selecionados pela curadoria Kolecta"
+                subtitle="O melhor do catálogo, de lojas diferentes"
               />
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                 {Array.from({ length: 5 }).map((_, i) => (
@@ -377,7 +377,7 @@ function HomeContent() {
             <>
               <SectionHeader
                 title="Em Destaque"
-                subtitle="Selecionados pela curadoria Kolecta"
+                subtitle="O melhor do catálogo, de lojas diferentes"
               />
               <div className="text-center py-12 mb-8">
                 <h3 className="font-heading text-2xl font-bold uppercase italic text-foreground mb-2">Produtos chegando em breve</h3>
