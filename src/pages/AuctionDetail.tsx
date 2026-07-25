@@ -112,6 +112,9 @@ export default function AuctionDetail() {
   const isSeller = isAuthenticated && user.id === auction.sellerId;
   const isWinner = isAuthenticated && !!auction.currentWinnerId && user.id === auction.currentWinnerId;
   const ended = auction.status !== 'active' || countdown.ended;
+  // Pausado: o relógio está congelado no banco, então mostrar a contagem daria
+  // um número parado (ou absurdo) e pareceria defeito.
+  const pausado = Boolean(auction.pausedAt);
   const reserveNotMet =
     auction.reservePriceInCents != null && derived.current < auction.reservePriceInCents;
   const savedCard = cardQuery.data;
@@ -178,10 +181,18 @@ export default function AuctionDetail() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <span className="text-xs text-muted-foreground uppercase tracking-wider">Tempo restante</span>
-                  <div className={`flex items-center justify-end gap-1 font-heading text-lg font-bold mt-1 ${countdown.urgent ? 'text-red-500 animate-pulse' : 'text-foreground'}`}>
-                    <Timer className="h-4 w-4" /> {countdown.text}
-                  </div>
+                  <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                    {pausado ? 'Situação' : 'Tempo restante'}
+                  </span>
+                  {pausado ? (
+                    <div className="flex items-center justify-end gap-1 font-heading text-lg font-bold mt-1 text-kolecta-gold">
+                      <AlertTriangle className="h-4 w-4" /> Pausado
+                    </div>
+                  ) : (
+                    <div className={`flex items-center justify-end gap-1 font-heading text-lg font-bold mt-1 ${countdown.urgent ? 'text-red-500 animate-pulse' : 'text-foreground'}`}>
+                      <Timer className="h-4 w-4" /> {countdown.text}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -217,6 +228,21 @@ export default function AuctionDetail() {
               ) : isSeller ? (
                 <div className="rounded-md bg-secondary/50 border border-border p-3 text-sm text-muted-foreground">
                   Você é o vendedor deste leilão e não pode dar lances.
+                </div>
+              ) : pausado ? (
+                <div className="rounded-md bg-muted/40 border border-border p-4">
+                  <p className="flex items-start gap-2 text-sm text-muted-foreground">
+                    <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-kolecta-gold" />
+                    <span>
+                      <strong className="block text-foreground mb-0.5">
+                        Leilão pausado
+                      </strong>
+                      Os lances são garantidos por cartão de crédito, e o cartão
+                      está em liberação com nosso provedor. O leilão volta com o{' '}
+                      <strong>mesmo tempo que faltava</strong> — nada se perde.
+                      As compras diretas seguem normais, por <strong>Pix</strong>.
+                    </span>
+                  </p>
                 </div>
               ) : !isCardPaymentEnabled ? (
                 // Lance é garantido por pré-autorização no cartão. Com o cartão

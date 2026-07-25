@@ -1216,6 +1216,11 @@ export interface Listing {
   durationHours?: number | null;
   antiSniper?: boolean | null;
   endsAt?: string | null;
+  // Leilão pausado continua aparecendo (segue `active`), mas com o relógio
+  // congelado: a tela mostra "pausado" no lugar da contagem, que estaria parada
+  // e pareceria defeito.
+  pausedAt?: string | null;
+  auctionPausedAt?: string | null;
   // Lance atual e nº de lances: a listagem pública passou a devolver, senão o
   // card do leilão exibia "R$ 0,00" mesmo com lance inicial definido.
   currentBidInCents?: number | null;
@@ -1504,6 +1509,8 @@ export interface ImportJob {
 export interface AuctionWithListing {
   id: string;
   listingId: string;
+  // Pausado segue `active` e visível; o relógio é que está congelado.
+  pausedAt?: string | null;
   startingBidInCents: number;
   minIncrementInCents: number;
   currentBidInCents: number | null;
