@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useClerk } from '@clerk/clerk-react';
+import { useState, useEffect, useRef } from 'react';
+import { useClerk, useUser } from '@clerk/clerk-react';
 import SellerLayout from '@/components/layout/SellerLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,22 +8,26 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
-  User, ShieldCheck, Bell, Lock, KeyRound,
+  User, ShieldCheck, Bell, Lock, KeyRound, Camera, Loader2, Trash2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 import {
   useSellerSelfProfile,
   useUpdateSellerProfile,
   useUpdateSellerPolicies,
   useUpdateNotificationPrefs,
+  useUploadImage,
 } from '@/hooks/use-api';
+
+const MAX_AVATAR_BYTES = 5 * 1024 * 1024; // igual ao limite do /api/media/upload
 
 const notifTypes = [
   { key: 'newOrder', label: 'Novo pedido recebido' },
@@ -54,15 +58,22 @@ function initials(name: string | null | undefined) {
 export default function SellerSettingsPage() {
   const isMobile = useIsMobile();
   const { openUserProfile } = useClerk();
+  const { user } = useUser();
   const [activeSection, setActiveSection] = useState<Section>('profile');
+
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: profile, isLoading } = useSellerSelfProfile();
   const updateProfile = useUpdateSellerProfile();
   const updatePolicies = useUpdateSellerPolicies();
   const updateNotifs = useUpdateNotificationPrefs();
+  const uploadImage = useUploadImage();
 
   // ── Form states (inicializados quando o perfil carrega) ──────────────────
-  const [store, setStore] = useState({ storeName: '', bio: '', city: '', state: '', website: '' });
+  const [store, setStore] = useState({
+    storeName: '', avatarUrl: '', bio: '', city: '', state: '', website: '',
+  });
   const [policies, setPoliciesState] = useState({
     shipping: '', returns: '', payment: '', acceptOffers: false, maxDiscountPercent: 0,
   });
@@ -72,6 +83,8 @@ export default function SellerSettingsPage() {
     if (!profile) return;
     setStore({
       storeName: profile.storeName ?? '',
+      // Sem foto própria: herda a do Clerk (persiste no próximo "Salvar perfil")
+      avatarUrl: profile.avatarUrl ?? (user?.hasImage ? user.imageUrl : ''),
       bio: profile.bio ?? '',
       city: profile.city ?? '',
       state: profile.state ?? '',
@@ -90,7 +103,40 @@ export default function SellerSettingsPage() {
       prefs[nt.key] = { email: p?.email ?? false, push: p?.push ?? false };
     }
     setNotifPrefs(prefs);
-  }, [profile]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile, user?.imageUrl, user?.hasImage]);
+
+  /** Salva só a foto (upload/troca/remoção têm efeito imediato). */
+  const saveAvatar = (avatarUrl: string) => {
+    setStore((s) => ({ ...s, avatarUrl }));
+    updateProfile.mutate({ ...store, avatarUrl });
+  };
+
+  const handleAvatarSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // permite reenviar o mesmo arquivo
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast({ title: 'Arquivo inválido', description: 'Envie uma imagem (JPG, PNG ou WebP).', variant: 'destructive' });
+      return;
+    }
+    if (file.size > MAX_AVATAR_BYTES) {
+      toast({ title: 'Imagem muito grande', description: 'O limite é 5 MB.', variant: 'destructive' });
+      return;
+    }
+
+    try {
+      const { url } = await uploadImage.mutateAsync(file);
+      saveAvatar(url);
+    } catch (err) {
+      toast({
+        title: 'Não foi possível enviar a foto',
+        description: err instanceof Error ? err.message : 'Tente novamente.',
+        variant: 'destructive',
+      });
+    }
+  };
 
   /* ─── Section Renderers ─── */
 
@@ -100,10 +146,67 @@ export default function SellerSettingsPage() {
       <CardContent className="space-y-5">
         <div className="flex items-center gap-4">
           <Avatar className="h-[120px] w-[120px]">
+            {store.avatarUrl && (
+              <AvatarImage
+                src={store.avatarUrl}
+                alt={store.storeName || profile?.account.name || 'Loja'}
+              />
+            )}
             <AvatarFallback className="bg-muted text-muted-foreground font-heading text-3xl">
               {initials(store.storeName || profile?.account.name)}
             </AvatarFallback>
           </Avatar>
+
+          <div className="space-y-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleAvatarSelect}
+            />
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={uploadImage.isPending || updateProfile.isPending}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {uploadImage.isPending
+                  ? <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  : <Camera className="h-4 w-4 mr-2" />}
+                {store.avatarUrl ? 'Trocar foto' : 'Enviar foto'}
+              </Button>
+
+              {user?.hasImage && store.avatarUrl !== user.imageUrl && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={uploadImage.isPending || updateProfile.isPending}
+                  onClick={() => saveAvatar(user.imageUrl)}
+                >
+                  Usar foto do meu perfil
+                </Button>
+              )}
+
+              {/* Com foto no Clerk, remover só faria a do perfil voltar — quem
+                  faz esse caminho é o botão acima. */}
+              {store.avatarUrl && !user?.hasImage && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={uploadImage.isPending || updateProfile.isPending}
+                  onClick={() => saveAvatar('')}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" /> Remover
+                </Button>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground max-w-[280px]">
+              JPG, PNG ou WebP até 5 MB. Sem foto própria, usamos a do seu perfil de
+              usuário — e sem nenhuma das duas, as iniciais da loja.
+            </p>
+          </div>
         </div>
         <div className="space-y-1.5">
           <Label>Nome da loja</Label>

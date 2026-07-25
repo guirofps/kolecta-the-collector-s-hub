@@ -898,6 +898,7 @@ export interface SellerProfile {
   name: string | null;
   email: string;
   bio: string | null;
+  avatarUrl: string | null;
   isVerified: boolean | null;
   createdAt: string;
   totalActiveListings: number;
@@ -908,6 +909,7 @@ export interface SellerProfile {
 
 export interface SellerSelfProfile {
   storeName: string | null;
+  avatarUrl: string | null;
   bio: string | null;
   city: string | null;
   state: string | null;
@@ -931,6 +933,8 @@ export interface SellerSelfProfile {
 
 export interface UpdateSellerProfileBody {
   storeName?: string;
+  /** URL da foto da loja; string vazia remove. */
+  avatarUrl?: string;
   bio?: string;
   city?: string;
   state?: string;

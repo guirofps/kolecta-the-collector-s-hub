@@ -208,7 +208,7 @@ export default function SellerProfilePage() {
         {/* ─── Header ─── */}
         <div className="flex flex-col sm:flex-row gap-6 items-start">
           <Avatar className="h-24 w-24 border-2 border-primary shrink-0">
-            <AvatarImage src={undefined} />
+            {seller.avatarUrl && <AvatarImage src={seller.avatarUrl} alt={seller.name || 'Vendedor'} />}
             <AvatarFallback className="bg-primary/10 text-primary font-heading text-2xl font-bold">
               {initials}
             </AvatarFallback>
