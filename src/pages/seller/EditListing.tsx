@@ -177,6 +177,13 @@ export default function EditListing() {
       onSuccess: (data) => {
         setForm((prev) => ({ ...prev, photos: [...prev.photos, data.url] }));
       },
+      // O erro é tratado aqui, por chamada: o hook não tem mais `onError` no
+      // observer, porque lá ele só disparava para o último de vários uploads.
+      onError: (err: any) => {
+        toast.error(
+          `Não foi possível enviar ${file.name}. ${err?.message ?? 'Tente de novo.'}`,
+        );
+      },
     });
   };
 

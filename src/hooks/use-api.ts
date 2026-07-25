@@ -1554,21 +1554,22 @@ export function useBlingDisconnect() {
 
 // ── useUploadImage ─────────────────────────────────────────────────────────
 
+/**
+ * Upload de imagem. SEM `onError` no observer de propósito.
+ *
+ * Este hook é usado para enviar VÁRIAS fotos, e um `useMutation` acompanha
+ * apenas a última chamada — o `onError` daqui só disparava para o último
+ * arquivo, engolindo em silêncio a falha dos anteriores. Quem chama trata o
+ * erro por arquivo (ver `handleFilesSelect` em CreateListing), com o nome do
+ * que falhou. Chamada única deve usar try/catch em volta do `mutateAsync`.
+ */
 export function useUploadImage() {
   const { getToken } = useAuth();
-  const { toast } = useToast();
 
   return useMutation({
     mutationFn: async (file: File) => {
       const token = await getToken();
       return api.media.upload(token || '', file);
-    },
-    onError: (err: any) => {
-      toast({
-        title: 'Erro no upload',
-        description: err.message ?? 'Não foi possível enviar a imagem.',
-        variant: 'destructive',
-      });
     },
   });
 }

@@ -19,7 +19,14 @@ const uploadMutate = vi.fn((_file: File, cbs: { onSuccess: (d: { url: string }) 
 
 vi.mock('@/hooks/use-api', () => ({
   useCreateListing: () => ({ mutate: vi.fn(), isPending: false }),
-  useUploadImage: () => ({ mutate: uploadMutate, isPending: false }),
+  useUploadImage: () => ({
+    mutate: uploadMutate,
+    // O envio de varias fotos usa mutateAsync (promessa por arquivo), para que
+    // a falha de uma nao seja engolida pelo observer compartilhado.
+    mutateAsync: (f: File) =>
+      new Promise((res) => uploadMutate(f, { onSuccess: res })) ,
+    isPending: false,
+  }),
   useCategories: () => ({ data: CATEGORIAS }),
   useAddresses: () => ({ query: { data: [{ id: 'end_1' }], isLoading: false } }),
 }));

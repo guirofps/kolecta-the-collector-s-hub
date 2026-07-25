@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatBRL } from '@/lib/currency';
+import { toast } from 'sonner';
 import {
   Select,
   SelectContent,
@@ -260,7 +261,15 @@ function CreatePostDialog() {
 
   const onUpload = (file: File) => {
     if (images.length >= 8) return;
-    uploadImage.mutate(file, { onSuccess: (d) => setImages((p) => [...p, d.url]) });
+    uploadImage.mutate(file, {
+      onSuccess: (d) => setImages((p) => [...p, d.url]),
+      // Tratado por chamada: o hook nao tem mais `onError` no observer, porque
+      // la ele so disparava para o ultimo de varios uploads.
+      onError: (err: any) =>
+        toast.error(
+          `Nao foi possivel enviar ${file.name}. ${err?.message ?? 'Tente de novo.'}`,
+        ),
+    });
   };
 
   const canSubmit =

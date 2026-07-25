@@ -24,6 +24,7 @@ import { CONDITIONS } from '@/lib/conditions';
 import { fieldsForCategory, formatFieldValue, isFieldApplicable } from '@/lib/category-fields';
 import ProductDescription from '@/components/ProductDescription';
 import { useCreateListing, useUploadImage, useCategories, useAddresses } from '@/hooks/use-api';
+import { useToast } from '@/hooks/use-toast';
 import type { CreateListingPayload } from '@/lib/api';
 
 // Opção de categoria usada no wizard (id real + slug estável para keyar campos).
@@ -181,6 +182,8 @@ const MIN_TITLE = 10;
 const MIN_DESCRIPTION = 30;
 const MIN_PHOTOS = 3;
 const MAX_PHOTOS = 8;
+/** Fotos enviadas ao mesmo tempo. 8 × 5 MB de uma vez estoura no 4G. */
+const UPLOAD_CONCURRENCY = 2;
 
 // Rascunho automático e "Duplicar" vivem em @/lib/listing-draft (fonte única,
 // compartilhada com a lista de anúncios).
@@ -248,6 +251,7 @@ export default function CreateListing() {
   const navigate = useNavigate();
   const createListing = useCreateListing();
   const uploadImage = useUploadImage();
+  const { toast } = useToast();
   const categories = useCategoryOptions();
   const slugOf = (id: string) => categories.find((c) => c.id === id)?.slug;
 
@@ -388,7 +392,22 @@ export default function CreateListing() {
     );
   };
 
-  const handleFilesSelect = (files: File[]) => {
+  /**
+   * Envia as fotos escolhidas, no máximo UPLOAD_CONCURRENCY por vez.
+   *
+   * Antes disparava todas de uma vez com `.mutate()` num laço. Dois problemas:
+   *
+   * 1. `useUploadImage` é UM observer de mutation — ele só acompanha a última
+   *    chamada, então o `onError` de dentro do hook só disparava para o último
+   *    arquivo. As falhas dos anteriores sumiam sem aviso: o vendedor via o
+   *    contador zerar e ficava com menos fotos do que escolheu, sem entender.
+   *    Aqui usamos `mutateAsync`, cuja promessa resolve por chamada, e
+   *    reportamos cada falha pelo nome do arquivo.
+   *
+   * 2. 8 fotos de 5 MB simultâneas no 4G derrubam o envio por timeout. A fila
+   *    limitada mantém a barra de progresso andando em vez de falhar em bloco.
+   */
+  const handleFilesSelect = async (files: File[]) => {
     // Desconta também o que já está em voo: com uploads paralelos, olhar só
     // `form.photos` deixaria passar mais que o limite.
     const free = MAX_PHOTOS - form.photos.length - uploadingCount;
@@ -397,12 +416,36 @@ export default function CreateListing() {
     const batch = files.slice(0, free);
     setUploadingCount((n) => n + batch.length);
 
-    batch.forEach((file) => {
-      uploadImage.mutate(file, {
-        onSuccess: (data) => appendPhoto(data.url),
-        onSettled: () => setUploadingCount((n) => Math.max(0, n - 1)),
+    const falhas: string[] = [];
+    const fila = [...batch];
+
+    const worker = async () => {
+      for (let file = fila.shift(); file; file = fila.shift()) {
+        try {
+          const data = await uploadImage.mutateAsync(file);
+          appendPhoto(data.url);
+        } catch {
+          falhas.push(file.name);
+        } finally {
+          setUploadingCount((n) => Math.max(0, n - 1));
+        }
+      }
+    };
+
+    await Promise.all(
+      Array.from({ length: Math.min(UPLOAD_CONCURRENCY, batch.length) }, worker),
+    );
+
+    if (falhas.length > 0) {
+      toast({
+        title:
+          falhas.length === 1
+            ? 'Uma foto não subiu'
+            : `${falhas.length} fotos não subiram`,
+        description: `${falhas.join(', ')}. Tente enviar de novo.`,
+        variant: 'destructive',
       });
-    });
+    }
   };
 
   const removePhoto = (index: number) => {
