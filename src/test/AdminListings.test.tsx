@@ -9,8 +9,11 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 vi.mock('@/hooks/use-api', () => ({
   useAdminListings: vi.fn(),
   useUpdateListingStatus: vi.fn(),
+  useBulkUpdateListingStatus: vi.fn(),
   useCategories: vi.fn(),
 }));
+
+vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: vi.fn() }) }));
 
 vi.mock('@clerk/clerk-react', () => ({
   useAuth: () => ({ getToken: async () => 'test-token', isSignedIn: true }),
@@ -23,10 +26,16 @@ vi.mock('@/components/layout/AdminLayout', () => ({
 
 // ── Imports após mock ─────────────────────────────────────────────────────────
 
-import { useAdminListings, useUpdateListingStatus, useCategories } from '@/hooks/use-api';
+import {
+  useAdminListings,
+  useUpdateListingStatus,
+  useBulkUpdateListingStatus,
+  useCategories,
+} from '@/hooks/use-api';
 import AdminListingsPage from '@/pages/admin/Listings';
 
 const mutate = vi.fn();
+const bulkMutate = vi.fn();
 
 const makeListing = (overrides: Record<string, unknown> = {}) => ({
   id: 'lst_1',
@@ -86,6 +95,9 @@ describe('AdminListings (fila de aprovação)', () => {
     vi.clearAllMocks();
     (useUpdateListingStatus as ReturnType<typeof vi.fn>).mockReturnValue({
       mutate, isPending: false,
+    });
+    (useBulkUpdateListingStatus as ReturnType<typeof vi.fn>).mockReturnValue({
+      mutate: bulkMutate, isPending: false,
     });
     (useCategories as ReturnType<typeof vi.fn>).mockReturnValue({ data: CATEGORIAS });
   });
@@ -513,5 +525,130 @@ describe('AdminListings (fila de aprovação)', () => {
     });
     expect(screen.getByText('Carta do teste')).toBeInTheDocument();
     expect(screen.queryByText('Funko do teste')).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * Moderação em lote. Com centenas de anúncios na fila, um a um é inviável.
+ * O risco é o inverso: um clique errado publicar catálogo inteiro sem revisão,
+ * ou a seleção alcançar anúncio que o admin nem está vendo.
+ */
+describe('AdminListings (moderação em lote)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (useUpdateListingStatus as ReturnType<typeof vi.fn>).mockReturnValue({ mutate, isPending: false });
+    (useBulkUpdateListingStatus as ReturnType<typeof vi.fn>).mockReturnValue({
+      mutate: bulkMutate, isPending: false,
+    });
+    (useCategories as ReturnType<typeof vi.fn>).mockReturnValue({ data: CATEGORIAS });
+  });
+
+  const marcar = (titulo: string) =>
+    fireEvent.click(screen.getByRole('checkbox', { name: `Selecionar ${titulo}` }));
+
+  const doisAnuncios = () => [
+    makeListing({ id: 'a', title: 'Primeiro anúncio da fila' }),
+    makeListing({ id: 'b', title: 'Segundo anúncio da fila' }),
+  ];
+
+  it('a barra de ações só aparece com algo marcado', () => {
+    renderFila(doisAnuncios());
+    expect(screen.queryByText(/selecionado/)).toBeNull();
+    marcar('Primeiro anúncio da fila');
+    expect(screen.getByText('1 selecionado')).toBeInTheDocument();
+  });
+
+  it('o que sai do filtro deixa de contar, e a tela avisa', () => {
+    // Marcar 2, filtrar para 1: o botão não pode prometer 2 e agir em 1.
+    renderFila([
+      makeListing({ id: 'a', title: 'Funko marcado', categoryId: 'cat_1' }),
+      makeListing({ id: 'b', title: 'Carta marcada', categoryId: 'cat_2' }),
+    ]);
+    fireEvent.click(screen.getByText(/Selecionar os 2 desta lista/));
+    expect(screen.getByText('2 selecionados')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText(/^Funko Pop \(1\)$/));
+    expect(screen.getByText('1 selecionado')).toBeInTheDocument();
+    expect(screen.getByText(/1 fora do filtro atual/)).toBeInTheDocument();
+  });
+
+  it('aprova em lote só o que foi marcado', () => {
+    renderFila(doisAnuncios());
+    marcar('Primeiro anúncio da fila');
+    fireEvent.click(screen.getByText(/^Aprovar 1$/));
+    // Confirmação antes: aprovar publica na hora e não desfaz em lote.
+    fireEvent.click(screen.getAllByText(/^Aprovar 1$/)[1]);
+
+    const arg = bulkMutate.mock.calls[0][0];
+    expect(arg.status).toBe('active');
+    expect(arg.itens.map((i: { id: string }) => i.id)).toEqual(['a']);
+  });
+
+  it('não aprova sem passar pela confirmação', () => {
+    renderFila(doisAnuncios());
+    marcar('Primeiro anúncio da fila');
+    fireEvent.click(screen.getByText(/^Aprovar 1$/));
+    // Só abriu o diálogo; nada foi enviado ainda.
+    expect(bulkMutate).not.toHaveBeenCalled();
+  });
+
+  it('avisa quantos dos marcados têm pendência antes de aprovar', () => {
+    renderFila([
+      makeListing({ id: 'a', title: 'Anúncio sem foto', images: JSON.stringify(['so-uma.jpg']) }),
+    ]);
+    marcar('Anúncio sem foto');
+    fireEvent.click(screen.getByText(/^Aprovar 1$/));
+    expect(screen.getByText(/tem pendência/)).toBeInTheDocument();
+  });
+
+  it('selecionar todos alcança só a lista visível, e o mesmo clique desmarca', () => {
+    renderFila(doisAnuncios());
+    const botao = screen.getByText(/Selecionar os 2 desta lista/);
+    fireEvent.click(botao);
+    expect(screen.getByText('2 selecionados')).toBeInTheDocument();
+    fireEvent.click(screen.getByText(/Selecionar os 2 desta lista/));
+    expect(screen.queryByText('2 selecionados')).toBeNull();
+  });
+
+  it('reprovação em lote exige motivo e manda um texto por anúncio', () => {
+    renderFila(doisAnuncios());
+    fireEvent.click(screen.getByText(/Selecionar os 2 desta lista/));
+    fireEvent.click(screen.getByText(/^Reprovar 2$/));
+
+    // Nada vem sugerido: os motivos valem para todos, então quem escolhe é o
+    // admin. Sem marcar nada, o botão fica travado.
+    const confirmar = screen.getAllByText(/^Reprovar 2$/)[1].closest('button')!;
+    expect(confirmar.disabled).toBe(true);
+
+    fireEvent.click(screen.getByText('Suspeita de falsificação ou item não autêntico'));
+    fireEvent.click(screen.getAllByText(/^Reprovar 2$/)[1]);
+
+    const arg = bulkMutate.mock.calls[0][0];
+    expect(arg.status).toBe('rejected');
+    expect(arg.itens).toHaveLength(2);
+    // Cada item leva seu próprio texto, e não uma referência compartilhada.
+    for (const item of arg.itens) {
+      expect(item.reason).toContain('falsificação');
+    }
+  });
+
+  it('o detalhe da reprovação é o do anúncio de cada um', () => {
+    renderFila([
+      makeListing({ id: 'a', title: 'Só uma foto aqui', images: JSON.stringify(['x.jpg']) }),
+      makeListing({
+        id: 'b', title: 'Fotos ok mas sem frete',
+        images: JSON.stringify(['x.jpg', 'y.jpg']),
+        attributes: JSON.stringify({ numero: '#1', line: 'Marvel' }),
+      }),
+    ]);
+    fireEvent.click(screen.getByText(/Selecionar os 2 desta lista/));
+    fireEvent.click(screen.getByText(/^Reprovar 2$/));
+    fireEvent.click(screen.getByText('Fotos insuficientes ou de baixa qualidade'));
+    fireEvent.click(screen.getAllByText(/^Reprovar 2$/)[1]);
+
+    const itens = bulkMutate.mock.calls[0][0].itens;
+    // O primeiro tem 1 foto e o segundo tem 2: mesmo motivo, detalhes distintos.
+    expect(itens[0].reason).toContain('tem 1 foto');
+    expect(itens[1].reason).not.toContain('tem 1 foto');
   });
 });

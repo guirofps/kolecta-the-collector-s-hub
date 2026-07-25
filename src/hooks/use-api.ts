@@ -271,6 +271,73 @@ export function useUpdateListingStatus() {
   });
 }
 
+// ── Moderação em lote ───────────────────────────────────────────────────────
+
+export interface ItemLote {
+  id: string;
+  /** Motivo já montado para ESTE anúncio (a reprovação inclui o detalhe dele). */
+  reason?: string;
+}
+
+export interface ResultadoLote {
+  ok: number;
+  falhas: { id: string; erro: string }[];
+}
+
+/**
+ * Aprova ou reprova vários anúncios de uma vez.
+ *
+ * Não é um laço em cima de `useUpdateListingStatus`: aquele dispara um toast e
+ * invalida três caches por chamada, o que com 200 anúncios significaria 200
+ * toasts empilhados e 600 refetches concorrentes. Aqui o cache é invalidado uma
+ * vez, no fim.
+ *
+ * As requisições vão EM SÉRIE, de propósito. O backend é um serviço só e um
+ * disparo paralelo de centenas de PATCH derrubaria a moderação inteira no meio
+ * do caminho. `onProgress` existe para a tela mostrar que está andando.
+ *
+ * Falha de um item não interrompe o lote: quem deu erro volta na lista para
+ * uma segunda tentativa, em vez de perder o trabalho todo por causa de um.
+ */
+export function useBulkUpdateListingStatus() {
+  const queryClient = useQueryClient();
+  const { getToken } = useAuth();
+
+  return useMutation({
+    mutationFn: async ({
+      itens,
+      status,
+      onProgress,
+    }: {
+      itens: ItemLote[];
+      status: string;
+      onProgress?: (feitos: number, total: number) => void;
+    }): Promise<ResultadoLote> => {
+      const token = await getToken();
+      const falhas: { id: string; erro: string }[] = [];
+      let ok = 0;
+
+      for (let i = 0; i < itens.length; i++) {
+        const item = itens[i];
+        try {
+          await api.admin.updateListingStatus(token || '', item.id, status, item.reason);
+          ok++;
+        } catch (err) {
+          falhas.push({ id: item.id, erro: err instanceof Error ? err.message : 'erro desconhecido' });
+        }
+        onProgress?.(i + 1, itens.length);
+      }
+
+      return { ok, falhas };
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-listings'] });
+      queryClient.invalidateQueries({ queryKey: ['listings'] });
+      queryClient.invalidateQueries({ queryKey: ['my-listings'] });
+    },
+  });
+}
+
 // ── Programa Fundador (admin) ───────────────────────────────────────────────
 
 export function useFounderCandidates() {

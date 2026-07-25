@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Check, X, Eye, AlertCircle, Clock, Loader2,
+  Check, X, Eye, AlertCircle, AlertTriangle, Clock, Loader2,
   ArrowDownWideNarrow, ArrowUpNarrowWide,
 } from 'lucide-react';
 import AdminLayout from '@/components/layout/AdminLayout';
@@ -10,7 +10,13 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { useAdminListings, useUpdateListingStatus, useCategories } from '@/hooks/use-api';
+import {
+  useAdminListings,
+  useUpdateListingStatus,
+  useBulkUpdateListingStatus,
+  useCategories,
+} from '@/hooks/use-api';
+import { useToast } from '@/hooks/use-toast';
 import type { Listing } from '@/lib/api';
 import { formatBRL } from '@/lib/currency';
 // Fonte única dos rótulos. A lista local daqui estava com o vocabulário antigo
@@ -73,6 +79,68 @@ function Chip({ ativo, onClick, perigo, children }: {
 }
 
 /** Uma linha de dado no painel de revisão. `alerta` pinta de vermelho o que falta. */
+/**
+ * Lista de motivos de reprovação, em caixas de marcação.
+ *
+ * Usada pela reprovação avulsa e pela em lote. Em componente separado porque
+ * duplicar a lista faria as duas telas divergirem: uma ganharia motivo novo e a
+ * outra não, e ninguém perceberia até um vendedor receber um texto diferente.
+ *
+ * `detalhes` só existe na reprovação avulsa: em lote os motivos valem para
+ * vários anúncios, então não há um detalhe único para mostrar aqui (ele é
+ * calculado por anúncio na hora de enviar).
+ */
+function ListaMotivos({
+  marcados,
+  onToggle,
+  detalhes,
+}: {
+  marcados: string[];
+  onToggle: (motivo: string) => void;
+  detalhes: Record<string, string>;
+}) {
+  return (
+    <div className="max-h-72 space-y-2 overflow-y-auto">
+      {MOTIVOS_REPROVACAO.map((reason) => {
+        const marcado = marcados.includes(reason);
+        return (
+          <button
+            key={reason}
+            type="button"
+            role="checkbox"
+            aria-checked={marcado}
+            onClick={() => onToggle(reason)}
+            className={`flex w-full items-start gap-2.5 rounded-md px-3 py-2 text-left text-sm transition-colors ${
+              marcado
+                ? 'border border-accent/30 bg-accent/10 text-accent'
+                : 'border border-transparent bg-secondary/30 text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <span
+              className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
+                marcado ? 'border-accent bg-accent text-accent-foreground' : 'border-muted-foreground/40'
+              }`}
+              aria-hidden="true"
+            >
+              {marcado && <Check className="h-3 w-3" />}
+            </span>
+            <span className="min-w-0">
+              {reason}
+              {/* O que a tela detectou neste anúncio. Aparece para o admin
+                  conferir antes de mandar, e vai junto no texto do vendedor. */}
+              {detalhes[reason] && (
+                <span className="mt-0.5 block text-xs font-normal opacity-80">
+                  {detalhes[reason]}
+                </span>
+              )}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function Dado({ rotulo, valor, alerta }: { rotulo: string; valor: React.ReactNode; alerta?: boolean }) {
   return (
     <div className="flex items-baseline justify-between gap-3 py-1">
@@ -128,6 +196,8 @@ export default function AdminListings() {
   const rascunho = useAdminListings('draft', LIMITE);
   const { data: categorias = [] } = useCategories();
   const updateStatus = useUpdateListingStatus();
+  const bulkStatus = useBulkUpdateListingStatus();
+  const { toast } = useToast();
 
   const isLoading = revisao.isLoading || rascunho.isLoading;
   const isError = revisao.isError && rascunho.isError;
@@ -167,6 +237,13 @@ export default function AdminListings() {
   // linhas ao mesmo tempo, parecendo que a tela inteira congelou.
   const [emAndamento, setEmAndamento] = useState<string | null>(null);
   const ocupado = (id: string) => emAndamento === id;
+
+  // Moderação em lote: seleção, confirmação e progresso.
+  const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
+  const [confirmarLote, setConfirmarLote] = useState(false);
+  const [progresso, setProgresso] = useState<{ feitos: number; total: number } | null>(null);
+  // Reprovação em lote reusa o mesmo diálogo de motivos da reprovação avulsa.
+  const [reprovarLote, setReprovarLote] = useState(false);
 
   /**
    * O que está faltando neste anúncio. Alimenta o selo na linha e o filtro
@@ -258,6 +335,87 @@ export default function AdminListings() {
         onSettled: () => setEmAndamento(null),
       },
     );
+  };
+
+  // ─── Seleção em lote ─────────────────────────────────────
+  // Com centenas de anúncios na fila, moderar um a um é inviável: são três
+  // cliques e uma espera de rede por item. A seleção só alcança o que está
+  // FILTRADO na tela, nunca a fila inteira invisível.
+
+  const alternarSelecao = (id: string) => {
+    setSelecionados((atuais) => {
+      const novo = new Set(atuais);
+      if (novo.has(id)) novo.delete(id);
+      else novo.add(id);
+      return novo;
+    });
+  };
+
+  const selecionarVisiveis = () => {
+    const visiveis = listings.map((l) => l.id);
+    const todosMarcados = visiveis.every((id) => selecionados.has(id));
+    // Alterna: se já estavam todos marcados, o mesmo clique desmarca.
+    setSelecionados(todosMarcados ? new Set() : new Set(visiveis));
+  };
+
+  const limparSelecao = () => setSelecionados(new Set());
+
+  /** Os anúncios selecionados que ainda estão visíveis, na ordem da tela. */
+  const selecionadosVisiveis = listings.filter((l) => selecionados.has(l.id));
+
+  const executarLote = (status: 'active' | 'rejected', motivoPara?: (l: Listing) => string) => {
+    const itens = selecionadosVisiveis.map((l) => ({
+      id: l.id,
+      reason: motivoPara ? motivoPara(l) : undefined,
+    }));
+    if (itens.length === 0) return;
+
+    setProgresso({ feitos: 0, total: itens.length });
+    bulkStatus.mutate(
+      {
+        itens,
+        status,
+        onProgress: (feitos, total) => setProgresso({ feitos, total }),
+      },
+      {
+        onSuccess: (res) => {
+          // Só sai da seleção quem foi. Quem falhou continua marcado para uma
+          // segunda tentativa, em vez de sumir sem ninguém notar.
+          const falhou = new Set(res.falhas.map((f) => f.id));
+          setSelecionados(falhou);
+          toast({
+            title: res.falhas.length
+              ? `${res.ok} de ${itens.length} concluídos`
+              : `${res.ok} ${res.ok === 1 ? 'anúncio atualizado' : 'anúncios atualizados'}`,
+            description: res.falhas.length
+              ? `${res.falhas.length} falharam e continuam marcados. Erro: ${res.falhas[0].erro}`
+              : undefined,
+            variant: res.falhas.length ? 'destructive' : undefined,
+          });
+        },
+        onError: (err: Error) => {
+          toast({ title: 'Erro no lote', description: err.message, variant: 'destructive' });
+        },
+        onSettled: () => setProgresso(null),
+      },
+    );
+  };
+
+  const aprovarSelecionados = () => {
+    setConfirmarLote(false);
+    executarLote('active');
+  };
+
+  const reprovarSelecionados = () => {
+    setReprovarLote(false);
+    // O motivo é montado POR anúncio: os motivos marcados são os mesmos, mas o
+    // detalhe (quantas fotos tem, quais campos faltam) é o daquele anúncio.
+    executarLote('rejected', (l) => {
+      const det = detalhesDoMotivo(l);
+      const linhas = rejectReasons.map((m) => (det[m] ? `- ${m}: ${det[m]}` : `- ${m}`));
+      const observacao = rejectNotes.trim();
+      return [...linhas, ...(observacao ? ['', observacao] : [])].join('\n');
+    });
   };
 
   /**
@@ -537,6 +695,95 @@ export default function AdminListings() {
           />
         </div>
 
+        {/* ─── Barra de moderação em lote ───────────────────────
+            Só aparece quando há seleção. Fica grudada no topo porque a fila é
+            longa: sem isso, marcar 40 anúncios exigiria rolar até o fim para
+            achar o botão. */}
+        {(selecionados.size > 0 || progresso) && (
+          <div className="sticky top-2 z-20 mb-3 flex flex-wrap items-center gap-3 rounded-lg border border-primary/40 bg-card/95 p-3 shadow-lg backdrop-blur">
+            {progresso ? (
+              <>
+                <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" />
+                <span className="text-sm font-medium">
+                  Processando {progresso.feitos} de {progresso.total}...
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  Não feche esta aba até terminar.
+                </span>
+              </>
+            ) : (
+              <>
+                {/* Conta os VISÍVEIS, não a seleção crua. Marcar 40 e depois
+                    trocar o filtro deixaria o botão prometendo 40 e agindo em 2:
+                    a ação só alcança o que está na tela, e o número diz isso. */}
+                <span className="text-sm font-medium">
+                  {selecionadosVisiveis.length}{' '}
+                  {selecionadosVisiveis.length === 1 ? 'selecionado' : 'selecionados'}
+                </span>
+                {selecionados.size > selecionadosVisiveis.length && (
+                  <span className="text-xs text-muted-foreground">
+                    ({selecionados.size - selecionadosVisiveis.length} fora do filtro atual,
+                    não serão afetados)
+                  </span>
+                )}
+                <div className="ml-auto flex flex-wrap items-center gap-2">
+                  <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={limparSelecao}>
+                    Limpar
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 border-destructive/40 text-xs text-destructive hover:bg-destructive/10"
+                    onClick={() => {
+                      // Sem sugestão automática: os motivos valem para todos os
+                      // marcados, então quem escolhe é o admin. O detalhe (quais
+                      // campos faltam) continua sendo por anúncio, no envio.
+                      setRejectReasons([]);
+                      setRejectNotes('');
+                      setReprovarLote(true);
+                    }}
+                  >
+                    <X className="mr-1 h-3.5 w-3.5" />
+                    Reprovar {selecionadosVisiveis.length}
+                  </Button>
+                  <Button
+                    variant="kolecta"
+                    size="sm"
+                    className="h-8 text-xs"
+                    onClick={() => setConfirmarLote(true)}
+                  >
+                    <Check className="mr-1 h-3.5 w-3.5" />
+                    Aprovar {selecionadosVisiveis.length}
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Marcar tudo o que está na tela. O rótulo diz "nesta lista" porque a
+            seleção nunca alcança o que está fora do filtro. */}
+        {listings.length > 0 && (
+          <button
+            type="button"
+            onClick={selecionarVisiveis}
+            disabled={!!progresso}
+            className="mb-3 flex items-center gap-2 text-xs text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <span
+              className={`flex h-4 w-4 items-center justify-center rounded border ${
+                listings.every((l) => selecionados.has(l.id))
+                  ? 'border-primary bg-primary text-primary-foreground'
+                  : 'border-muted-foreground/40'
+              }`}
+              aria-hidden="true"
+            >
+              {listings.every((l) => selecionados.has(l.id)) && <Check className="h-3 w-3" />}
+            </span>
+            Selecionar os {listings.length} desta lista
+          </button>
+        )}
+
         {/* Listing queue */}
         <AnimatePresence>
           <div className="space-y-3">
@@ -550,9 +797,32 @@ export default function AdminListings() {
                   exit={{ opacity: 0, x: -100, height: 0, marginBottom: 0 }}
                   transition={{ delay: i * 0.03, duration: 0.3 }}
                 >
-                  <Card className="bg-card border-border hover:border-primary/20 transition-colors">
+                  <Card
+                    className={`bg-card transition-colors ${
+                      selecionados.has(listing.id)
+                        ? 'border-primary/60 bg-primary/5'
+                        : 'border-border hover:border-primary/20'
+                    }`}
+                  >
                     <CardContent className="p-0">
                       <div className="flex items-center gap-4 p-4">
+                        {/* Seleção para moderar em lote */}
+                        <button
+                          type="button"
+                          role="checkbox"
+                          aria-checked={selecionados.has(listing.id)}
+                          aria-label={`Selecionar ${listing.title}`}
+                          onClick={() => alternarSelecao(listing.id)}
+                          disabled={!!progresso}
+                          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border transition-colors ${
+                            selecionados.has(listing.id)
+                              ? 'border-primary bg-primary text-primary-foreground'
+                              : 'border-muted-foreground/40 hover:border-primary/60'
+                          }`}
+                        >
+                          {selecionados.has(listing.id) && <Check className="h-3.5 w-3.5" />}
+                        </button>
+
                         {/* Image */}
                         <div className="w-20 h-20 rounded-md overflow-hidden bg-secondary shrink-0">
                           {imgs[0] ? (
@@ -883,45 +1153,7 @@ export default function AdminListings() {
                   {rejectReasons.length} {rejectReasons.length === 1 ? 'motivo marcado' : 'motivos marcados'}
                 </p>
               )}
-              <div className="max-h-72 space-y-2 overflow-y-auto">
-                {MOTIVOS_REPROVACAO.map((reason) => {
-                  const marcado = rejectReasons.includes(reason);
-                  return (
-                    <button
-                      key={reason}
-                      type="button"
-                      role="checkbox"
-                      aria-checked={marcado}
-                      onClick={() => toggleMotivo(reason)}
-                      className={`flex w-full items-start gap-2.5 rounded-md px-3 py-2 text-left text-sm transition-colors ${
-                        marcado
-                          ? 'border border-accent/30 bg-accent/10 text-accent'
-                          : 'border border-transparent bg-secondary/30 text-muted-foreground hover:text-foreground'
-                      }`}
-                    >
-                      <span
-                        className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
-                          marcado ? 'border-accent bg-accent text-accent-foreground' : 'border-muted-foreground/40'
-                        }`}
-                        aria-hidden="true"
-                      >
-                        {marcado && <Check className="h-3 w-3" />}
-                      </span>
-                      <span className="min-w-0">
-                        {reason}
-                        {/* O que a tela detectou neste anúncio. Aparece aqui
-                            para o admin conferir antes de mandar, e vai junto
-                            no texto que o vendedor recebe. */}
-                        {detalhes[reason] && (
-                          <span className="mt-0.5 block text-xs font-normal opacity-80">
-                            {detalhes[reason]}
-                          </span>
-                        )}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
+              <ListaMotivos marcados={rejectReasons} onToggle={toggleMotivo} detalhes={detalhes} />
               <Textarea
                 placeholder="Observações adicionais (opcional)..."
                 value={rejectNotes}
@@ -938,6 +1170,97 @@ export default function AdminListings() {
               >
                 {updateStatus.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
                 Confirmar Reprovação
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* ─── Aprovar em lote: confirmação ───────────────────
+            Aprovar põe o anúncio no ar de imediato. Com dezenas de uma vez, um
+            clique errado publica catálogo inteiro sem revisão, então o número
+            aparece por extenso antes. */}
+        <Dialog open={confirmarLote} onOpenChange={setConfirmarLote}>
+          <DialogContent className="max-w-md bg-card border-border">
+            <DialogHeader>
+              <DialogTitle className="font-heading text-lg font-bold uppercase">
+                Aprovar {selecionadosVisiveis.length}{' '}
+                {selecionadosVisiveis.length === 1 ? 'anúncio' : 'anúncios'}?
+              </DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground">
+                Todos vão ao ar na vitrine agora. Não dá para desfazer em lote:
+                para tirar, seria um por um.
+              </DialogDescription>
+            </DialogHeader>
+
+            {/* Quantos dos marcados têm pendência. Aprovar com pendência é
+                decisão do admin, mas não pode ser por desatenção. */}
+            {(() => {
+              const comPendencia = selecionadosVisiveis.filter((l) => pendenciasDe(l).length > 0);
+              if (comPendencia.length === 0) return null;
+              return (
+                <div className="flex gap-2 rounded-md border border-destructive/30 bg-destructive/5 p-3">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                  <p className="text-xs leading-relaxed text-muted-foreground">
+                    <strong className="text-destructive">
+                      {comPendencia.length} {comPendencia.length === 1 ? 'tem pendência' : 'têm pendência'}
+                    </strong>{' '}
+                    (foto, frete ou campo obrigatório faltando). Use o filtro
+                    &quot;só com pendência&quot; se quiser revisar antes.
+                  </p>
+                </div>
+              );
+            })()}
+
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setConfirmarLote(false)}>Cancelar</Button>
+              <Button variant="kolecta" onClick={aprovarSelecionados}>
+                <Check className="h-4 w-4" />
+                Aprovar {selecionadosVisiveis.length}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* ─── Reprovar em lote ───────────────────────────────
+            Os motivos valem para todos os marcados, então nada vem sugerido:
+            sugestão de um anúncio não serve para os outros. O DETALHE (quais
+            campos faltam) continua sendo calculado por anúncio no envio, então
+            cada vendedor recebe o que falta no dele. */}
+        <Dialog open={reprovarLote} onOpenChange={setReprovarLote}>
+          <DialogContent className="max-w-md bg-card border-border">
+            <DialogHeader>
+              <DialogTitle className="font-heading text-lg font-bold uppercase text-accent">
+                Reprovar {selecionadosVisiveis.length}{' '}
+                {selecionadosVisiveis.length === 1 ? 'anúncio' : 'anúncios'}
+              </DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground">
+                Os motivos marcados valem para todos. Cada vendedor ainda recebe
+                o detalhe do anúncio dele, como quais campos faltaram.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              {rejectReasons.length > 0 && (
+                <p className="text-[11px] text-muted-foreground">
+                  {rejectReasons.length} {rejectReasons.length === 1 ? 'motivo marcado' : 'motivos marcados'}
+                </p>
+              )}
+              <ListaMotivos marcados={rejectReasons} onToggle={toggleMotivo} detalhes={{}} />
+              <Textarea
+                placeholder="Observações adicionais (vão para todos)..."
+                value={rejectNotes}
+                onChange={(e) => setRejectNotes(e.target.value)}
+                rows={3}
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setReprovarLote(false)}>Cancelar</Button>
+              <Button
+                variant="accent"
+                onClick={reprovarSelecionados}
+                disabled={rejectReasons.length === 0}
+              >
+                <X className="h-4 w-4" />
+                Reprovar {selecionadosVisiveis.length}
               </Button>
             </DialogFooter>
           </DialogContent>
