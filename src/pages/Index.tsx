@@ -1,14 +1,20 @@
-import { useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowRight, ShieldCheck, Search, TrendingUp, Package, Users, Loader2 } from 'lucide-react';
+import { ArrowRight, ShieldCheck, Search, TrendingUp, Package, Users, Loader2, Store } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
 import ProductCard from '@/components/ProductCard';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import type { ProductCondition, Product } from '@/lib/mock-data';
-import type { Listing } from '@/lib/api';
-import { isListingFeatured } from '@/lib/api';
+import { Input } from '@/components/ui/input';
+import {
+  toProduct,
+  destaques as pegarDestaques,
+  novidades as pegarNovidades,
+  leiloes as pegarLeiloes,
+  lojas as pegarLojas,
+  contagemPorCategoria,
+} from '@/lib/home-sections';
 import { useListings } from '@/hooks/use-api';
 import { COMMISSION_LABEL } from '@/lib/fees';
 import { useLaunchGate } from '@/hooks/use-launch-gate';
@@ -86,6 +92,11 @@ function CategoryIcon({ slug, size = 32 }: { slug: string; size?: number }) {
   }
 }
 
+// Quanto a home puxa de uma vez. Precisa cobrir o catálogo inteiro para a
+// contagem por categoria bater com a realidade; se um dia não cobrir mais, a
+// home passa a dizer "mais de N" em vez de mentir o total.
+const LIMITE_HOME = 200;
+
 const fadeUp = {
   hidden: { opacity: 0, y: 30 },
   visible: (i: number) => ({
@@ -114,68 +125,51 @@ export default function Index() {
 }
 
 function HomeContent() {
+  const navigate = useNavigate();
+  const [termo, setTermo] = useState('');
+
   useEffect(() => {
     trackEvent('view_home');
   }, []);
 
-  // Busca uma folga porque só anúncio aprovado vai à vitrine e a API devolve
-  // qualquer status: pedindo 8 exatos, a home podia ficar quase vazia.
-  const { data: listingsData, isLoading } = useListings(40);
-  const products = onlyPublic(listingsData ?? []).slice(0, 8);
-  
-  // Converte a API Listing para o formato esperado pelo ProductCard
-  const parseImages = (raw: string | null | undefined): string[] => {
-    if (!raw) return ['/placeholder.svg'];
-    try {
-      const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) && parsed.length > 0 ? parsed : ['/placeholder.svg'];
-    } catch {
-      return raw.startsWith('http') ? [raw] : ['/placeholder.svg'];
-    }
+  const buscar = (e: React.FormEvent) => {
+    e.preventDefault();
+    const q = termo.trim();
+    trackEvent('search', { q, origem: 'home' });
+    navigate(q ? `/busca?q=${encodeURIComponent(q)}` : '/busca');
   };
 
-  const apiFeatured: Product[] = products.map((l: Listing) => ({
-    id: l.id,
-    title: l.title,
-    slug: l.id,
-    images: parseImages(l.images),
-    category: '',
-    categorySlug: l.categoryId ?? '',
-    subcategorySlug: '',
-    condition: (l.condition as ProductCondition) ?? 'novo',
-    type: l.type,
-    price: l.priceInCents != null ? l.priceInCents / 100 : undefined,
-    seller: {
-      id: l.sellerId,
-      name: l.sellerName || 'Vendedor Kolecta',
-      slug: l.sellerId,
-      avatar: '/placeholder.svg',
-      verified: true,
-      rating: 5,
-      totalSales: 10,
-      location: '',
-      since: '',
-    },
-    description: l.description ?? '',
-    details: {},
-    featured: isListingFeatured(l),
-    tags: [],
-    status: l.status,
-    createdAt: l.createdAt,
-    // Leilão: sem estes campos o card cai no `|| 0` e mostra "R$ 0,00" mesmo
-    // num leilão de R$ 3.100. O backend passou a mandá-los na listagem.
-    startingBid:
-      l.startingBidInCents != null ? l.startingBidInCents / 100 : undefined,
-    currentBid:
-      l.currentBidInCents != null ? l.currentBidInCents / 100 : undefined,
-    bidsCount: l.bidsCount ?? 0,
-    auctionEndsAt: l.endsAt ?? undefined,
-  }));
+  // Uma requisição só alimenta todas as seções. Antes pedia 40 para mostrar 5;
+  // com 136 anúncios no ar, a home ficava com cara de catálogo vazio. O filtro
+  // de status continua porque a API já devolve só aprovado, mas nada garante
+  // que siga assim.
+  const { data: listingsData, isLoading } = useListings(LIMITE_HOME);
+  const ativos = useMemo(() => onlyPublic(listingsData ?? []), [listingsData]);
+
+  const secoes = useMemo(() => {
+    // A ordem importa: cada seção tira do bolo o que a anterior já usou, senão
+    // o mesmo leilão aparecia três vezes na mesma tela (era o item mais caro do
+    // catálogo, então entrava em destaque, em Modo Lance e em novidades).
+    const emLeilao = pegarLeiloes(ativos);
+    const emDestaque = pegarDestaques(ativos, 10, emLeilao);
+    return {
+      destaque: emDestaque.map(toProduct),
+      leiloes: emLeilao.map(toProduct),
+      novidades: pegarNovidades(ativos, 20, [...emLeilao, ...emDestaque]).map(toProduct),
+      lojas: pegarLojas(ativos, 8),
+      porCategoria: contagemPorCategoria(ativos),
+      total: ativos.length,
+      // Bateu o teto da busca: o catálogo tem pelo menos isso, e pode ter mais.
+      saturado: ativos.length >= LIMITE_HOME,
+    };
+  }, [ativos]);
 
   return (
     <Layout>
       {/* ─── HERO ─────────────────────────────────────── */}
-      <section className="relative min-h-[85vh] flex items-center justify-center overflow-hidden">
+      {/* 85vh empurrava o primeiro produto para duas rolagens abaixo. Numa home
+          de marketplace o catálogo precisa aparecer junto com a dobra. */}
+      <section className="relative min-h-[62vh] flex items-center justify-center overflow-hidden py-16">
         {/* Background */}
         <div className="absolute inset-0">
           <img src={heroBg} alt="" className="w-full h-full object-cover" />
@@ -208,29 +202,50 @@ function HomeContent() {
             <motion.p
               variants={fadeUp}
               custom={2}
-              className="text-lg sm:text-xl text-white/60 max-w-xl mx-auto mb-4"
+              className="text-lg sm:text-xl text-white/60 max-w-xl mx-auto mb-6"
             >
               Compre, venda e dê lances em miniaturas diecast, cards e artigos exclusivos. Plataforma criada por colecionadores, para colecionadores.
             </motion.p>
-            
-            <motion.div variants={fadeUp} custom={3} className="flex items-center justify-center gap-1.5 mb-8 text-[11px] text-white/60">
-              <ShieldCheck className="h-3.5 w-3.5" />
-              <span>Pagamento protegido · Vendedores verificados</span>
-            </motion.div>
 
-            <motion.div variants={fadeUp} custom={4} className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Button variant="kolecta" size="lg" className="text-base px-8" asChild>
-                <Link to="/busca">
-                  <Search className="h-5 w-5 mr-2" />
-                  Explorar coleção
-                </Link>
+            {/* Busca no hero: quem chega num marketplace procura um item
+                específico. Antes o botão levava para /busca com o campo vazio,
+                e a pessoa tinha que descobrir onde digitar. */}
+            <motion.form
+              variants={fadeUp}
+              custom={3}
+              onSubmit={buscar}
+              className="mx-auto mb-4 flex w-full max-w-xl gap-2"
+              role="search"
+            >
+              <Input
+                value={termo}
+                onChange={(e) => setTermo(e.target.value)}
+                placeholder="Busque por Hot Wheels, Pokémon, Mini GT..."
+                aria-label="Buscar no catálogo"
+                className="h-12 border-white/20 bg-white/10 text-white placeholder:text-white/40 focus-visible:ring-primary"
+              />
+              <Button type="submit" variant="kolecta" size="lg" className="h-12 shrink-0 px-6">
+                <Search className="h-5 w-5" />
+                <span className="ml-2 hidden sm:inline">Buscar</span>
               </Button>
-              <Button variant="ghost-light" size="lg" className="text-base px-8 text-white border-white/20 hover:bg-white/10" asChild>
-                <Link to="/painel/anuncios/novo">
-                  Quero ser parceiro
-                  <ArrowRight className="h-5 w-5 ml-2" />
-                </Link>
-              </Button>
+            </motion.form>
+
+            <motion.div variants={fadeUp} custom={4} className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-[11px] text-white/60">
+              <span className="flex items-center gap-1.5">
+                <ShieldCheck className="h-3.5 w-3.5" />
+                Pagamento protegido
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Package className="h-3.5 w-3.5" />
+                Frete calculado na hora
+              </span>
+              {secoes.total > 0 && (
+                <span className="flex items-center gap-1.5">
+                  <Store className="h-3.5 w-3.5" />
+                  {secoes.saturado ? `mais de ${secoes.total}` : secoes.total}{' '}
+                  {secoes.total === 1 ? 'item no ar' : 'itens no ar'}
+                </span>
+              )}
             </motion.div>
           </motion.div>
         </div>
@@ -242,38 +257,74 @@ function HomeContent() {
           <SectionHeader title="Categorias" subtitle="Encontre o que colecionadores buscam" />
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-            {CATEGORIES.map((cat, i) => (
-              <motion.div
-                key={cat.id}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.05, duration: 0.4 }}
-              >
-                <Link
-                  to={`/categoria/${cat.slug}`}
-                  className="group block overflow-hidden rounded-lg border border-border bg-card transition-all duration-300 hover:border-primary/40"
-                >
+            {CATEGORIES.map((cat, i) => {
+              // Categoria sem nenhum anúncio no ar não vira link: no lançamento,
+              // clicar levava a uma página vazia. Fica visível (a marca é mais
+              // que diecast) mas marcada como "em breve". Assim que o primeiro
+              // anúncio da categoria for aprovado, ela volta a ser clicável
+              // sozinha, sem precisar mexer aqui.
+              const qtd = secoes.porCategoria[cat.slug] ?? 0;
+              const vazia = !isLoading && qtd === 0;
+
+              const miolo = (
+                <>
                   {/* Arte duotone da categoria (mesma da landing, via category-art) */}
                   <div className="relative aspect-square overflow-hidden bg-black">
                     <img
                       src={categoryArt(cat.slug)}
                       alt=""
                       aria-hidden="true"
-                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      className={`h-full w-full object-cover transition-transform duration-500 ${
+                        vazia ? 'opacity-40 grayscale' : 'group-hover:scale-105'
+                      }`}
                     />
+                    {vazia && (
+                      <span className="absolute inset-x-0 bottom-0 bg-black/70 py-1 text-center text-[10px] font-semibold uppercase tracking-widest text-white/70">
+                        Em breve
+                      </span>
+                    )}
                   </div>
                   <div className="p-3 text-center">
-                    <span className="block font-heading text-sm font-semibold uppercase tracking-wider text-foreground transition-colors group-hover:text-primary">
+                    <span
+                      className={`block font-heading text-sm font-semibold uppercase tracking-wider transition-colors ${
+                        vazia ? 'text-muted-foreground' : 'text-foreground group-hover:text-primary'
+                      }`}
+                    >
                       {cat.name}
                     </span>
                     <span className="mt-1 block text-xs leading-snug text-muted-foreground">
-                      {cat.description}
+                      {qtd > 0 ? `${qtd} ${qtd === 1 ? 'item' : 'itens'}` : cat.description}
                     </span>
                   </div>
-                </Link>
-              </motion.div>
-            ))}
+                </>
+              );
+
+              return (
+                <motion.div
+                  key={cat.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.05, duration: 0.4 }}
+                >
+                  {vazia ? (
+                    <div
+                      aria-disabled="true"
+                      className="block cursor-default overflow-hidden rounded-lg border border-dashed border-border bg-card"
+                    >
+                      {miolo}
+                    </div>
+                  ) : (
+                    <Link
+                      to={`/categoria/${cat.slug}`}
+                      className="group block overflow-hidden rounded-lg border border-border bg-card transition-all duration-300 hover:border-primary/40"
+                    >
+                      {miolo}
+                    </Link>
+                  )}
+                </motion.div>
+              );
+            })}
           </div>
         </div>
       </section>
@@ -293,21 +344,21 @@ function HomeContent() {
                 ))}
               </div>
             </>
-          ) : apiFeatured.length > 0 ? (
+          ) : secoes.destaque.length > 0 ? (
             <>
               <SectionHeader
                 title="Em Destaque"
-                subtitle="Selecionados pela curadoria Kolecta"
+                subtitle="O melhor do catálogo, de lojas diferentes"
                 action={{ label: 'Ver todos', href: '/busca' }}
               />
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                {apiFeatured.slice(0, 5).map((product, i) => (
+                {secoes.destaque.map((product, i) => (
                   <motion.div
                     key={product.id}
                     initial={{ opacity: 0, y: 20 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
-                    transition={{ delay: i * 0.08, duration: 0.5 }}
+                    transition={{ delay: Math.min(i, 4) * 0.08, duration: 0.5 }}
                   >
                     <ProductCard product={product} />
                   </motion.div>
@@ -341,6 +392,120 @@ function HomeContent() {
           )}
         </div>
       </section>
+
+      {/* ─── MODO LANCE ───────────────────────────────── */}
+      {/* Só aparece quando há leilão aberto. Uma seção de leilão vazia é pior
+          que seção nenhuma: anuncia um recurso e entrega uma prateleira sem
+          nada. O countdown já vem dentro do ProductCard. */}
+      {secoes.leiloes.length > 0 && (
+        <section className="py-16 lg:py-20">
+          <div className="container mx-auto px-4">
+            <SectionHeader
+              title="Modo Lance"
+              subtitle="Leilões abertos agora, o que termina antes primeiro"
+              action={{ label: 'Ver todos', href: '/modo-lance' }}
+              accentTitle
+            />
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+              {secoes.leiloes.slice(0, 5).map((product, i) => (
+                <motion.div
+                  key={product.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.08, duration: 0.5 }}
+                >
+                  <ProductCard product={product} />
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ─── NOVIDADES ────────────────────────────────── */}
+      {/* O grande volume da home. Antes ela mostrava 5 itens de 136: quem
+          entrava não tinha o que percorrer e saía achando o catálogo vazio. */}
+      {secoes.novidades.length > 0 && (
+        <section className="py-16 lg:py-20 bg-gradient-dark">
+          <div className="container mx-auto px-4">
+            <SectionHeader
+              title="Chegou agora"
+              subtitle="Os anúncios mais recentes dos nossos vendedores"
+              action={{ label: 'Ver tudo', href: '/busca' }}
+            />
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+              {secoes.novidades.map((product, i) => (
+                <motion.div
+                  key={product.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  // O atraso trava no quinto card: escalonar 20 itens deixava
+                  // a última fileira aparecendo quase dois segundos depois.
+                  transition={{ delay: Math.min(i % 5, 4) * 0.06, duration: 0.4 }}
+                >
+                  <ProductCard product={product} />
+                </motion.div>
+              ))}
+            </div>
+
+            <div className="mt-10 text-center">
+              <Button variant="outline" size="lg" asChild>
+                <Link to="/busca">
+                  Ver o catálogo completo
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ─── LOJAS ────────────────────────────────────── */}
+      {/* Prova social que a home não tinha: quem está vendendo aqui e com
+          quantos itens. Número real, tirado do catálogo, sem inventar métrica. */}
+      {secoes.lojas.length > 0 && (
+        <section className="py-16 lg:py-20">
+          <div className="container mx-auto px-4">
+            <SectionHeader
+              title="Lojas na Kolecta"
+              subtitle="Vendedores com itens no ar agora"
+            />
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+              {secoes.lojas.map((loja, i) => (
+                <motion.div
+                  key={loja.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: Math.min(i, 4) * 0.05, duration: 0.4 }}
+                >
+                  <Link
+                    to={`/vendedor/${loja.id}`}
+                    className="group flex items-center gap-3 rounded-lg border border-border bg-card p-3 transition-colors hover:border-primary/40"
+                  >
+                    <img
+                      src={loja.capa}
+                      alt=""
+                      aria-hidden="true"
+                      className="h-12 w-12 shrink-0 rounded-md object-cover"
+                    />
+                    <div className="min-w-0">
+                      <span className="block truncate font-heading text-sm font-semibold uppercase tracking-wide text-foreground transition-colors group-hover:text-primary">
+                        {loja.nome}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {loja.itens} {loja.itens === 1 ? 'item' : 'itens'}
+                      </span>
+                    </div>
+                  </Link>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* ─── POR QUE VENDER AQUI ──────────────────────── */}
       <section className="py-16 lg:py-20">
@@ -408,8 +573,11 @@ function HomeContent() {
             {[
               {
                 icon: Search,
+                // "milhares de itens" não se sustenta num catálogo que abre com
+                // pouco mais de cem. Promessa que o site não cumpre na primeira
+                // rolagem custa mais confiança do que ganha.
                 title: 'Encontre',
-                desc: 'Navegue por milhares de itens colecionáveis ou dê lances em itens exclusivos.',
+                desc: 'Busque por peça, linha ou vendedor, ou dê lances em itens raros no Modo Lance.',
               },
               {
                 icon: ShieldCheck,
