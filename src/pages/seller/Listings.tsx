@@ -34,6 +34,7 @@ const statusTabs = [
 const statusColors: Record<string, string> = {
   active: 'bg-green-500/10 text-green-400',
   draft: 'bg-primary/10 text-primary',
+  pending_review: 'bg-yellow-500/10 text-yellow-500',
   rejected: 'bg-accent/10 text-accent',
   paused: 'bg-secondary text-muted-foreground',
   sold: 'bg-blue-500/10 text-blue-400',
@@ -43,6 +44,8 @@ const statusColors: Record<string, string> = {
 const statusLabels: Record<string, string> = {
   active: 'Ativo',
   draft: 'Rascunho',
+  // Faltava: o anúncio na fila mostrava o valor cru "pending_review" no selo.
+  pending_review: 'Em análise',
   rejected: 'Reprovado',
   paused: 'Pausado',
   sold: 'Vendido',
@@ -281,13 +284,26 @@ export default function SellerListings() {
                         <DropdownMenuItem className="gap-2 text-sm" onClick={() => duplicar(product)}>
                           <Copy className="h-3.5 w-3.5" /> Duplicar
                         </DropdownMenuItem>
-                        {(product.status === 'draft' || product.status === 'pending_review') && (
+                        {/* "Enviar para análise", não "Publicar": quem coloca no
+                            ar é a moderação. O nome antigo prometia publicação
+                            imediata e o vendedor não entenderia por que o
+                            anúncio não apareceu. */}
+                        {product.status === 'draft' && (
                           <DropdownMenuItem
                             className="gap-2 text-sm text-primary"
                             disabled={publishMutation.isPending}
                             onClick={() => publishMutation.mutate(product.id)}
                           >
-                            <Rocket className="h-3.5 w-3.5" /> Publicar
+                            <Rocket className="h-3.5 w-3.5" /> Enviar para análise
+                          </DropdownMenuItem>
+                        )}
+                        {product.status === 'paused' && (
+                          <DropdownMenuItem
+                            className="gap-2 text-sm text-primary"
+                            disabled={publishMutation.isPending}
+                            onClick={() => publishMutation.mutate(product.id)}
+                          >
+                            <Rocket className="h-3.5 w-3.5" /> Reativar
                           </DropdownMenuItem>
                         )}
                         {/* Anúncio reprovado ficava sem saída: "Publicar" só
