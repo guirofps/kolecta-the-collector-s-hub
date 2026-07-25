@@ -25,7 +25,7 @@ import {
 // O texto vai inteiro para o vendedor, no painel e no e-mail de reprovação.
 // Por isso cada motivo diz o que corrigir, não só o que está errado: "peso e
 // dimensões faltando" deixa a pessoa sem saber o que fazer.
-const rejectReasons = [
+const MOTIVOS_REPROVACAO = [
   'Fotos insuficientes ou de baixa qualidade',
   'Título ou descrição inadequados',
   // Frete errado sai caro para os dois lados, e era o motivo que faltava.
@@ -147,7 +147,9 @@ export default function AdminListings() {
 
   const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
-  const [rejectReason, setRejectReason] = useState('');
+  // Vários motivos de uma vez: anúncio incompleto costuma ter mais de um
+  // problema, e mandar um por vez faria o vendedor levar reprovações em série.
+  const [rejectReasons, setRejectReasons] = useState<string[]>([]);
   const [rejectNotes, setRejectNotes] = useState('');
   const [detailOpen, setDetailOpen] = useState(false);
   const [filtroCategoria, setFiltroCategoria] = useState<string>('todas');
@@ -258,36 +260,57 @@ export default function AdminListings() {
   };
 
   /**
-   * Motivo sugerido a partir do que a tela já detectou de errado.
-   * Com centenas de anúncios na fila, escolher o motivo à mão a cada
-   * reprovação cansa e leva a gente a clicar sempre no primeiro da lista.
-   * A sugestão continua editável: é um atalho, não uma decisão.
+   * TODOS os motivos que a tela já detectou, não só o primeiro.
+   * Anúncio de importação costuma ter várias faltas ao mesmo tempo (sem foto,
+   * sem frete, sem marca), e mandar um motivo por vez faria o vendedor
+   * corrigir, reenviar e levar outra reprovação pelo item seguinte.
+   * A sugestão continua editável: é atalho, não decisão.
    */
-  const motivoSugerido = (l: Listing): string => {
+  const motivosSugeridos = (l: Listing): string[] => {
     const faltas = pendenciasDe(l);
-    if (faltas.some((f) => f.includes('frete'))) {
-      return 'Peso ou dimensões faltando (o frete sai errado sem isso)';
+    const sugeridos: string[] = [];
+    if (faltas.some((f) => f.includes('foto'))) {
+      sugeridos.push('Fotos insuficientes ou de baixa qualidade');
     }
-    if (faltas.some((f) => f.includes('foto'))) return 'Fotos insuficientes ou de baixa qualidade';
-    if (faltas.some((f) => f.includes('sem categoria'))) return 'Categoria errada para este item';
-    // Sobrou pendência de campo obrigatório da categoria.
-    if (faltas.length > 0) return 'Faltam informações obrigatórias da categoria';
-    return '';
+    if (faltas.some((f) => f.includes('frete'))) {
+      sugeridos.push('Peso ou dimensões faltando (o frete sai errado sem isso)');
+    }
+    if (faltas.some((f) => f.includes('sem categoria'))) {
+      sugeridos.push('Categoria errada para este item');
+    }
+    // Sobrou falta de campo obrigatório da categoria (marca, escala, jogo…).
+    const outras = faltas.filter(
+      (f) => !f.includes('foto') && !f.includes('frete') && !f.includes('sem categoria') && !f.includes('sem valor'),
+    );
+    if (outras.length > 0) sugeridos.push('Faltam informações obrigatórias da categoria');
+    return sugeridos;
+  };
+
+  const toggleMotivo = (motivo: string) => {
+    setRejectReasons((atuais) =>
+      atuais.includes(motivo) ? atuais.filter((m) => m !== motivo) : [...atuais, motivo],
+    );
   };
 
   const openReject = (listing: Listing) => {
     setSelectedListing(listing);
     setRejectDialogOpen(true);
-    setRejectReason(motivoSugerido(listing));
+    setRejectReasons(motivosSugeridos(listing));
     setRejectNotes('');
   };
 
   const handleReject = () => {
     if (!selectedListing) return;
-    // O motivo escolhido e a observação seguem para o backend: é o que o
-    // vendedor lê para corrigir, e o que preenche o e-mail de anúncio
-    // rejeitado. Antes tudo isso era coletado na tela e descartado.
-    const motivo = [rejectReason, rejectNotes.trim()].filter(Boolean).join('. ');
+    // Vai como lista com "- ": o painel do vendedor e o e-mail formatam isso
+    // em itens legíveis (ver lib/description-format). Com vários motivos, um
+    // parágrafo corrido esconderia metade do que precisa ser corrigido.
+    const linhas = rejectReasons.map((m) => `- ${m}`);
+    const observacao = rejectNotes.trim();
+    const motivo = [
+      ...linhas,
+      ...(observacao ? ['', observacao] : []),
+    ].join('\n');
+
     setEmAndamento(selectedListing.id);
     updateStatus.mutate(
       { id: selectedListing.id, status: 'rejected', reason: motivo },
@@ -803,24 +826,45 @@ export default function AdminListings() {
             <DialogHeader>
               <DialogTitle className="font-heading text-lg font-bold uppercase text-accent">Reprovar Anúncio</DialogTitle>
               <DialogDescription className="text-sm text-muted-foreground">
-                Selecione o motivo da reprovação.
+                Marque tudo que precisa ser corrigido. O vendedor recebe a lista
+                inteira, no painel e por e-mail.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-3">
-              <div className="space-y-2">
-                {rejectReasons.map((reason) => (
-                  <button
-                    key={reason}
-                    onClick={() => setRejectReason(reason)}
-                    className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${
-                      rejectReason === reason
-                        ? 'bg-accent/10 text-accent border border-accent/30'
-                        : 'bg-secondary/30 text-muted-foreground hover:text-foreground border border-transparent'
-                    }`}
-                  >
-                    {reason}
-                  </button>
-                ))}
+              {/* O que a tela detectou já vem marcado; o admin ajusta. */}
+              {rejectReasons.length > 0 && (
+                <p className="text-[11px] text-muted-foreground">
+                  {rejectReasons.length} {rejectReasons.length === 1 ? 'motivo marcado' : 'motivos marcados'}
+                </p>
+              )}
+              <div className="max-h-72 space-y-2 overflow-y-auto">
+                {MOTIVOS_REPROVACAO.map((reason) => {
+                  const marcado = rejectReasons.includes(reason);
+                  return (
+                    <button
+                      key={reason}
+                      type="button"
+                      role="checkbox"
+                      aria-checked={marcado}
+                      onClick={() => toggleMotivo(reason)}
+                      className={`flex w-full items-start gap-2.5 rounded-md px-3 py-2 text-left text-sm transition-colors ${
+                        marcado
+                          ? 'border border-accent/30 bg-accent/10 text-accent'
+                          : 'border border-transparent bg-secondary/30 text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      <span
+                        className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
+                          marcado ? 'border-accent bg-accent text-accent-foreground' : 'border-muted-foreground/40'
+                        }`}
+                        aria-hidden="true"
+                      >
+                        {marcado && <Check className="h-3 w-3" />}
+                      </span>
+                      {reason}
+                    </button>
+                  );
+                })}
               </div>
               <Textarea
                 placeholder="Observações adicionais (opcional)..."
@@ -834,7 +878,7 @@ export default function AdminListings() {
               <Button
                 variant="accent"
                 onClick={handleReject}
-                disabled={!rejectReason || updateStatus.isPending}
+                disabled={rejectReasons.length === 0 || updateStatus.isPending}
               >
                 {updateStatus.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
                 Confirmar Reprovação

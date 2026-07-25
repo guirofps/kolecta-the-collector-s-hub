@@ -31,6 +31,27 @@ describe('RejectionNotice', () => {
     expect(screen.getByText(/não foi registrado/)).toBeInTheDocument();
   });
 
+  // A moderação manda vários motivos de uma vez, um por linha. Num parágrafo
+  // corrido o vendedor lê o primeiro e ignora o resto.
+  it('mostra vários motivos como lista, não como parágrafo', () => {
+    const { container } = r(
+      '- Fotos insuficientes ou de baixa qualidade\n'
+      + '- Peso ou dimensões faltando\n'
+      + '- Faltam informações obrigatórias da categoria',
+    );
+    const itens = container.querySelectorAll('li');
+    expect(itens).toHaveLength(3);
+    expect(itens[1].textContent).toContain('Peso ou dimensões');
+  });
+
+  it('mantém a observação do admin junto da lista', () => {
+    const { container } = r(
+      '- Fotos insuficientes\n- Peso faltando\n\nA terceira foto está desfocada.',
+    );
+    expect(container.querySelectorAll('li')).toHaveLength(2);
+    expect(container.textContent).toContain('A terceira foto está desfocada.');
+  });
+
   it('não interpreta o texto da moderação como HTML', () => {
     const { container } = r('Motivo <b>com marcação</b>');
     expect(container.querySelector('b')).toBeNull();

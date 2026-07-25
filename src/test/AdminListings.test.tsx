@@ -240,16 +240,69 @@ describe('AdminListings (fila de aprovação)', () => {
     );
   });
 
-  it('a sugestão é editável: o admin pode trocar', () => {
+  it('a sugestão é editável: o admin acrescenta outro motivo', () => {
     renderFila([makeListing()]);
     fireEvent.click(screen.getByText('Reprovar'));
-    // Vem sugerido frete, mas o admin escolhe outro.
     fireEvent.click(screen.getByText('Suspeita de falsificação ou item não autêntico'));
     fireEvent.click(screen.getByText('Confirmar Reprovação'));
     expect(mutate).toHaveBeenCalledWith(
       expect.objectContaining({ reason: expect.stringContaining('falsificação') }),
       expect.anything(),
     );
+  });
+
+  // ── Vários motivos de uma vez ──────────────────────────────────────────────
+  // Anúncio de importação costuma ter mais de um problema. Mandar um motivo por
+  // vez faria o vendedor corrigir, reenviar e levar outra reprovação em seguida.
+
+  it('envia todos os motivos marcados, um por linha', () => {
+    // Este anúncio tem 1 foto, sem frete e sem os campos que Funko exige:
+    // três faltas detectadas, mais o preço que o admin marca à mão.
+    renderFila([makeListing({ images: JSON.stringify(['a.jpg']) })]);
+    fireEvent.click(screen.getByText('Reprovar'));
+    fireEvent.click(screen.getByText('Preço fora dos padrões de mercado'));
+    fireEvent.click(screen.getByText('Confirmar Reprovação'));
+
+    const enviado = mutate.mock.calls[0][0].reason as string;
+    expect(enviado).toContain('Fotos insuficientes');
+    expect(enviado).toContain('Peso ou dimensões');
+    expect(enviado).toContain('informações obrigatórias da categoria');
+    expect(enviado).toContain('Preço fora dos padrões');
+    // Cada motivo numa linha, para virar lista no painel e no e-mail.
+    expect(enviado.split('\n').filter((l) => l.startsWith('- ')).length).toBe(4);
+  });
+
+  it('desmarcar tira o motivo da lista', () => {
+    renderFila([makeListing({ images: JSON.stringify(['a.jpg']) })]);
+    fireEvent.click(screen.getByText('Reprovar'));
+    // Vem sugerido; clicar de novo desmarca.
+    fireEvent.click(screen.getByText('Fotos insuficientes ou de baixa qualidade'));
+    fireEvent.click(screen.getByText('Confirmar Reprovação'));
+
+    const enviado = mutate.mock.calls[0][0].reason as string;
+    expect(enviado).not.toContain('Fotos insuficientes');
+    expect(enviado).toContain('Peso ou dimensões');
+  });
+
+  it('não deixa reprovar sem nenhum motivo marcado', () => {
+    // Anúncio completo: nada é sugerido, então o botão nasce travado.
+    renderFila([makeListing({
+      weightGrams: 300, widthCm: 10, heightCm: 10, lengthCm: 10,
+      attributes: JSON.stringify({ numero: '#1', line: 'Marvel' }),
+    })]);
+    fireEvent.click(screen.getByText('Reprovar'));
+    const confirmar = screen.getByText('Confirmar Reprovação').closest('button')!;
+    expect(confirmar.disabled).toBe(true);
+  });
+
+  it('a observação livre vai junto dos motivos', () => {
+    renderFila([makeListing()]);
+    fireEvent.click(screen.getByText('Reprovar'));
+    fireEvent.change(screen.getByPlaceholderText(/Observações adicionais/i), {
+      target: { value: 'A terceira foto está desfocada.' },
+    });
+    fireEvent.click(screen.getByText('Confirmar Reprovação'));
+    expect(mutate.mock.calls[0][0].reason).toContain('A terceira foto está desfocada.');
   });
 
   // ── Campos por categoria ───────────────────────────────────────────────────
