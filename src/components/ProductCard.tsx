@@ -32,7 +32,10 @@ export default function ProductCard({ product, className = '' }: ProductCardProp
   };
 
   return (
-    <div className={`group relative rounded-lg border border-border bg-card overflow-hidden transition-all duration-300 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 ${className}`}>
+    // `h-full flex flex-col` faz o card ocupar toda a altura da célula do grid.
+    // Sem isso, cada card fica com a altura do próprio conteúdo e a linha vira
+    // um serrote: título de 2 linhas empurra preço e botão para baixo.
+    <div className={`group relative flex h-full flex-col rounded-lg border border-border bg-card overflow-hidden transition-all duration-300 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 ${className}`}>
       {/* Image */}
       <Link
         to={`/produto/${product.id}`}
@@ -73,8 +76,8 @@ export default function ProductCard({ product, className = '' }: ProductCardProp
         </button>
       </Link>
 
-      {/* Info */}
-      <div className="p-3">
+      {/* Info — `flex-1` para o miolo esticar e o rodapé colar embaixo */}
+      <div className="flex flex-1 flex-col p-3">
         {/* Condition + Category */}
         <div className="flex items-center gap-2 mb-1.5">
           <span className="text-[10px] font-heading uppercase tracking-wider text-muted-foreground">
@@ -85,9 +88,11 @@ export default function ProductCard({ product, className = '' }: ProductCardProp
           )}
         </div>
 
-        {/* Title */}
+        {/* Title — altura de 2 linhas SEMPRE reservada (min-h), mesmo quando o
+            título cabe em uma. É o que mantém o preço na mesma linha em todos
+            os cards da vitrine. */}
         <Link to={`/produto/${product.id}`}>
-          <h3 className="text-sm font-medium text-foreground line-clamp-2 leading-snug hover:text-primary transition-colors">
+          <h3 className="min-h-[2.4rem] text-sm font-medium text-foreground line-clamp-2 leading-snug hover:text-primary transition-colors">
             {product.title}
           </h3>
         </Link>
@@ -115,8 +120,9 @@ export default function ProductCard({ product, className = '' }: ProductCardProp
           )}
         </div>
 
-        {/* Actions */}
-        <div className="mt-3">
+        {/* Actions — `mt-auto` empurra para o rodapé, então os botões ficam na
+            mesma altura mesmo quando o card ao lado tem contagem de lances. */}
+        <div className="mt-auto pt-3">
           {isAuction ? (
             <Button variant="accent" size="sm" className="w-full text-xs" asChild>
               <Link to={`/produto/${product.id}`}>
