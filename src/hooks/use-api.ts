@@ -9,6 +9,7 @@ import { api } from '@/lib/api';
 import type { OrderStatus, CreateRecipientPayload } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { hasLaunched } from '@/lib/launch';
+import { CATALOGO_STALE_MS } from '@/lib/catalogo';
 import { CLERK_ENABLED } from '@/lib/clerk';
 
 /**
@@ -205,7 +206,13 @@ export function useListings(limit = 20, offset = 0, q?: string) {
   return useQuery({
     queryKey: ['listings', limit, offset, q],
     queryFn: () => api.listings.getAll(limit, offset, q),
-    staleTime: 60_000,
+    // A listagem leva vários segundos para responder. Com 60s, quem navegava
+    // por mais de um minuto pagava a espera de novo; 5 min é bem mais do que a
+    // diferença que um anúncio novo faz na vitrine (ver lib/catalogo).
+    staleTime: CATALOGO_STALE_MS,
+    // Mantém o que já estava na tela enquanto revalida, em vez de voltar para
+    // o esqueleto de carregamento a cada troca de página.
+    placeholderData: (anterior) => anterior,
   });
 }
 

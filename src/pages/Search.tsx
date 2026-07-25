@@ -9,6 +9,7 @@ import { useListings, useCategories } from '@/hooks/use-api';
 import { type ProductCondition, type ProductType } from '@/lib/mock-data';
 import { trackEvent } from '@/lib/analytics';
 import { onlyPublic } from '@/lib/listing-visibility';
+import { LIMITE_CATALOGO } from '@/lib/catalogo';
 import { filtrarPorTermo } from '@/lib/busca';
 import { CONDITIONS } from '@/lib/conditions';
 import { Loader2 } from 'lucide-react';
@@ -39,7 +40,7 @@ export default function SearchPage() {
   // "pokemon" não achava "Pokémon" e a busca voltava vazia. O filtro roda aqui,
   // normalizado, junto dos outros que já eram client-side.
   // Só anúncio aprovado aparece na busca (ver lib/listing-visibility).
-  const { data: listingsRaw, isLoading } = useListings(200, 0);
+  const { data: listingsRaw, isLoading } = useListings(LIMITE_CATALOGO, 0);
   const listingsData = useMemo(
     () => filtrarPorTermo(onlyPublic(listingsRaw ?? []), query),
     [listingsRaw, query],

@@ -12,6 +12,7 @@ import ProductCard from '@/components/ProductCard';
 import VerificationBadge from '@/components/VerificationBadge';
 import { FounderBadgeFor } from '@/components/FounderBadge';
 import { onlyPublic } from '@/lib/listing-visibility';
+import { LIMITE_CATALOGO } from '@/lib/catalogo';
 import ProductDescription from '@/components/ProductDescription';
 import ProductGallery from '@/components/ProductGallery';
 import ReportListingDialog from '@/components/ReportListingDialog';
@@ -122,7 +123,13 @@ export default function ProductDetail() {
   const { data: listing, isLoading, isError } = useListing(id);
   // "Explore mais": anúncios reais da plataforma (busca alguns a mais para
   // sobrar 4 depois de tirar o próprio anúncio e os que não estão ativos).
-  const { data: similarData } = useListings(12);
+  //
+  // Usa o MESMO limite das outras telas de propósito. Pedir 12 aqui criava uma
+  // terceira listagem só para esta página: quem chegou pela home ou por uma
+  // categoria já tinha os dados em mãos e mesmo assim esperava de novo. O
+  // anúncio em si vem de `useListing(id)` e não depende disto, então os
+  // similares aparecerem um instante depois não segura a página.
+  const { data: similarData } = useListings(LIMITE_CATALOGO);
 
   const [isFavorite, setIsFavorite] = useState(false);
   const [reportDialogOpen, setReportDialogOpen] = useState(false);

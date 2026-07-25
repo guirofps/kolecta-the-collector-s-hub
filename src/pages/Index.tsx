@@ -15,6 +15,7 @@ import {
   contagemPorCategoria,
 } from '@/lib/home-sections';
 import { useListings } from '@/hooks/use-api';
+import { LIMITE_CATALOGO } from '@/lib/catalogo';
 import { COMMISSION_LABEL } from '@/lib/fees';
 import { useLaunchGate } from '@/hooks/use-launch-gate';
 import { categoryArt } from '@/lib/category-art';
@@ -100,7 +101,11 @@ const ATALHOS_BUSCA = ['Hot Wheels', 'Mini GT', 'Kaido House', 'Pokémon'];
 // Quanto a home puxa de uma vez. Precisa cobrir o catálogo inteiro para a
 // contagem por categoria bater com a realidade; se um dia não cobrir mais, a
 // home passa a dizer "mais de N" em vez de mentir o total.
-const LIMITE_HOME = 200;
+//
+// É o mesmo número da categoria, da busca e da página do produto (lib/catalogo),
+// para as quatro dividirem um cache só. Antes a home pedia 200 e a categoria
+// 500: quem clicava numa categoria esperava a mesma listagem duas vezes.
+const LIMITE_HOME = LIMITE_CATALOGO;
 
 const fadeUp = {
   hidden: { opacity: 0, y: 30 },

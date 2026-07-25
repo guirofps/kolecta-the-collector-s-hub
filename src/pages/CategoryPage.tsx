@@ -5,6 +5,7 @@ import ProductCard from '@/components/ProductCard';
 import { useListings, useCategories } from '@/hooks/use-api';
 import { Button } from '@/components/ui/button';
 import { onlyPublic } from '@/lib/listing-visibility';
+import { LIMITE_CATALOGO } from '@/lib/catalogo';
 import {
   subcategoriaField, normalizeSubcategoria, parseAttributes, formatFieldValue,
 } from '@/lib/category-fields';
@@ -87,7 +88,10 @@ function CategoryIcon({ slug, size = 32 }: { slug: string; size?: number }) {
 // tendo itens, porque os 40 primeiros anúncios do geral podiam não ter nenhum
 // daquela categoria. Filtrar por categoria no servidor está pedido ao backend
 // (ver docs/pendencias-backend.md).
-const LOTE = 500;
+//
+// O número vive em lib/catalogo, junto com o da home e o da busca: limite
+// diferente vira cache diferente, e a categoria refazia uma listagem que a
+// home tinha acabado de baixar.
 
 type FiltroTipo = 'todos' | 'direct' | 'auction';
 
@@ -100,7 +104,7 @@ export default function CategoryPage() {
   // filtramos pela CATEGORIA real (id resolvido pelo slug via API).
   // Hooks ficam antes de qualquer return condicional (regras dos hooks).
   const { data: apiCategories, isLoading: catsLoading } = useCategories();
-  const { data: listingsData, isLoading: listingsLoading } = useListings(LOTE, 0);
+  const { data: listingsData, isLoading: listingsLoading } = useListings(LIMITE_CATALOGO, 0);
 
   if (slug && REMOVED_CATEGORY_SLUGS.includes(slug)) {
     return <Navigate to="/categorias" replace />;
