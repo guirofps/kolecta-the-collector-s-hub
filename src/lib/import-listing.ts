@@ -15,11 +15,13 @@
 
 import { CONDITIONS } from '@/lib/conditions';
 import { CATEGORY_FIELDS, fieldsForCategory } from '@/lib/category-fields';
+import { MIN_PHOTOS, MAX_PHOTOS } from '@/lib/photos';
 
 export const MIN_TITLE = 10;
 export const MIN_DESCRIPTION = 30;
-export const MIN_PHOTOS = 3;
-export const MAX_PHOTOS = 8;
+// Reexportado porque a planilha e o validador já eram importados daqui. O
+// número mora em lib/photos, fonte única da regra.
+export { MIN_PHOTOS, MAX_PHOTOS };
 
 /** Colunas do modelo, na ordem em que aparecem na planilha. */
 export interface ColunaModelo {

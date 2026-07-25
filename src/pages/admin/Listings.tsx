@@ -17,6 +17,7 @@ import { formatBRL } from '@/lib/currency';
 // (mint, near_mint...) e não batia com o que o wizard salva (`novo-lacrado`),
 // então a fila mostrava o código cru em todo anúncio.
 import { conditionLabel } from '@/lib/conditions';
+import { MIN_PHOTOS, MAX_PHOTOS } from '@/lib/photos';
 import ProductDescription from '@/components/ProductDescription';
 import {
   fieldsForCategory, parseAttributes, formatFieldValue, isFieldApplicable,
@@ -174,7 +175,7 @@ export default function AdminListings() {
   const pendenciasDe = (l: Listing): string[] => {
     const faltas: string[] = [];
     const fotos = parseImages(l.images).length;
-    if (fotos < 3) faltas.push(`${fotos} ${fotos === 1 ? 'foto' : 'fotos'}`);
+    if (fotos < MIN_PHOTOS) faltas.push(`${fotos} ${fotos === 1 ? 'foto' : 'fotos'}`);
     if (!l.categoryId) faltas.push('sem categoria');
     if (valorPrincipal(l) === null) faltas.push('sem valor');
     if (resumoFrete(l).faltando) faltas.push('frete incompleto');
@@ -540,7 +541,7 @@ export default function AdminListings() {
                             <span>·</span>
                             <span>{nomeCategoria(listing.categoryId) ?? 'Sem categoria'}</span>
                             <span>·</span>
-                            <span className={imgs.length < 3 ? 'text-destructive' : undefined}>
+                            <span className={imgs.length < MIN_PHOTOS ? 'text-destructive' : undefined}>
                               {imgs.length} {imgs.length === 1 ? 'foto' : 'fotos'}
                             </span>
                           </div>
@@ -719,7 +720,7 @@ export default function AdminListings() {
                           });
                       })()}
 
-                      <Dado rotulo="Fotos" valor={`${imgs.length} de 8`} alerta={imgs.length < 3} />
+                      <Dado rotulo="Fotos" valor={`${imgs.length} de ${MAX_PHOTOS}`} alerta={imgs.length < MIN_PHOTOS} />
                       {/* Só quando o vendedor usa: SKU vazio não é problema. */}
                       {selectedListing.sku && <Dado rotulo="SKU" valor={selectedListing.sku} />}
                     </div>

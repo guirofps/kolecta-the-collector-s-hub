@@ -240,6 +240,21 @@ describe('AdminListings (fila de aprovação)', () => {
     );
   });
 
+  // O mínimo caiu de 3 para 2 (lib/photos). Duas fotos param de ser pendência:
+  // fixa o limite aqui para que voltar a exigir 3 quebre no teste, e não numa
+  // reprovação injusta na fila.
+  it('duas fotos deixam de ser pendência', () => {
+    renderFila([makeListing({
+      images: JSON.stringify(['uma.jpg', 'duas.jpg']),
+      weightGrams: 300, widthCm: 10, heightCm: 10, lengthCm: 10,
+      attributes: JSON.stringify({ numero: '#1', line: 'Marvel' }),
+    })]);
+    fireEvent.click(screen.getByText('Reprovar'));
+    // Nada sugerido: sem motivo marcado, o botão nasce travado.
+    const confirmar = screen.getByText('Confirmar Reprovação').closest('button')!;
+    expect(confirmar.disabled).toBe(true);
+  });
+
   it('a sugestão é editável: o admin acrescenta outro motivo', () => {
     renderFila([makeListing()]);
     fireEvent.click(screen.getByText('Reprovar'));

@@ -47,7 +47,7 @@ const mockArticles: Record<string, {
       { type: 'p', text: 'Para receber seus pagamentos, vincule uma conta Stripe ao seu perfil de vendedor. O processo é rápido e seguro. Os repasses são feitos automaticamente em até 3 dias úteis após a confirmação de entrega.' },
       { type: 'highlight', text: 'Importante: Configure suas políticas de envio e devolução no Painel do Vendedor antes de criar seu primeiro anúncio. Isso transmite confiança aos compradores.' },
       { type: 'h3', text: 'Criando seu primeiro anúncio' },
-      { type: 'p', text: 'No Painel do Vendedor, clique em "Novo Anúncio". Preencha todas as informações do produto: título claro, descrição detalhada, condição exata do item, fotos de alta qualidade (mínimo 3 fotos) e preço competitivo. Anúncios completos e bem elaborados vendem até 3x mais rápido.' },
+      { type: 'p', text: 'No Painel do Vendedor, clique em "Novo Anúncio". Preencha todas as informações do produto: título claro, descrição detalhada, condição exata do item, fotos de alta qualidade (mínimo 2 fotos) e preço competitivo. Anúncios completos e bem elaborados vendem até 3x mais rápido.' },
     ],
   },
 };

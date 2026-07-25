@@ -21,6 +21,7 @@ import { categoryArt } from '@/lib/category-art';
 import { parsePriceToCents } from '@/lib/currency';
 import { loadDraft, saveDraft, clearDraft } from '@/lib/listing-draft';
 import { CONDITIONS } from '@/lib/conditions';
+import { MIN_PHOTOS, MAX_PHOTOS } from '@/lib/photos';
 import { fieldsForCategory, formatFieldValue, isFieldApplicable } from '@/lib/category-fields';
 import ProductDescription from '@/components/ProductDescription';
 import { useCreateListing, useUploadImage, useCategories, useAddresses } from '@/hooks/use-api';
@@ -180,8 +181,6 @@ const initialForm: FormData = {
 // catálogo, então o wizard bloqueia em vez de só "recomendar".
 const MIN_TITLE = 10;
 const MIN_DESCRIPTION = 30;
-const MIN_PHOTOS = 3;
-const MAX_PHOTOS = 8;
 /** Fotos enviadas ao mesmo tempo. 8 × 5 MB de uma vez estoura no 4G. */
 const UPLOAD_CONCURRENCY = 2;
 

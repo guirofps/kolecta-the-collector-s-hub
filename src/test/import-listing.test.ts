@@ -115,6 +115,13 @@ describe('validação da linha', () => {
     expect(e.some((x) => x.campo === 'images')).toBe(true);
   });
 
+  // O mínimo é 2 (lib/photos). Duas fotos passam, uma não: fixa o limite para
+  // que voltar a exigir 3 quebre aqui em vez de na mão do vendedor.
+  it('aceita duas fotos, que é o mínimo de hoje', () => {
+    const e = errosDe({ images: 'https://s.com/1.jpg, https://s.com/2.jpg' });
+    expect(e.some((x) => x.campo === 'images')).toBe(false);
+  });
+
   it('exige peso e medidas, senão o frete sai errado', () => {
     const e = errosDe({ weight_grams: '', width_cm: '0' });
     expect(e.some((x) => x.campo === 'weight_grams')).toBe(true);
