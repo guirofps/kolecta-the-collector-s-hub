@@ -56,6 +56,7 @@ export function toProduct(l: Listing): Product {
     status: l.status,
     createdAt: l.createdAt,
     // Sem estes campos o card do leilão cai no `|| 0` e mostra "R$ 0,00".
+    auctionId: l.auctionId ?? undefined,
     startingBid: l.startingBidInCents != null ? l.startingBidInCents / 100 : undefined,
     currentBid: l.currentBidInCents != null ? l.currentBidInCents / 100 : undefined,
     bidsCount: l.bidsCount ?? 0,

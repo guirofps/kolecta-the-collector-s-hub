@@ -203,6 +203,7 @@ export default function CategoryPage() {
     status: l.status,
     createdAt: l.createdAt,
     // Leilão: sem isto o card mostra "R$ 0,00" (ver Index.tsx).
+    auctionId: l.auctionId ?? undefined,
     startingBid:
       l.startingBidInCents != null ? l.startingBidInCents / 100 : undefined,
     currentBid:

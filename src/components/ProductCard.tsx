@@ -19,6 +19,12 @@ interface ProductCardProps {
 
 export default function ProductCard({ product, className = '' }: ProductCardProps) {
   const isAuction = product.type === 'auction';
+  // Leilão é disputado em /modo-lance/:auctionId. Mandar para /produto/:id era
+  // um beco: a página do anúncio não mostra lance nem tem como dar um. Anúncio
+  // de leilão sem `auctionId` (backend antigo) continua caindo no produto.
+  const href = isAuction && product.auctionId
+    ? `/modo-lance/${product.auctionId}`
+    : `/produto/${product.id}`;
   const { isAuthenticated } = useAuth();
   const { query: favoritesQuery, toggleMutation } = useFavorites();
   
@@ -39,7 +45,7 @@ export default function ProductCard({ product, className = '' }: ProductCardProp
     <div className={`group relative flex h-full flex-col rounded-lg border border-border bg-card overflow-hidden transition-all duration-300 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 ${className}`}>
       {/* Image */}
       <Link
-        to={`/produto/${product.id}`}
+        to={href}
         onClick={() => trackEvent('view_product', { id: product.id })}
         className="block relative aspect-square overflow-hidden bg-kolecta-dark"
       >
@@ -92,7 +98,7 @@ export default function ProductCard({ product, className = '' }: ProductCardProp
         {/* Title — altura de 2 linhas SEMPRE reservada (min-h), mesmo quando o
             título cabe em uma. É o que mantém o preço na mesma linha em todos
             os cards da vitrine. */}
-        <Link to={`/produto/${product.id}`}>
+        <Link to={href}>
           <h3 className="min-h-[2.4rem] text-sm font-medium text-foreground line-clamp-2 leading-snug hover:text-primary transition-colors">
             {product.title}
           </h3>
@@ -126,7 +132,7 @@ export default function ProductCard({ product, className = '' }: ProductCardProp
         <div className="mt-auto pt-3">
           {isAuction ? (
             <Button variant="accent" size="sm" className="w-full text-xs" asChild>
-              <Link to={`/produto/${product.id}`}>
+              <Link to={href}>
                 <Gavel className="h-3.5 w-3.5" />
                 Dar Lance
               </Link>

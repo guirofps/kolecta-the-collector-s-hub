@@ -1214,6 +1214,9 @@ export interface Listing {
   // todo endpoint devolve: a fila de moderação (/api/admin/listings) ainda não
   // manda, e sem isso o admin aprova leilão sem ver lance inicial nem reserva.
   // Ver docs/emails-transacionais.md e o handoff do painel.
+  // Id do LEILÃO (tabela `auctions`), diferente do id do anúncio. É por ele que
+  // se chega em /modo-lance/:id — sem isso a vitrine só sabia levar ao produto.
+  auctionId?: string | null;
   startingBidInCents?: number | null;
   minIncrementInCents?: number | null;
   reservePriceInCents?: number | null;

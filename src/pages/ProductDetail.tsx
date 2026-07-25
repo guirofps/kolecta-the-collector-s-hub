@@ -9,6 +9,7 @@ import {
 import Layout from '@/components/layout/Layout';
 import { cn } from '@/lib/utils';
 import ProductCard from '@/components/ProductCard';
+import AuctionCountdown from '@/components/AuctionCountdown';
 import VerificationBadge from '@/components/VerificationBadge';
 import { FounderBadgeFor } from '@/components/FounderBadge';
 import { onlyPublic } from '@/lib/listing-visibility';
@@ -87,6 +88,15 @@ function listingToCartProduct(listing: Listing) {
     tags: [],
     status: (listing.status as ListingStatus) ?? 'aprovado',
     createdAt: listing.createdAt,
+    // Também alimenta os cards de "Explore mais": sem estes campos, um leilão
+    // ali aparecia por R$ 0,00 e o "Dar Lance" não sabia para qual leilão ir.
+    auctionId: listing.auctionId ?? undefined,
+    startingBid:
+      listing.startingBidInCents != null ? listing.startingBidInCents / 100 : undefined,
+    currentBid:
+      listing.currentBidInCents != null ? listing.currentBidInCents / 100 : undefined,
+    bidsCount: listing.bidsCount ?? 0,
+    auctionEndsAt: listing.endsAt ?? undefined,
   } as Product;
 }
 
@@ -209,6 +219,17 @@ export default function ProductDetail() {
   const priceInBRL = listing.priceInCents != null ? listing.priceInCents / 100 : null;
   const isAvailable = listing.status === 'active';
 
+  // Leilão: `priceInCents` é nulo (o valor mora na tabela `auctions`), então a
+  // página mostrava "A definir" mesmo num leilão com lance. A disputa em si
+  // continua em /modo-lance/:auctionId — aqui vai o estado atual e o caminho
+  // até lá. Anúncio antigo sem `auctionId` cai na lista de leilões, como antes.
+  const bidInCents = listing.currentBidInCents ?? listing.startingBidInCents ?? null;
+  const hasBids = listing.currentBidInCents != null;
+  const auctionPaused = Boolean(listing.auctionPausedAt);
+  const auctionHref = listing.auctionId
+    ? `/modo-lance/${listing.auctionId}`
+    : '/modo-lance';
+
   // "Explore mais": anúncios REAIS da plataforma (antes vinha de mock, que
   // exibia produtos inexistentes com preço e contagem de lances falsos).
   // Tira o próprio anúncio da lista e mostra até 4.
@@ -310,19 +331,45 @@ export default function ProductDetail() {
               ) : (
                 // Leilão — o lance acontece na página do Modo Lance (por auctionId)
                 <div className="space-y-4">
-                  <div>
-                    <span className="text-xs text-muted-foreground uppercase tracking-wider">Lance inicial</span>
-                    <div className="font-heading text-4xl font-extrabold text-accent mt-1">
-                      {priceInBRL != null ? formatBRL(priceInBRL) : 'A definir'}
+                  <div className="flex items-end justify-between gap-4">
+                    <div>
+                      <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                        {hasBids ? 'Lance atual' : 'Lance inicial'}
+                      </span>
+                      <div className="font-heading text-4xl font-extrabold text-accent mt-1">
+                        {bidInCents != null ? formatBRL(bidInCents / 100) : 'A definir'}
+                      </div>
+                      {(listing.bidsCount ?? 0) > 0 && (
+                        <span className="text-xs text-muted-foreground">
+                          {listing.bidsCount} {listing.bidsCount === 1 ? 'lance' : 'lances'}
+                        </span>
+                      )}
                     </div>
+                    {listing.endsAt && (
+                      <div className="text-right">
+                        <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                          {auctionPaused ? 'Situação' : 'Tempo restante'}
+                        </span>
+                        <div className="mt-1 flex justify-end">
+                          {auctionPaused ? (
+                            <span className="flex items-center gap-1 font-heading text-lg font-bold text-kolecta-gold">
+                              <AlertTriangle className="h-4 w-4" /> Pausado
+                            </span>
+                          ) : (
+                            <AuctionCountdown endsAt={listing.endsAt} compact />
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <div className="rounded-md bg-accent/5 border border-accent/20 p-3 text-xs text-accent flex items-start gap-2">
                     <Gavel className="h-4 w-4 shrink-0 mt-0.5" />
                     <p>Este item é vendido no Modo Lance.</p>
                   </div>
                   <Button variant="accent" size="lg" className="w-full" asChild>
-                    <Link to="/modo-lance">
-                      <Gavel className="h-5 w-5 mr-2" /> Ver leilões ativos
+                    <Link to={auctionHref}>
+                      <Gavel className="h-5 w-5 mr-2" />
+                      {listing.auctionId ? 'Ir para o leilão' : 'Ver leilões ativos'}
                     </Link>
                   </Button>
                 </div>

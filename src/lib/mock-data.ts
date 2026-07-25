@@ -46,6 +46,8 @@ export interface Product {
   condition: ProductCondition;
   type: ProductType;
   price?: number;
+  /** Id do leilão (rota /modo-lance/:id). Só em type='auction'. */
+  auctionId?: string;
   currentBid?: number;
   startingBid?: number;
   minIncrement?: number;
