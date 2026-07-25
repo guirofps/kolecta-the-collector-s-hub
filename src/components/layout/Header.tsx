@@ -14,6 +14,7 @@ import kolectaLogo from '@/assets/kolecta-logo.png';
 import { CLERK_ENABLED } from '@/lib/clerk';
 import { useCart } from '@/contexts/CartContext';
 import { useLaunchGate } from '@/hooks/use-launch-gate';
+import { isOpenRoute } from '@/components/LaunchGate';
 
 const Logo = () => (
   <Link to="/" className="flex items-center select-none">
@@ -34,6 +35,14 @@ function DrawerContent() {
   const { user } = useUser();
   const { signOut } = useClerk();
   const { gateActive } = useLaunchGate();
+
+  // O menu não pode decidir sozinho o que está aberto. A seção Vendedor estava
+  // atrás de `!gateActive` e sumia inteira no pré-lançamento, mas `/painel` é
+  // rota liberada de propósito: é onde o Fundador monta a vitrine antes do
+  // lançamento. No celular, quem entrava não achava "Criar Anúncio" nem "Meus
+  // Anúncios" e precisava saber a URL de cabeça. Agora quem responde é a mesma
+  // função que o gate usa para redirecionar, então menu e gate não divergem.
+  const acessivel = (href: string) => !gateActive || isOpenRoute(href);
 
   return (
     <div className="flex flex-col h-full bg-kolecta-dark text-white overflow-hidden">
@@ -89,33 +98,37 @@ function DrawerContent() {
         <div>
           <h3 className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-3">Navegar</h3>
           <div className="space-y-1">
-            {!gateActive && (
-              <>
-                <SheetClose asChild>
-                  <Link to="/busca" className="flex items-center gap-3 py-2 text-white/70 hover:text-white transition-colors">
-                    <Search className="w-4 h-4" />
-                    <span className="text-sm">Explorar</span>
-                  </Link>
-                </SheetClose>
-                <SheetClose asChild>
-                  <Link to="/categorias" className="flex items-center gap-3 py-2 text-white/70 hover:text-white transition-colors">
-                    <List className="w-4 h-4" />
-                    <span className="text-sm">Categorias</span>
-                  </Link>
-                </SheetClose>
-                <SheetClose asChild>
-                  <Link to="/modo-lance" className="flex items-center gap-3 py-2 text-white/70 hover:text-white transition-colors">
-                    <Gavel className="w-4 h-4" />
-                    <span className="text-sm">Modo Lance</span>
-                  </Link>
-                </SheetClose>
-                <SheetClose asChild>
-                  <Link to="/comunidade" className="flex items-center gap-3 py-2 text-white/70 hover:text-white transition-colors">
-                    <Users className="w-4 h-4" />
-                    <span className="text-sm">Comunidade</span>
-                  </Link>
-                </SheetClose>
-              </>
+            {acessivel('/busca') && (
+              <SheetClose asChild>
+                <Link to="/busca" className="flex items-center gap-3 py-2 text-white/70 hover:text-white transition-colors">
+                  <Search className="w-4 h-4" />
+                  <span className="text-sm">Explorar</span>
+                </Link>
+              </SheetClose>
+            )}
+            {acessivel('/categorias') && (
+              <SheetClose asChild>
+                <Link to="/categorias" className="flex items-center gap-3 py-2 text-white/70 hover:text-white transition-colors">
+                  <List className="w-4 h-4" />
+                  <span className="text-sm">Categorias</span>
+                </Link>
+              </SheetClose>
+            )}
+            {acessivel('/modo-lance') && (
+              <SheetClose asChild>
+                <Link to="/modo-lance" className="flex items-center gap-3 py-2 text-white/70 hover:text-white transition-colors">
+                  <Gavel className="w-4 h-4" />
+                  <span className="text-sm">Modo Lance</span>
+                </Link>
+              </SheetClose>
+            )}
+            {acessivel('/comunidade') && (
+              <SheetClose asChild>
+                <Link to="/comunidade" className="flex items-center gap-3 py-2 text-white/70 hover:text-white transition-colors">
+                  <Users className="w-4 h-4" />
+                  <span className="text-sm">Comunidade</span>
+                </Link>
+              </SheetClose>
             )}
             <SheetClose asChild>
               <Link to="/como-funciona" className="flex items-center gap-3 py-2 text-white/70 hover:text-white transition-colors">
@@ -190,7 +203,7 @@ function DrawerContent() {
             </div>
 
             {/* Vendedor */}
-            {!gateActive && (
+            {acessivel('/painel') && (
             <div>
               <h3 className="text-xs font-semibold text-kolecta-gold uppercase tracking-wider mb-3">Vendedor</h3>
               <div className="space-y-1">
@@ -270,9 +283,12 @@ export default function Header() {
   const navigate = useNavigate();
   const pathname = location.pathname;
 
-  // No pré-lançamento (não-admin), só a Ajuda continua navegável no topo.
+  // No pré-lançamento (não-admin), fica só o que o gate deixa passar. Quem
+  // decide é `isOpenRoute`, a mesma função do redirecionamento: assim "Vender"
+  // continua no topo antes do lançamento, que é o que o Fundador precisa
+  // fazer agora, e nenhum link aponta para uma rota que vai redirecionar.
   const visibleNavLinks = gateActive
-    ? navLinks.filter((l) => l.href === '/ajuda')
+    ? navLinks.filter((l) => isOpenRoute(l.href))
     : navLinks;
 
   useEffect(() => {
@@ -477,23 +493,44 @@ export default function Header() {
           <Home className="h-5 w-5" />
           <span className="text-[10px] font-medium leading-none">Início</span>
         </Link>
-        {!gateActive && (
-        <Link
-          to="/busca"
-          className={`flex flex-col items-center justify-center w-full h-full gap-1 ${pathname === '/busca' ? 'text-kolecta-gold' : 'text-white/60 hover:text-white'}`}
-        >
-          <Search className="h-5 w-5" />
-          <span className="text-[10px] font-medium leading-none">Busca</span>
-        </Link>
-        )}
-        {!gateActive && (
-        <Link
-          to="/modo-lance"
-          className={`flex flex-col items-center justify-center w-full h-full gap-1 ${pathname === '/modo-lance' ? 'text-kolecta-gold' : 'text-white/60 hover:text-white'}`}
-        >
-          <Gavel className="h-5 w-5" />
-          <span className="text-[10px] font-medium leading-none">Lances</span>
-        </Link>
+        {/* Antes do lançamento estes dois lugares ficavam vazios: busca e
+            leilão estão fechados. Como o que o vendedor tem para fazer agora é
+            montar a vitrine, o espaço vira atalho do painel, que é rota aberta.
+            No dia da virada volta a ser busca e leilão sozinho. */}
+        {gateActive ? (
+          <>
+            <Link
+              to="/painel/anuncios"
+              className={`flex flex-col items-center justify-center w-full h-full gap-1 ${pathname.startsWith('/painel/anuncios') && pathname !== '/painel/anuncios/novo' ? 'text-kolecta-gold' : 'text-white/60 hover:text-white'}`}
+            >
+              <Tag className="h-5 w-5" />
+              <span className="text-[10px] font-medium leading-none">Anúncios</span>
+            </Link>
+            <Link
+              to="/painel/anuncios/novo"
+              className={`flex flex-col items-center justify-center w-full h-full gap-1 ${pathname === '/painel/anuncios/novo' ? 'text-kolecta-gold' : 'text-white/60 hover:text-white'}`}
+            >
+              <PlusCircle className="h-5 w-5" />
+              <span className="text-[10px] font-medium leading-none">Anunciar</span>
+            </Link>
+          </>
+        ) : (
+          <>
+            <Link
+              to="/busca"
+              className={`flex flex-col items-center justify-center w-full h-full gap-1 ${pathname === '/busca' ? 'text-kolecta-gold' : 'text-white/60 hover:text-white'}`}
+            >
+              <Search className="h-5 w-5" />
+              <span className="text-[10px] font-medium leading-none">Busca</span>
+            </Link>
+            <Link
+              to="/modo-lance"
+              className={`flex flex-col items-center justify-center w-full h-full gap-1 ${pathname === '/modo-lance' ? 'text-kolecta-gold' : 'text-white/60 hover:text-white'}`}
+            >
+              <Gavel className="h-5 w-5" />
+              <span className="text-[10px] font-medium leading-none">Lances</span>
+            </Link>
+          </>
         )}
         <Link 
           to="/conta/mensagens" 
