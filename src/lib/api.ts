@@ -1183,6 +1183,11 @@ export interface Listing {
   durationHours?: number | null;
   antiSniper?: boolean | null;
   endsAt?: string | null;
+  // Lance atual e nº de lances: a listagem pública passou a devolver, senão o
+  // card do leilão exibia "R$ 0,00" mesmo com lance inicial definido.
+  currentBidInCents?: number | null;
+  bidsCount?: number | null;
+  auctionStatus?: string | null;
   // Atributos específicos da categoria (JSON stringificado).
   attributes?: string | null;
   // Dados de envio (frete): peso em gramas, dimensões em cm. Nullable.

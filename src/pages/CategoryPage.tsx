@@ -198,6 +198,13 @@ export default function CategoryPage() {
     tags: [],
     status: l.status,
     createdAt: l.createdAt,
+    // Leilão: sem isto o card mostra "R$ 0,00" (ver Index.tsx).
+    startingBid:
+      l.startingBidInCents != null ? l.startingBidInCents / 100 : undefined,
+    currentBid:
+      l.currentBidInCents != null ? l.currentBidInCents / 100 : undefined,
+    bidsCount: l.bidsCount ?? 0,
+    auctionEndsAt: l.endsAt ?? undefined,
   }));
 
   return (

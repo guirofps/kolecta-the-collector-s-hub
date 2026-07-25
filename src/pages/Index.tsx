@@ -162,6 +162,14 @@ function HomeContent() {
     tags: [],
     status: l.status,
     createdAt: l.createdAt,
+    // Leilão: sem estes campos o card cai no `|| 0` e mostra "R$ 0,00" mesmo
+    // num leilão de R$ 3.100. O backend passou a mandá-los na listagem.
+    startingBid:
+      l.startingBidInCents != null ? l.startingBidInCents / 100 : undefined,
+    currentBid:
+      l.currentBidInCents != null ? l.currentBidInCents / 100 : undefined,
+    bidsCount: l.bidsCount ?? 0,
+    auctionEndsAt: l.endsAt ?? undefined,
   }));
 
   return (
