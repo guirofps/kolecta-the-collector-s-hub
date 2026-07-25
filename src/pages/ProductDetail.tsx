@@ -13,6 +13,7 @@ import VerificationBadge from '@/components/VerificationBadge';
 import { FounderBadgeFor } from '@/components/FounderBadge';
 import { onlyPublic } from '@/lib/listing-visibility';
 import ProductDescription from '@/components/ProductDescription';
+import ProductGallery from '@/components/ProductGallery';
 import ReportListingDialog from '@/components/ReportListingDialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -224,15 +225,8 @@ export default function ProductDetail() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
 
-          {/* Imagem principal */}
-          <div className="aspect-square rounded-lg overflow-hidden bg-kolecta-dark border border-border">
-            <img
-              src={images[0]}
-              alt={listing.title}
-              className="w-full h-full object-cover"
-              onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }}
-            />
-          </div>
+          {/* Fotos: principal + miniaturas clicáveis */}
+          <ProductGallery images={images} title={listing.title} />
 
           {/* Info */}
           <div>

@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import VerificationBadge from '@/components/VerificationBadge';
 import { FounderBadgeFor } from '@/components/FounderBadge';
+import ProductGallery from '@/components/ProductGallery';
 import { useAuctionDetail, usePlaceBid, useSavedCard } from '@/hooks/use-api';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatBRL } from '@/lib/currency';
@@ -141,15 +142,8 @@ export default function AuctionDetail() {
         </nav>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Imagem */}
-          <div className="aspect-square rounded-lg overflow-hidden bg-kolecta-dark border border-border">
-            <img
-              src={images[0]}
-              alt={auction.title}
-              className="w-full h-full object-cover"
-              onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }}
-            />
-          </div>
+          {/* Fotos: principal + miniaturas clicáveis */}
+          <ProductGallery images={images} title={auction.title} />
 
           {/* Info */}
           <div>
