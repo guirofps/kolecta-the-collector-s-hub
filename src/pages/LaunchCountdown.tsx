@@ -8,7 +8,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { FounderMedal, FounderBadge } from '@/components/FounderBadge';
-import { getCountdown, getLaunchDate, type Countdown } from '@/lib/launch';
+import { getCountdown, getLaunchDate, hasLaunched, type Countdown } from '@/lib/launch';
 import kolectaLogo from '@/assets/kolecta-logo.png';
 import heroBg from '@/assets/hero-bg.jpg';
 import miniGtNsx from '@/assets/mini-gt-nsx.webp';
@@ -200,6 +200,13 @@ export default function LaunchCountdown() {
   const launchLabel = formatLaunchLabel();
   const { isAuthenticated } = useAuth();
 
+  // A mesma página serve dois momentos: ANTES do lançamento é a contagem
+  // regressiva na raiz (`/`), via LaunchGate; DEPOIS vira a captação
+  // permanente em `/fundadores`, para onde a campanha continua mandando
+  // trafego. Já lançou = esconde o relógio (que zerou) e troca "abre em X"
+  // por "já está no ar". O programa de Fundador segue aberto até as 100 vagas.
+  const lancado = hasLaunched();
+
   useEffect(() => {
     const prev = document.title;
     document.title = 'Kolecta · Seja um Fundador' + (launchLabel ? ` · Lançamento ${launchLabel}` : '');
@@ -234,7 +241,7 @@ export default function LaunchCountdown() {
 
           <motion.div variants={fadeUp} custom={1}>
             <Badge className="mb-6 bg-primary/10 text-primary border-primary/20 font-heading uppercase tracking-widest text-xs px-4 py-1.5">
-              Pré-lançamento · Apenas {TOTAL_FOUNDERS} vagas
+              {lancado ? `Últimas vagas de Fundador` : `Pré-lançamento · Apenas ${TOTAL_FOUNDERS} vagas`}
             </Badge>
           </motion.div>
 
@@ -252,8 +259,17 @@ export default function LaunchCountdown() {
             custom={3}
             className="text-base sm:text-lg text-white/60 max-w-lg mx-auto mb-6"
           >
-            O point dos colecionadores abre {launchLabel ? <>em <strong className="text-white/80">{launchLabel}</strong></> : 'em breve'}.
-            Entre agora, monte sua loja e concorra às vantagens de Fundador que ninguém mais vai ter.
+            {lancado ? (
+              <>
+                O point dos colecionadores <strong className="text-white/80">já está no ar</strong>.
+                Entre, monte sua loja e concorra às vantagens de Fundador que ninguém mais vai ter.
+              </>
+            ) : (
+              <>
+                O point dos colecionadores abre {launchLabel ? <>em <strong className="text-white/80">{launchLabel}</strong></> : 'em breve'}.
+                Entre agora, monte sua loja e concorra às vantagens de Fundador que ninguém mais vai ter.
+              </>
+            )}
           </motion.p>
 
           {/* Faixa de benefícios: o que ganha, na cara, sem precisar rolar */}
@@ -279,20 +295,32 @@ export default function LaunchCountdown() {
             ))}
           </motion.div>
 
-          <motion.div
-            variants={fadeUp}
-            custom={5}
-            className="flex items-start justify-center gap-2 sm:gap-4 mb-8"
-            aria-hidden="true"
-          >
-            <TimerBlock value={String(time.days)} label="Dias" />
-            <span className="font-heading text-4xl sm:text-5xl text-primary/40 pt-3">:</span>
-            <TimerBlock value={pad(time.hours)} label="Horas" />
-            <span className="font-heading text-4xl sm:text-5xl text-primary/40 pt-3">:</span>
-            <TimerBlock value={pad(time.minutes)} label="Min" />
-            <span className="font-heading text-4xl sm:text-5xl text-primary/40 pt-3">:</span>
-            <TimerBlock value={pad(time.seconds)} label="Seg" />
-          </motion.div>
+          {/* O relógio some depois do lançamento: contagem zerada não convida
+              ninguém. No lugar, a urgência real que continua valendo. */}
+          {lancado ? (
+            <motion.p
+              variants={fadeUp}
+              custom={5}
+              className="mb-8 font-heading text-sm font-bold uppercase tracking-wider text-primary"
+            >
+              O site já abriu. As vagas de Fundador estão acabando.
+            </motion.p>
+          ) : (
+            <motion.div
+              variants={fadeUp}
+              custom={5}
+              className="flex items-start justify-center gap-2 sm:gap-4 mb-8"
+              aria-hidden="true"
+            >
+              <TimerBlock value={String(time.days)} label="Dias" />
+              <span className="font-heading text-4xl sm:text-5xl text-primary/40 pt-3">:</span>
+              <TimerBlock value={pad(time.hours)} label="Horas" />
+              <span className="font-heading text-4xl sm:text-5xl text-primary/40 pt-3">:</span>
+              <TimerBlock value={pad(time.minutes)} label="Min" />
+              <span className="font-heading text-4xl sm:text-5xl text-primary/40 pt-3">:</span>
+              <TimerBlock value={pad(time.seconds)} label="Seg" />
+            </motion.div>
+          )}
 
           <motion.div variants={fadeUp} custom={6} className="flex flex-col items-center gap-3">
             <SignupCta />

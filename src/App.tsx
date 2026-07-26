@@ -13,6 +13,7 @@ import ConsentSync from "./components/ConsentSync";
 import { AuthProvider } from "./contexts/AuthContext";
 import { CLERK_ENABLED } from "./lib/clerk";
 import Index from "./pages/Index";
+import LaunchCountdown from "./pages/LaunchCountdown";
 import NotFound from "./pages/NotFound";
 import SearchPage from "./pages/Search";
 import ProductDetail from "./pages/ProductDetail";
@@ -119,6 +120,11 @@ const App = () => (
           <Routes>
             {/* Public */}
             <Route path="/" element={<Index />} />
+            {/* Captação de Fundador permanente. Antes do lançamento a landing
+                vivia na raiz, via LaunchGate; depois a raiz virou a home e a
+                landing ficaria órfã. Aqui ela ganha URL fixa, para a campanha
+                de anúncios continuar mandando tráfego e recrutando lojista. */}
+            <Route path="/fundadores" element={<LaunchCountdown />} />
             <Route path="/carrinho" element={<CartPage />} />
             <Route path="/checkout" element={<CheckoutPage />} />
             <Route path="/pedido/confirmacao" element={<OrderConfirmationPage />} />
