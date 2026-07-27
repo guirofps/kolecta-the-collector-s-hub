@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
 import Layout from '@/components/layout/Layout';
 import EmptyState from '@/components/EmptyState';
+import PostImages from '@/components/PostImages';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -198,13 +199,7 @@ function PostCard({ post }: { post: CommunityPost }) {
         {post.body && <p className="mt-1 text-sm text-muted-foreground whitespace-pre-line">{post.body}</p>}
       </div>
 
-      {post.images.length > 0 && (
-        <div className="grid grid-cols-3 gap-2">
-          {post.images.slice(0, 3).map((img, i) => (
-            <img key={i} src={img} alt="" className="aspect-square w-full rounded-md object-cover" />
-          ))}
-        </div>
-      )}
+      {post.images.length > 0 && <PostImages images={post.images} />}
 
       {post.listing && <LinkedProduct listing={post.listing} />}
 
