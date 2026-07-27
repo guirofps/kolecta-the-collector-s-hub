@@ -80,3 +80,47 @@ describe('getAllPaged', () => {
     expect(todos.length).toBeGreaterThan(0);
   });
 });
+
+/**
+ * Perfil da loja: o mesmo princípio, sem teto. Este endpoint devolve
+ * `meta.totalPages`, então dá para ir até a última página com precisão, sem a
+ * heurística de "página curta".
+ */
+describe('getAllListings (perfil da loja)', () => {
+  function mockSeller(total: number, pageSize: number) {
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    return vi.fn((url: string) => {
+      const u = new URL(url, 'http://x');
+      const page = Number(u.searchParams.get('page'));
+      const limit = Number(u.searchParams.get('limit'));
+      const inicio = (page - 1) * limit;
+      const data = Array.from(
+        { length: Math.max(0, Math.min(limit, total - inicio)) },
+        (_, i) => ({ id: `s${inicio + i}` }),
+      );
+      return Promise.resolve({
+        json: () => Promise.resolve({ data, meta: { page, limit, total, totalPages } }),
+        ok: true, status: 200,
+      });
+    });
+  }
+
+  it('traz todos os anúncios do vendedor, além de uma página', async () => {
+    // 75 no ar, páginas de 100: cabe numa página, mas o teste do multi-página
+    // é o que importa. Uso pageSize pequeno para forçar várias.
+    const fetchMock = mockSeller(75, 25);
+    vi.stubGlobal('fetch', fetchMock);
+    const todos = await api.sellers.getAllListings('vendedor-x', { pageSize: 25 });
+    expect(todos).toHaveLength(75);
+    expect(fetchMock).toHaveBeenCalledTimes(3); // 25*3 = 75
+    expect(new Set(todos.map((l) => l.id)).size).toBe(75);
+  });
+
+  it('para na última página pelo meta, sem pedir a mais', async () => {
+    const fetchMock = mockSeller(12, 100);
+    vi.stubGlobal('fetch', fetchMock);
+    const todos = await api.sellers.getAllListings('vendedor-y');
+    expect(todos).toHaveLength(12);
+    expect(fetchMock).toHaveBeenCalledTimes(1); // totalPages=1, uma página só
+  });
+});

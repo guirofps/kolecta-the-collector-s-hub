@@ -163,13 +163,11 @@ export default function SellerProfilePage() {
 
   const { data: listingsResponse, isLoading: loadingListings } = useQuery({
     queryKey: ['sellerListings', id, categoryFilter],
-    queryFn: () => api.sellers.getListings(id, {
+    // Sem teto: traz TODOS os anúncios do vendedor, página a página. Era 50, e
+    // loja grande escondia o resto (RODA RARA tem 75 no ar), então o vendedor
+    // via menos anúncio no próprio perfil do que aprovou. Agora não há limite.
+    queryFn: () => api.sellers.getAllListings(id, {
       categoryId: categoryFilter !== 'all' ? categoryFilter : undefined,
-      // Era 50, e loja grande estourava: RODA RARA tem 75 anúncios no ar, RA/AP
-      // 71, e o perfil escondia o que passava de 50. O vendedor via menos
-      // anúncio no próprio perfil do que tinha aprovado. 300 cobre as maiores
-      // com folga; acima disso, é paginar no servidor (docs/pendencias-backend).
-      limit: 300,
     }),
     enabled: !!id,
   });
@@ -193,7 +191,8 @@ export default function SellerProfilePage() {
   // Só anúncio aprovado vai à vitrine. A API devolve qualquer status, e sem
   // este filtro o perfil exibia item ainda em moderação: de fora parecia que o
   // anúncio tinha sido aprovado sozinho, quando só estava aparecendo cedo.
-  let filteredProducts = onlyPublic(listingsResponse?.data ?? []);
+  // `getAllListings` devolve o array direto (já juntou as páginas), não { data }.
+  let filteredProducts = onlyPublic(listingsResponse ?? []);
   if (searchQuery) {
     const q = searchQuery.toLowerCase();
     filteredProducts = filteredProducts.filter((p) => p.title.toLowerCase().includes(q));

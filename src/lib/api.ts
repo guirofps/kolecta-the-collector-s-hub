@@ -778,6 +778,34 @@ export const api = {
       return request<{ data: Listing[]; meta: PaginationMeta }>(`/api/sellers/${id}/listings${query}`);
     },
 
+    /**
+     * TODOS os anúncios do vendedor, sem teto. O perfil pedia 50 e a loja
+     * grande (75, 71 no ar) escondia o resto: o vendedor via menos anúncio no
+     * próprio perfil do que aprovou. Este endpoint devolve `meta.totalPages`,
+     * então dá para ir até a última página com precisão, sem heurística.
+     */
+    getAllListings: async (
+      id: string,
+      params?: { categoryId?: string; pageSize?: number },
+    ): Promise<Listing[]> => {
+      const limit = params?.pageSize ?? 100;
+      const tudo: Listing[] = [];
+      let page = 1;
+      let totalPages = 1;
+      const MAX = 100; // trava contra loop se o meta vier estranho
+      do {
+        const sp = new URLSearchParams({ page: String(page), limit: String(limit) });
+        if (params?.categoryId) sp.append('categoryId', params.categoryId);
+        const r = await request<{ data: Listing[]; meta: PaginationMeta }>(
+          `/api/sellers/${id}/listings?${sp}`,
+        );
+        tudo.push(...(r.data ?? []));
+        totalPages = r.meta?.totalPages ?? page;
+        page++;
+      } while (page <= totalPages && page <= MAX);
+      return tudo;
+    },
+
     getReviews: (id: string, params?: { page?: number; limit?: number }) => {
       const searchParams = new URLSearchParams();
       if (params?.page) searchParams.append('page', params.page.toString());
