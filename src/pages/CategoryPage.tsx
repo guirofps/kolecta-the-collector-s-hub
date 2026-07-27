@@ -7,6 +7,9 @@ import { Button } from '@/components/ui/button';
 import { onlyPublic } from '@/lib/listing-visibility';
 import { LIMITE_CATALOGO } from '@/lib/catalogo';
 import {
+  faixasComItem, condicoesComItem, aplicarFiltros, ordenar, ORDENS, type Ordem,
+} from '@/lib/category-filters';
+import {
   subcategoriaField, normalizeSubcategoria, parseAttributes, formatFieldValue,
 } from '@/lib/category-fields';
 import type { ProductCondition, Product } from '@/lib/mock-data';
@@ -99,6 +102,10 @@ export default function CategoryPage() {
   const { slug } = useParams<{ slug: string }>();
   const [filtroTipo, setFiltroTipo] = useState<FiltroTipo>('todos');
   const [filtroSub, setFiltroSub] = useState<string>('todas');
+  // Filtros genéricos de marketplace, que faltavam: preço, condição, ordem.
+  const [filtroPreco, setFiltroPreco] = useState<string | null>(null);
+  const [filtroCondicao, setFiltroCondicao] = useState<string | null>(null);
+  const [ordem, setOrdem] = useState<Ordem>('relevancia');
   // F29: antes passava o slug como `q` (busca de TEXTO), então procurava itens
   // com "funko-pop" no título → sempre vazio. Agora buscamos os anúncios e
   // filtramos pela CATEGORIA real (id resolvido pelo slug via API).
@@ -148,9 +155,29 @@ export default function CategoryPage() {
   const subsComItem = Object.keys(contagemSub)
     .sort((a, b) => (a === OUTROS ? 1 : b === OUTROS ? -1 : contagemSub[b] - contagemSub[a]));
 
-  const products = daCategoria
+  // Opções de preço e condição derivadas do que a categoria tem, para nunca
+  // oferecer um filtro que zera a lista. Contam sobre os itens já filtrados por
+  // tipo e prateleira, então o número ao lado do chip é o que a pessoa vê.
+  const baseFiltros = daCategoria
     .filter((l) => filtroTipo === 'todos' || l.type === filtroTipo)
     .filter((l) => filtroSub === 'todas' || subDe(l) === filtroSub);
+
+  const faixasPreco = faixasComItem(baseFiltros);
+  const condicoes = condicoesComItem(baseFiltros);
+  const temFiltroGenerico = filtroPreco !== null || filtroCondicao !== null || ordem !== 'relevancia';
+
+  const products = ordenar(
+    aplicarFiltros(baseFiltros, { faixaPreco: filtroPreco, condicao: filtroCondicao }),
+    ordem,
+  );
+
+  const limparTudo = () => {
+    setFiltroTipo('todos');
+    setFiltroSub('todas');
+    setFiltroPreco(null);
+    setFiltroCondicao(null);
+    setOrdem('relevancia');
+  };
 
   if (!category) {
     return (
@@ -219,7 +246,9 @@ export default function CategoryPage() {
           <CategoryIcon slug={category.slug} size={32} />
           <div>
             <h1 className="font-heading text-3xl font-extrabold italic uppercase">{category.name}</h1>
-            <p className="text-sm text-muted-foreground">{products.length} itens · {category.description}</p>
+            {/* A contagem VIVE na linha de resultado, abaixo dos filtros, para
+                não repetir o número em dois lugares quando a pessoa filtra. */}
+            <p className="text-sm text-muted-foreground">{category.description}</p>
           </div>
         </div>
 
@@ -285,6 +314,88 @@ export default function CategoryPage() {
                 </button>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Preço, condição e ordenação: os filtros genéricos que todo
+            marketplace tem e a categoria não tinha. Cada bloco só aparece
+            quando há mais de uma opção, senão vira ruído. */}
+        {baseFiltros.length > 0 && (faixasPreco.length > 1 || condicoes.length > 1) && (
+          <div className="mb-6 space-y-4 rounded-lg border border-border bg-card/40 p-4">
+            {faixasPreco.length > 1 && (
+              <div>
+                <p className="mb-2 text-[10px] font-heading uppercase tracking-wider text-muted-foreground">Preço</p>
+                <div className="flex flex-wrap gap-2">
+                  {faixasPreco.map((f) => {
+                    const ativo = filtroPreco === f.chave;
+                    return (
+                      <button
+                        key={f.chave}
+                        type="button"
+                        // Clicar de novo no ativo limpa o filtro de preço.
+                        onClick={() => setFiltroPreco(ativo ? null : f.chave)}
+                        className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                          ativo ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground'
+                        }`}
+                      >
+                        {f.rotulo} ({f.total})
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {condicoes.length > 1 && (
+              <div>
+                <p className="mb-2 text-[10px] font-heading uppercase tracking-wider text-muted-foreground">Condição</p>
+                <div className="flex flex-wrap gap-2">
+                  {condicoes.map((c) => {
+                    const ativo = filtroCondicao === c.value;
+                    return (
+                      <button
+                        key={c.value}
+                        type="button"
+                        onClick={() => setFiltroCondicao(ativo ? null : c.value)}
+                        className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                          ativo ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground'
+                        }`}
+                      >
+                        {c.label} ({c.total})
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Contagem do resultado + ordenação, na mesma linha. A ordenação fica
+            aqui embaixo dos filtros, junto do total, que é onde a pessoa olha
+            depois de filtrar. */}
+        {baseFiltros.length > 0 && (
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-muted-foreground">
+              {products.length} {products.length === 1 ? 'item' : 'itens'}
+              {temFiltroGenerico && (
+                <button type="button" onClick={limparTudo} className="ml-3 text-primary hover:underline">
+                  Limpar filtros
+                </button>
+              )}
+            </p>
+            <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              Ordenar por
+              <select
+                value={ordem}
+                onChange={(e) => setOrdem(e.target.value as Ordem)}
+                className="rounded-md border border-border bg-input px-2 py-1.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                {ORDENS.map((o) => (
+                  <option key={o.valor} value={o.valor}>{o.rotulo}</option>
+                ))}
+              </select>
+            </label>
           </div>
         )}
 
