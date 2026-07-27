@@ -10,7 +10,9 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog';
 import { Award, Search, Loader2, Medal } from 'lucide-react';
-import { useFounderCandidates, useGrantFounder, useAdminUsers } from '@/hooks/use-api';
+import { useFounderCandidates, useGrantFounder, useAdminUsers, useListings } from '@/hooks/use-api';
+import { LIMITE_CATALOGO } from '@/lib/catalogo';
+import { fundadoresConcedidos, proximoNumeroDeFundador } from '@/lib/founder-numbers';
 import type { FounderCandidate } from '@/lib/api';
 
 // A numeração agora é sequencial e normal: #001, #002, #003... A ideia antiga
@@ -47,7 +49,14 @@ export default function AdminFounders() {
   const [number, setNumber] = useState('');
 
   const candidates = data?.candidates ?? [];
-  const nextNumber = data?.nextNumber ?? null;
+
+  // Fundadores já concedidos e o próximo número livre saem dos anúncios (que
+  // carregam `sellerFounderNumber`), não do backend: o `nextNumber` da API ainda
+  // vinha da lógica antiga (a partir de 51), enquanto as concessões reais estão
+  // em #001..#010. O catálogo já vem do cache das outras telas.
+  const { data: catalogo } = useListings(LIMITE_CATALOGO);
+  const fundadores = useMemo(() => fundadoresConcedidos(catalogo ?? []), [catalogo]);
+  const nextNumber = useMemo(() => proximoNumeroDeFundador(catalogo ?? []), [catalogo]);
 
   const filtered = useMemo(() => {
     if (!search) return candidates;
@@ -118,34 +127,85 @@ export default function AdminFounders() {
         </div>
 
         {/* Summary */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Card className="bg-gradient-card">
-            <CardContent className="p-5 flex items-center gap-3">
-              <Medal className="h-8 w-8 text-kolecta-gold" />
+            <CardContent className="flex items-center gap-3 p-5">
+              <Award className="h-8 w-8 text-kolecta-gold" />
+              <div>
+                <div className="font-heading text-2xl font-bold">
+                  {fundadores.length}<span className="text-base text-muted-foreground">/{NUMERO_MAX}</span>
+                </div>
+                <div className="text-xs text-muted-foreground">Fundadores concedidos</div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="bg-gradient-card">
+            <CardContent className="flex items-center gap-3 p-5">
+              <Medal className="h-8 w-8 text-primary" />
               <div>
                 <div className="font-heading text-2xl font-bold">
                   {isLoading ? '—' : candidates.length}
                 </div>
-                <div className="text-xs text-muted-foreground">
-                  Candidatos aguardando concessão
-                </div>
+                <div className="text-xs text-muted-foreground">Candidatos aguardando</div>
               </div>
             </CardContent>
           </Card>
           <Card className="bg-gradient-card">
-            <CardContent className="p-5 flex items-center gap-3">
+            <CardContent className="flex items-center gap-3 p-5">
               <Award className="h-8 w-8 text-primary" />
               <div>
                 <div className="font-heading text-2xl font-bold">
-                  {nextNumber != null ? `#${String(nextNumber).padStart(3, '0')}` : '—'}
+                  #{String(nextNumber).padStart(3, '0')}
                 </div>
-                <div className="text-xs text-muted-foreground">
-                  Próximo número livre
-                </div>
+                <div className="text-xs text-muted-foreground">Próximo número livre</div>
               </div>
             </CardContent>
           </Card>
         </div>
+
+        {/* ─── Fundadores atuais ────────────────────────────
+            Controle de quem já é fundador: número, loja, e quantos anúncios tem
+            no ar como sinal de engajamento. É a base da gestão futura (tirar
+            quem não engaja, abrir vaga para outro, criar outros selos). Sai dos
+            anúncios, então fundador que zerou a loja não aparece: a gestão
+            completa depende de um endpoint de fundadores no backend. */}
+        {fundadores.length > 0 && (
+          <div>
+            <h2 className="mb-3 font-heading text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+              Fundadores atuais
+            </h2>
+            <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
+              {fundadores.map((f) => (
+                <Card key={f.numero} className="bg-gradient-card">
+                  <CardContent className="flex items-center gap-3 p-3">
+                    <span className="flex h-10 w-12 shrink-0 items-center justify-center rounded-md bg-kolecta-gold/10 font-heading text-sm font-bold text-kolecta-gold">
+                      #{String(f.numero).padStart(3, '0')}
+                    </span>
+                    <a
+                      href={`/vendedor/${f.sellerId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="min-w-0 flex-1 truncate text-sm font-medium hover:text-primary"
+                    >
+                      {f.nome}
+                    </a>
+                    {f.status !== 'active' && (
+                      <Badge variant="outline" className="shrink-0 border-accent/40 text-accent">
+                        {f.status}
+                      </Badge>
+                    )}
+                    {/* Zero no ar = sinal de quem não está engajando. */}
+                    <span
+                      className={`shrink-0 text-xs ${f.anunciosNoAr === 0 ? 'text-destructive' : 'text-muted-foreground'}`}
+                    >
+                      {f.anunciosNoAr} no ar
+                    </span>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Search */}
         <div className="relative">
