@@ -19,10 +19,16 @@ export default function PostImages({ images }: { images: string[] }) {
   // galeria a partir dela, para nenhuma foto ficar inacessível.
   const visiveis = images.slice(0, 3);
   const extras = images.length - visiveis.length;
+  const umaSo = visiveis.length === 1;
 
   return (
     <>
-      <div className={`grid gap-2 ${visiveis.length === 1 ? 'grid-cols-1' : 'grid-cols-3'}`}>
+      {/* Proporção FIXA no feed, com corte (object-cover): sem isso, uma foto
+          vertical fica gigante e uma horizontal minúscula, e cada post tem uma
+          altura, deixando o feed serrilhado. Uma foto sozinha usa 4:3 (respira
+          mais); várias, quadrado. A imagem inteira, sem corte, aparece só ao
+          ampliar no lightbox. */}
+      <div className={`grid gap-2 ${umaSo ? 'grid-cols-1' : 'grid-cols-3'}`}>
         {visiveis.map((img, i) => {
           const ultima = i === visiveis.length - 1;
           return (
@@ -31,17 +37,15 @@ export default function PostImages({ images }: { images: string[] }) {
               type="button"
               onClick={() => setAberto(i)}
               aria-label={`Ampliar foto ${i + 1} de ${images.length}`}
-              className={`group relative overflow-hidden rounded-md ${
-                visiveis.length === 1 ? 'max-h-[70vh]' : 'aspect-square'
+              className={`group relative overflow-hidden rounded-md bg-secondary ${
+                umaSo ? 'aspect-[4/3]' : 'aspect-square'
               }`}
             >
               <img
                 src={img}
                 alt=""
                 loading="lazy"
-                className={`h-full w-full transition-transform duration-300 group-hover:scale-105 ${
-                  visiveis.length === 1 ? 'object-contain bg-secondary' : 'object-cover'
-                }`}
+                className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
               />
               {/* "+N" na última quando há mais fotos do que cabem no grid. */}
               {ultima && extras > 0 && (
