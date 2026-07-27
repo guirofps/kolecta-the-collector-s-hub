@@ -163,9 +163,13 @@ export default function SellerProfilePage() {
 
   const { data: listingsResponse, isLoading: loadingListings } = useQuery({
     queryKey: ['sellerListings', id, categoryFilter],
-    queryFn: () => api.sellers.getListings(id, { 
+    queryFn: () => api.sellers.getListings(id, {
       categoryId: categoryFilter !== 'all' ? categoryFilter : undefined,
-      limit: 50 // Fetch up to 50 for client-side search/sort MVP
+      // Era 50, e loja grande estourava: RODA RARA tem 75 anúncios no ar, RA/AP
+      // 71, e o perfil escondia o que passava de 50. O vendedor via menos
+      // anúncio no próprio perfil do que tinha aprovado. 300 cobre as maiores
+      // com folga; acima disso, é paginar no servidor (docs/pendencias-backend).
+      limit: 300,
     }),
     enabled: !!id,
   });
