@@ -13,17 +13,18 @@ import { Award, Search, Loader2, Medal } from 'lucide-react';
 import { useFounderCandidates, useGrantFounder, useAdminUsers } from '@/hooks/use-api';
 import type { FounderCandidate } from '@/lib/api';
 
-const LANDING_MIN = 51;
-const LANDING_MAX = 100;
+// A numeração agora é sequencial e normal: #001, #002, #003... A ideia antiga
+// de reservar 1 a 50 para códigos de evento e 51 a 100 para a seleção foi
+// abandonada. A concessão real (checada no banco em 25/07) já está em #001 a
+// #010, então a tela precisa aceitar a faixa toda a partir de 1, senão a equipe
+// não consegue conceder por aqui e depende do dev mexer direto no banco.
+const NUMERO_MIN = 1;
+const NUMERO_MAX = 100;
 
 /**
  * O #000 é a casa: a conta da marca-mãe, fundadora zero da Kolecta. Fica fora
- * da faixa pública de propósito, porque não disputa vaga com ninguém, e por
- * isso a validação precisava abri-lo à parte. Sem esta exceção não havia como
- * conceder o número, nem por aqui nem por lugar nenhum da interface.
- *
- * Continua sendo UM só: a faixa 1 a 50 é dos códigos de convite do evento e a
- * de 51 a 100 é a da seleção, ambas concedidas por outros caminhos.
+ * da faixa numerada porque não disputa vaga com ninguém, e por isso a validação
+ * o abre à parte.
  */
 const NUMERO_DA_CASA = 0;
 
@@ -90,7 +91,7 @@ export default function AdminFounders() {
   const numberValid =
     Number.isInteger(parsedNumber) &&
     (parsedNumber === NUMERO_DA_CASA ||
-      (parsedNumber >= LANDING_MIN && parsedNumber <= LANDING_MAX));
+      (parsedNumber >= NUMERO_MIN && parsedNumber <= NUMERO_MAX));
 
   const doGrant = () => {
     if (!target || !numberValid) return;
@@ -112,7 +113,7 @@ export default function AdminFounders() {
           <p className="text-sm text-muted-foreground mt-1">
             Candidatos qualificados (5+ anúncios enviados) aguardando concessão do
             selo. A seleção dos 100 é curada pela equipe — o número é escolhido
-            aqui (faixa {LANDING_MIN}–{LANDING_MAX}).
+            aqui (faixa {NUMERO_MIN}–{NUMERO_MAX}).
           </p>
         </div>
 
@@ -139,7 +140,7 @@ export default function AdminFounders() {
                   {nextNumber != null ? `#${String(nextNumber).padStart(3, '0')}` : '—'}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  Próximo número livre na faixa
+                  Próximo número livre
                 </div>
               </div>
             </CardContent>
@@ -251,7 +252,7 @@ export default function AdminFounders() {
             <DialogTitle className="font-heading">Conceder selo de Fundador</DialogTitle>
             <DialogDescription>
               {target?.name ?? target?.email ?? 'Candidato'}: escolha o número do
-              selo (faixa {LANDING_MIN} a {LANDING_MAX}, ou {NUMERO_DA_CASA} para
+              selo (faixa {NUMERO_MIN} a {NUMERO_MAX}, ou {NUMERO_DA_CASA} para
               a conta da casa). O número é permanente.
             </DialogDescription>
           </DialogHeader>
@@ -261,14 +262,14 @@ export default function AdminFounders() {
             <Input
               type="number"
               min={NUMERO_DA_CASA}
-              max={LANDING_MAX}
+              max={NUMERO_MAX}
               value={number}
               onChange={(e) => setNumber(e.target.value)}
-              placeholder={`${LANDING_MIN}–${LANDING_MAX}`}
+              placeholder={`${NUMERO_MIN}–${NUMERO_MAX}`}
             />
             {!numberValid && number !== '' && (
               <p className="text-xs text-destructive">
-                Use um número entre {LANDING_MIN} e {LANDING_MAX}, ou {NUMERO_DA_CASA} para a conta da casa.
+                Use um número entre {NUMERO_MIN} e {NUMERO_MAX}, ou {NUMERO_DA_CASA} para a conta da casa.
               </p>
             )}
           </div>
