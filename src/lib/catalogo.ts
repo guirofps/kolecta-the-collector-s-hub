@@ -10,15 +10,14 @@
 // O backend não filtra por categoria (`GET /api/listings` aceita só limit,
 // offset e busca), então a filtragem é no navegador e o site precisa do
 // catálogo inteiro. Quando o filtro existir no servidor, cada tela passa a
-// pedir só o que mostra e este número perde a razão de ser.
+// pedir só o que mostra e isto perde a razão de ser.
 //
-// ATENÇÃO: este número precisa ser MAIOR que o total de anúncios ativos, senão
-// os que passam do teto ficam invisíveis no site (vendedor reclamou de anúncio
-// aprovado que não aparecia). Em 25/07 eram 657 ativos e crescendo, com os
-// e-mails de captação trazendo mais lojista. 1500 dá folga por ora, mas é
-// remendo: a partir de certo volume o SO precisa paginar e filtrar por
-// categoria no servidor (docs/pendencias-backend.md 2.-1 e 2.-0). Quando os
-// ativos se aproximarem deste teto, a correção é backend, não subir de novo.
+// NÃO é mais um teto. A vitrine busca TODAS as páginas até a API esgotar
+// (api.listings.getAllPaged), sem limite: um número fixo escondia o que passava
+// dele, e o catálogo só cresce. Este valor virou o GATILHO que diz "quero o
+// catálogo inteiro": as telas chamam useListings(LIMITE_CATALOGO) e qualquer
+// valor >= a isto liga a busca paginada completa. O tamanho de cada página vive
+// dentro de getAllPaged.
 export const LIMITE_CATALOGO = 1500;
 
 /**

@@ -141,6 +141,29 @@ export const api = {
       return request<{ data: Listing[] }>(`/api/listings?${params}`).then(r => r.data);
     },
 
+    /**
+     * TODOS os anúncios, sem teto: busca página a página até a API devolver uma
+     * página curta (menos que o tamanho pedido = acabou).
+     *
+     * Existe porque o backend não filtra por categoria nem devolve total, então
+     * a vitrine precisa do catálogo inteiro no navegador. Um teto fixo escondia
+     * o que passava dele, e o catálogo só cresce. Isto não tem teto: cobre 657
+     * hoje e 6.000 amanhã, custando uma página a mais.
+     *
+     * O corte de segurança em `maxPaginas` é só contra loop infinito se a API
+     * um dia parar de encurtar a última página; nunca deveria ser atingido.
+     */
+    getAllPaged: async (pageSize = 500, maxPaginas = 40): Promise<Listing[]> => {
+      const tudo: Listing[] = [];
+      for (let pagina = 0; pagina < maxPaginas; pagina++) {
+        const p = new URLSearchParams({ limit: String(pageSize), offset: String(pagina * pageSize) });
+        const lote = await request<{ data: Listing[] }>(`/api/listings?${p}`).then((r) => r.data);
+        tudo.push(...lote);
+        if (lote.length < pageSize) break; // página curta = última
+      }
+      return tudo;
+    },
+
     getMine: (token: string) =>
       request<{ data: Listing[] }>('/api/listings/my', { token }).then(r => r.data),
 

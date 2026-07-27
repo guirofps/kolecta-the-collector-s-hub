@@ -162,9 +162,9 @@ function HomeContent() {
       novidades: pegarNovidades(ativos, 20, [...emLeilao, ...emDestaque]).map(toProduct),
       lojas: pegarLojas(ativos, 8),
       porCategoria: contagemPorCategoria(ativos),
+      // A busca agora traz TODAS as páginas, então `total` é o número real, não
+      // um piso. Por isso não há mais "mais de N": a contagem é exata.
       total: ativos.length,
-      // Bateu o teto da busca: o catálogo tem pelo menos isso, e pode ter mais.
-      saturado: ativos.length >= LIMITE_HOME,
     };
   }, [ativos]);
 
@@ -250,8 +250,7 @@ function HomeContent() {
               {secoes.total > 0 && (
                 <span className="flex items-center gap-1.5">
                   <Store className="h-3.5 w-3.5" />
-                  {secoes.saturado ? `mais de ${secoes.total}` : secoes.total}{' '}
-                  {secoes.total === 1 ? 'item no ar' : 'itens no ar'}
+                  {secoes.total} {secoes.total === 1 ? 'item no ar' : 'itens no ar'}
                 </span>
               )}
             </motion.div>

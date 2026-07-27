@@ -21,11 +21,13 @@ const CHAVE = 'kolecta:catalogo:v1';
 const VALIDADE_MS = 24 * 60 * 60 * 1000;
 
 /**
- * Teto do que vale guardar. `localStorage` é síncrono: ler alguns MB trava a
- * pintura da página, justamente o que isto quer evitar. O catálogo de hoje dá
- * cerca de 900 KB, então 2 MB deixa margem sem virar problema.
+ * Teto do que vale GUARDAR (não do que vale mostrar: a vitrine sempre traz o
+ * catálogo inteiro, sem limite). `localStorage` é síncrono, e ler muitos MB
+ * trava a pintura, justamente o que o cache quer evitar. Acima disto, não
+ * guarda: a visita de volta perde o pinta-na-hora, mas nada é escondido, e a
+ * busca completa roda igual. 5 MB cobre alguns milhares de anúncios.
  */
-const TETO_BYTES = 2 * 1024 * 1024;
+const TETO_BYTES = 5 * 1024 * 1024;
 
 interface Guardado {
   em: number;

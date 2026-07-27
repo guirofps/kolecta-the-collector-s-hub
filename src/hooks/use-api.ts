@@ -204,15 +204,21 @@ export function useListing(id: string | undefined) {
 }
 
 export function useListings(limit = 20, offset = 0, q?: string) {
-  // Só o catálogo cheio, sem busca, aproveita o que ficou da visita anterior:
-  // uma consulta com termo é outra pergunta e teria outra resposta.
-  const usaCache = !q && offset === 0 && limit >= LIMITE_CATALOGO;
+  // Catálogo cheio (home, categoria, busca, produto): sem busca de texto e a
+  // partir do começo. Esse caso busca TODAS as páginas até esgotar, sem teto,
+  // e aproveita o que ficou da visita anterior. Uma consulta com termo é outra
+  // pergunta e não entra nessa via.
+  const catalogoCheio = !q && offset === 0 && limit >= LIMITE_CATALOGO;
 
   return useQuery({
     queryKey: ['listings', limit, offset, q],
     queryFn: async () => {
-      const dados = await api.listings.getAll(limit, offset, q);
-      if (usaCache) guardarCatalogo(dados);
+      // Sem teto: página a página até a API acabar. Antes um número fixo
+      // escondia o que passasse dele, e o catálogo só cresce.
+      const dados = catalogoCheio
+        ? await api.listings.getAllPaged()
+        : await api.listings.getAll(limit, offset, q);
+      if (catalogoCheio) guardarCatalogo(dados);
       return dados;
     },
     // A listagem leva vários segundos para responder. Com 60s, quem navegava
@@ -226,7 +232,7 @@ export function useListings(limit = 20, offset = 0, q?: string) {
     // começar com vários segundos de esqueleto. Vem como `initialData` com
     // `updatedAt` antigo de propósito: o React Query trata como já vencida e
     // busca a lista atual por trás, sem tirar o conteúdo da tela.
-    initialData: usaCache ? lerCatalogo() : undefined,
+    initialData: catalogoCheio ? lerCatalogo() : undefined,
     initialDataUpdatedAt: 0,
   });
 }
