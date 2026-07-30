@@ -10,6 +10,7 @@ import LaunchGate from "./components/LaunchGate";
 import ErrorBoundary from "./components/ErrorBoundary";
 import DevUserSwitcher from "./components/DevUserSwitcher";
 import ConsentSync from "./components/ConsentSync";
+import AvisoPagamentoModal from "./components/AvisoPagamentoModal";
 import { AuthProvider } from "./contexts/AuthContext";
 import { CLERK_ENABLED } from "./lib/clerk";
 import Index from "./pages/Index";
@@ -114,6 +115,10 @@ const App = () => (
           {CLERK_ENABLED && <ConsentSync />}
           {showDevUserSwitcher && <DevUserSwitcher />}
           <LaunchGate>
+          {/* Comunicado da mudança nos meios de pagamento. Dentro do LaunchGate
+              de propósito: quem ainda vê a contagem regressiva não tem o que
+              fazer com um aviso sobre pagamento. */}
+          <AvisoPagamentoModal />
           {/* Rede contra tela branca: erro em qualquer rota vira uma mensagem
               com saída, em vez de apagar a página inteira. */}
           <ErrorBoundary>
