@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Separator } from '@/components/ui/separator';
-import { useCreateCheckout, useWallet, useInstallmentsSimulation } from '@/hooks/use-api';
+import { useCreateCheckout, useInstallmentsSimulation } from '@/hooks/use-api';
 import { useAddresses } from '@/hooks/use-api';
 import { api } from '@/lib/api';
 import { formatBRL } from '@/lib/currency';
@@ -168,9 +168,11 @@ export default function CheckoutPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
 
-  // ── Wallet balance toggle ─────────────────────────────────────────────
-  const [useWalletBalance, setUseWalletBalance] = useState(false);
-  const { data: wallet } = useWallet();
+  // Pagar com saldo da carteira foi REMOVIDO do checkout (31/07/2026).
+  // A Pagar.me não faz transferência entre usuários — o saldo só sai por saque.
+  // Abater a compra do saldo cobrava o vendedor sem passar pelo split: a
+  // cobrança caía inteira na conta da Kolecta e a divisão existia só no nosso
+  // ledger. A carteira segue existindo para depósito e saque.
   const { toast } = useToast();
 
   // ── Payment method (PIX vs cartão) ────────────────────────────────────
@@ -329,12 +331,10 @@ export default function CheckoutPage() {
   // shippingTotal está em centavos; totalPrice em reais → normaliza p/ reais.
   const grandTotal = totalPrice + shippingTotal / 100;
 
-  // Valor a cobrar no gateway (estimativa para o seletor de parcelas): total
-  // menos o que o saldo da wallet cobre. 0 = wallet cobre tudo (cartão dispensado).
+  // Valor a cobrar no gateway (estimativa para o seletor de parcelas). Desde a
+  // remoção do pagamento com saldo, é sempre o total: nada abate a compra.
   const totalInCents = Math.round(grandTotal * 100);
-  const walletCoverInCents =
-    useWalletBalance && wallet ? Math.min(wallet.balanceInCents, totalInCents) : 0;
-  const chargeEstimate = Math.max(0, totalInCents - walletCoverInCents);
+  const chargeEstimate = totalInCents;
 
   // Simula as parcelas quando cartão está selecionado e há valor a cobrar.
   useEffect(() => {
@@ -438,8 +438,8 @@ export default function CheckoutPage() {
     const shippingInCents = shipOpt ? Math.round(shipOpt.price) : 0;
     const deliveryMethod: 'shipping' | 'pickup' = isPickup ? 'pickup' : 'shipping';
 
-    // Cartão só entra quando há valor a cobrar (wallet não cobre tudo). O cartão
-    // é tokenizado no cliente ANTES de criar o pedido (o número nunca vai ao back).
+    // O cartão é tokenizado no cliente ANTES de criar o pedido (o número nunca
+    // vai ao back).
     const payWithCard = paymentMethod === 'credit_card' && chargeEstimate > 0;
     let cardToken: string | undefined;
     if (payWithCard) {
@@ -479,7 +479,6 @@ export default function CheckoutPage() {
         shippingServiceId: isPickup ? undefined : shipOpt?.serviceId,
         shippingServiceName: isPickup ? undefined : shipOpt?.label,
         deliveryMethod,
-        useWalletBalance,
         buyerCpf,
         buyerPhone,
         ...(payWithCard
@@ -750,9 +749,8 @@ export default function CheckoutPage() {
                   </CardContent>
                 </Card>
 
-                {/* Forma de Pagamento — só quando há valor a cobrar (wallet não
-                    cobre tudo) E o cartão está habilitado. Sem chave pública,
-                    o fluxo continua PIX puro (sem seletor). */}
+                {/* Forma de Pagamento — só quando o cartão está habilitado. Sem
+                    chave pública, o fluxo continua PIX puro (sem seletor). */}
                 {chargeEstimate > 0 && isCardPaymentEnabled && (
                   <Card className="bg-gradient-card">
                     <CardContent className="p-6 space-y-5">
@@ -769,8 +767,6 @@ export default function CheckoutPage() {
                           const m = v as PaymentMethod;
                           setPaymentMethod(m);
                           setCardError('');
-                          // Cartão não combina com saldo: cobra sempre o valor cheio.
-                          if (m === 'credit_card') setUseWalletBalance(false);
                         }}
                         className="grid grid-cols-1 sm:grid-cols-2 gap-3"
                       >
@@ -990,43 +986,6 @@ export default function CheckoutPage() {
                       {formatBRL(grandTotal)}
                     </span>
                   </div>
-
-                  {/* Wallet toggle */}
-                  {wallet && wallet.balanceInCents > 0 && stage === 'address-shipping' && (
-                    <>
-                      <div className="flex items-center justify-between p-3 rounded-lg border border-primary/20 bg-primary/5">
-                        <div className="flex-1">
-                          <p className="text-sm font-medium">Usar saldo da carteira</p>
-                          <p className="text-xs text-muted-foreground">
-                            Disponível: <span className="text-primary font-bold">{formatBRL(wallet.balanceInCents / 100)}</span>
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          role="switch"
-                          aria-checked={useWalletBalance}
-                          disabled={paymentMethod === 'credit_card'}
-                          onClick={() => setUseWalletBalance(!useWalletBalance)}
-                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${useWalletBalance ? 'bg-primary' : 'bg-muted'}`}
-                        >
-                          <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${useWalletBalance ? 'translate-x-6' : 'translate-x-1'}`} />
-                        </button>
-                      </div>
-                      {paymentMethod === 'credit_card' && (
-                        <div className="text-xs text-muted-foreground">
-                          O saldo da carteira não é combinado com cartão — a compra no cartão cobra o valor cheio.
-                        </div>
-                      )}
-                      {useWalletBalance && (
-                        <div className="text-xs text-muted-foreground">
-                          {wallet.balanceInCents >= grandTotal * 100
-                            ? '✅ Seu saldo cobre o valor total. Nenhum pagamento adicional será necessário.'
-                            : `Será abatido ${formatBRL(wallet.balanceInCents / 100)} do saldo. O restante (${formatBRL(chargeEstimate / 100)}) será cobrado na forma escolhida.`
-                          }
-                        </div>
-                      )}
-                    </>
-                  )}
 
                   {/* CTA Stage 1 */}
                   {stage === 'address-shipping' && (
