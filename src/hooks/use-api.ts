@@ -1209,6 +1209,18 @@ export function useRecipient() {
       return api.recipients.getStatus(token!);
     },
     staleTime: 30_000,
+    // O KYC é aprovado do lado da Pagar.me e chega por webhook — a tela não tem
+    // como saber sozinha. Sem este poll o vendedor fica olhando "Verificação
+    // pendente" **já aprovado**, com um botão que falha, até pensar em recarregar.
+    // Os 6 recebedores da conta nova viraram `active` em segundos (diagnóstico em
+    // scripts/diagnostico-kyc-conta-nova.ts), então 15s pega quase todo mundo
+    // ainda com a página aberta. Para de rodar assim que sai de "em análise".
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      return status === 'registration' || status === 'affiliation'
+        ? 15_000
+        : false;
+    },
   });
 
   const onboardMutation = useMutation({
