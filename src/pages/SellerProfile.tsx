@@ -192,7 +192,14 @@ export default function SellerProfilePage() {
   // este filtro o perfil exibia item ainda em moderação: de fora parecia que o
   // anúncio tinha sido aprovado sozinho, quando só estava aparecendo cedo.
   // `getAllListings` devolve o array direto (já juntou as páginas), não { data }.
-  let filteredProducts = onlyPublic(listingsResponse ?? []);
+  // O que o público vê, antes da busca e da ordenação. O contador da aba sai
+  // daqui e não de `totalActiveListings`: aquele conta `status='active'` no
+  // banco, sem saber de leilão pausado ou encerrado, e a aba anunciava "14"
+  // sobre uma grade de 1 card. Contando a mesma lista que a grade renderiza,
+  // os dois não têm como divergir.
+  const publicProducts = onlyPublic(listingsResponse ?? []);
+
+  let filteredProducts = publicProducts;
   if (searchQuery) {
     const q = searchQuery.toLowerCase();
     filteredProducts = filteredProducts.filter((p) => p.title.toLowerCase().includes(q));
@@ -295,9 +302,13 @@ export default function SellerProfilePage() {
           <TabsList>
             <TabsTrigger value="listings">
               Anúncios
-              <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5 py-0">
-                {seller.totalActiveListings}
-              </Badge>
+              {/* Enquanto carrega não há contagem confiável, e um "0" piscando
+                  parece loja vazia. O número entra junto com os cards. */}
+              {!loadingListings && (
+                <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5 py-0">
+                  {publicProducts.length}
+                </Badge>
+              )}
             </TabsTrigger>
             <TabsTrigger value="reviews">
               Avaliações
