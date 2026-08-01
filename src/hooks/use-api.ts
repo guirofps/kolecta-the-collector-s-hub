@@ -1216,12 +1216,15 @@ export function useRecipient() {
       const token = await getToken();
       return api.recipients.onboard(token!, payload);
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['recipient', 'status'] });
+      // Sem `kyc` o cadastro deu certo do mesmo jeito: só a emissão do link de
+      // prova de vida falhou, e ela é refeita pelo botão da tela.
       toast({
         title: 'Cadastro enviado',
-        description:
-          'Recebedor criado. Conclua a prova de vida para ativar recebimentos e saques.',
+        description: data.kyc
+          ? 'Recebedor criado. Conclua a prova de vida para ativar recebimentos e saques.'
+          : 'Recebedor criado. O link da prova de vida não pôde ser gerado agora — use "Gerar link de verificação" em instantes.',
       });
     },
     onError: (err: any) => {

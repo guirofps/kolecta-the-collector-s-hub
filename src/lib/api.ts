@@ -675,7 +675,9 @@ export const api = {
 
   recipients: {
     onboard: (token: string, payload: CreateRecipientPayload) =>
-      request<{ data: { recipientId: string; status: string; kyc: RecipientKycLink } }>(
+      // `kyc` vem nulo quando o recebedor foi criado mas a emissão do link
+      // falhou — o cadastro vale, o link se gera depois em /kyc-link.
+      request<{ data: { recipientId: string; status: string; kyc: RecipientKycLink | null } }>(
         '/api/recipients/onboard',
         { method: 'POST', body: JSON.stringify(payload), token },
       ).then((r) => r.data),

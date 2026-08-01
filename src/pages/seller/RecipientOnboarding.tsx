@@ -300,6 +300,30 @@ export default function RecipientOnboardingPage() {
             <KycCard kyc={freshKyc} />
           )}
 
+          {/* Cadastrado, mas sem link de prova de vida: a criação do recebedor
+              deu certo e só a emissão do link falhou. Sem este bloco a tela
+              ficaria vazia — o formulário some depois do envio e o KycCard
+              acima depende do link existir. */}
+          {!statusQuery.isLoading && !isActive && !isPending && onboardMutation.isSuccess && !freshKyc && (
+            <Card className="bg-gradient-card border-amber-500/30">
+              <CardContent className="p-6 text-center space-y-4">
+                <CheckCircle2 className="h-12 w-12 text-emerald-500 mx-auto" />
+                <h2 className="font-heading text-lg font-bold uppercase">Cadastro recebido</h2>
+                <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+                  Seu recebedor foi criado. Só falta a prova de vida — o link não
+                  pôde ser gerado agora, mas seus dados já estão salvos e você
+                  não precisa preencher o formulário de novo.
+                </p>
+                <Button variant="kolecta" className="w-full"
+                  onClick={() => kycLinkMutation.mutate()} disabled={kycLinkMutation.isPending}>
+                  {kycLinkMutation.isPending
+                    ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Gerando link...</>
+                    : 'Gerar link de verificação'}
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Formulário de cadastro (ainda não tem recebedor) */}
           {!statusQuery.isLoading && !status?.onboarded && !onboardMutation.isSuccess && (
             <form onSubmit={handleSubmit} className="space-y-6">
