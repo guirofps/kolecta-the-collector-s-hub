@@ -1230,13 +1230,20 @@ export function useRecipient() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['recipient', 'status'] });
-      // Sem `kyc` o cadastro deu certo do mesmo jeito: só a emissão do link de
-      // prova de vida falhou, e ela é refeita pelo botão da tela.
+      // `kyc` nulo significa DUAS coisas diferentes, e confundi-las foi o bug:
+      // ou a Pagar.me já aprovou o recebedor (caso comum — ele nasce `active`,
+      // e aí não existe prova de vida a fazer), ou a emissão do link falhou.
+      // Quem separa é o `status`, que vem na mesma resposta. Sem isso o
+      // vendedor aprovado na hora lia "o link não pôde ser gerado" e ia clicar
+      // num botão que responde 409.
+      const aprovado = data.status === 'active';
       toast({
-        title: 'Cadastro enviado',
-        description: data.kyc
-          ? 'Recebedor criado. Conclua a prova de vida para ativar recebimentos e saques.'
-          : 'Recebedor criado. O link da prova de vida não pôde ser gerado agora — use "Gerar link de verificação" em instantes.',
+        title: aprovado ? 'Cadastro aprovado' : 'Cadastro enviado',
+        description: aprovado
+          ? 'Recebedor criado e já aprovado — recebimentos e saques liberados.'
+          : data.kyc
+            ? 'Recebedor criado. Conclua a prova de vida para ativar recebimentos e saques.'
+            : 'Recebedor criado e em análise. Seus dados estão salvos; esta tela avisa quando for aprovado.',
       });
     },
     onError: (err: any) => {

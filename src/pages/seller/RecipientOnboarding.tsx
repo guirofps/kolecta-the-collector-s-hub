@@ -311,19 +311,23 @@ export default function RecipientOnboardingPage() {
             <KycCard kyc={freshKyc} />
           )}
 
-          {/* Cadastrado, mas sem link de prova de vida: a criação do recebedor
-              deu certo e só a emissão do link falhou. Sem este bloco a tela
+          {/* Cadastrado, mas sem link de prova de vida. Sem este bloco a tela
               ficaria vazia — o formulário some depois do envio e o KycCard
-              acima depende do link existir. */}
-          {!statusQuery.isLoading && !isActive && !isPending && onboardMutation.isSuccess && !freshKyc && (
+              acima depende do link existir.
+              Só vale para quem NÃO foi aprovado na hora: o recebedor que volta
+              `active` cai no card de cima. Enquanto o statusQuery não termina
+              de revalidar, `isActive` ainda é false, então quem decide aqui é
+              a resposta do próprio onboard. */}
+          {!statusQuery.isLoading && !isActive && !isPending && onboardMutation.isSuccess && !freshKyc
+            && onboardMutation.data?.status !== 'active' && (
             <Card className="bg-gradient-card border-amber-500/30">
               <CardContent className="p-6 text-center space-y-4">
                 <CheckCircle2 className="h-12 w-12 text-emerald-500 mx-auto" />
                 <h2 className="font-heading text-lg font-bold uppercase">Cadastro recebido</h2>
                 <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-                  Seu recebedor foi criado. Só falta a prova de vida — o link não
-                  pôde ser gerado agora, mas seus dados já estão salvos e você
-                  não precisa preencher o formulário de novo.
+                  Seu recebedor foi criado e está em análise. Seus dados já estão
+                  salvos e você não precisa preencher o formulário de novo — esta
+                  tela avisa quando a aprovação sair.
                 </p>
                 <Button variant="kolecta" className="w-full"
                   onClick={() => kycLinkMutation.mutate()} disabled={kycLinkMutation.isPending}>
