@@ -334,7 +334,7 @@ export default function AuctionDetail() {
                   className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center shrink-0 text-secondary-foreground font-heading font-bold uppercase transition-colors hover:bg-secondary/70"
                   aria-label="Ver loja do vendedor"
                 >
-                  V
+                  {(auction.sellerName ?? '').trim().charAt(0) || 'V'}
                 </Link>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
@@ -342,7 +342,7 @@ export default function AuctionDetail() {
                       to={`/vendedor/${auction.sellerId}`}
                       className="text-sm font-medium text-foreground truncate hover:text-primary hover:underline transition-colors"
                     >
-                      Vendedor Kolecta
+                      {auction.sellerName || 'Vendedor Kolecta'}
                     </Link>
                     <VerificationBadge verified={true} />
                     <FounderBadgeFor userId={auction.sellerId} />

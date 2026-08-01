@@ -1586,6 +1586,8 @@ export interface AuctionWithListing {
   images: string | null;
   condition: string;
   sellerId: string;
+  // Nome da loja quando há, senão o do usuário — mesma régua de `Listing`.
+  sellerName?: string | null;
   // Presentes em GET /api/auctions/seller/mine (painel do vendedor):
   totalBids?: number;
   winnerName?: string | null;
