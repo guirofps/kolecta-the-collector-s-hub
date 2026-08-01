@@ -1242,10 +1242,17 @@ export function useRecipient() {
       return api.recipients.getKycLink(token!);
     },
     onError: (err: any) => {
+      // 503 = o backend já traduziu "não dá para emitir o link agora" numa
+      // instrução acionável (o convite chega por e-mail da Pagar.me). Vermelho
+      // aí só assusta o vendedor por algo que não é culpa dele e que não
+      // bloqueia a aprovação do KYC. Erro de verdade continua destructive.
+      const indisponivel = err?.status === 503;
       toast({
-        title: 'Erro ao gerar link de verificação',
+        title: indisponivel
+          ? 'Link indisponível no momento'
+          : 'Erro ao gerar link de verificação',
         description: err.message ?? 'Tente novamente em instantes.',
-        variant: 'destructive',
+        variant: indisponivel ? 'default' : 'destructive',
       });
     },
   });

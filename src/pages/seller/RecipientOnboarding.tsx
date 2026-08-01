@@ -284,6 +284,18 @@ export default function RecipientOnboardingPage() {
                 <p className="text-sm text-muted-foreground max-w-sm mx-auto">
                   Falta concluir a prova de vida para ativar seus recebimentos.
                 </p>
+                {/* O botão abaixo é um atalho, não o único caminho — e hoje ele
+                    falha (allowlist de IP da conta nova). Sem dizer isso, o
+                    vendedor lê "Verificação pendente" + botão quebrado como
+                    "estou travado", e abre chamado. A Pagar.me manda o convite
+                    por e-mail sozinha; foi assim que os recebedores de 31/07
+                    foram aprovados. Ver docs/PLAN-pagarme-conta-nova.md. */}
+                <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+                  A Pagar.me envia o convite da prova de vida por e-mail para o
+                  endereço do seu cadastro de recebedor — procure por{' '}
+                  <strong className="text-foreground">Pagar.me</strong> na caixa
+                  de entrada e no spam. Seus dados já estão salvos.
+                </p>
                 <Button variant="secondary" className="w-full"
                   onClick={() => kycLinkMutation.mutate()} disabled={kycLinkMutation.isPending}>
                   {kycLinkMutation.isPending
