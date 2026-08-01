@@ -61,6 +61,7 @@ export function toProduct(l: Listing): Product {
     currentBid: l.currentBidInCents != null ? l.currentBidInCents / 100 : undefined,
     bidsCount: l.bidsCount ?? 0,
     auctionEndsAt: l.endsAt ?? undefined,
+    auctionPaused: Boolean(l.auctionPausedAt),
   } as Product;
 }
 

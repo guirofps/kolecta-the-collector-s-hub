@@ -17,19 +17,12 @@ import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCategories } from '@/hooks/use-api';
 import { api } from '@/lib/api';
-import { onlyPublic } from '@/lib/listing-visibility';
+import { onlyPublicNaLoja } from '@/lib/listing-visibility';
+import { toProduct } from '@/lib/home-sections';
 
-// F32: parse defensivo — `images` pode vir como JSON de array, URL crua ou nulo.
-// Nunca lança (JSON.parse solto derrubava a página do vendedor).
-function safeParseImages(raw: string | null | undefined): string[] {
-  if (!raw) return ['/placeholder.svg'];
-  try {
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : ['/placeholder.svg'];
-  } catch {
-    return raw.startsWith('http') ? [raw] : ['/placeholder.svg'];
-  }
-}
+// O parse defensivo de `images` (F32) agora vem de `parseImages`, dentro de
+// `toProduct`: mesmo comportamento — JSON de array, URL crua ou nulo, sem nunca
+// lançar. Havia uma cópia local idêntica aqui.
 
 function CategoryIcon({ slug, size = 32 }: { slug: string; size?: number }) {
   const fill = '#FFD700';
@@ -188,16 +181,20 @@ export default function SellerProfilePage() {
     );
   }
 
-  // Só anúncio aprovado vai à vitrine. A API devolve qualquer status, e sem
-  // este filtro o perfil exibia item ainda em moderação: de fora parecia que o
-  // anúncio tinha sido aprovado sozinho, quando só estava aparecendo cedo.
+  // O que a loja mostra, antes da busca e da ordenação.
+  //
+  // Só anúncio aprovado entra: a API devolve qualquer status, e sem filtro o
+  // perfil exibia item ainda em moderação — de fora parecia que o anúncio tinha
+  // sido aprovado sozinho. A loja é mais larga que a vitrine num ponto: mostra
+  // também o leilão pausado, com selo (ver `onlyPublicNaLoja`).
+  //
+  // O contador da aba sai daqui, e não de `totalActiveListings` — aquele conta
+  // `status='active'` no banco, sem saber de leilão pausado ou encerrado, e a
+  // aba anunciava "14" sobre uma grade de 1 card. Sendo a mesma lista que a
+  // grade renderiza, os dois não têm como divergir.
+  //
   // `getAllListings` devolve o array direto (já juntou as páginas), não { data }.
-  // O que o público vê, antes da busca e da ordenação. O contador da aba sai
-  // daqui e não de `totalActiveListings`: aquele conta `status='active'` no
-  // banco, sem saber de leilão pausado ou encerrado, e a aba anunciava "14"
-  // sobre uma grade de 1 card. Contando a mesma lista que a grade renderiza,
-  // os dois não têm como divergir.
-  const publicProducts = onlyPublic(listingsResponse ?? []);
+  const publicProducts = onlyPublicNaLoja(listingsResponse ?? []);
 
   let filteredProducts = publicProducts;
   if (searchQuery) {
@@ -359,19 +356,20 @@ export default function SellerProfilePage() {
             ) : filteredProducts.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filteredProducts.map((product) => {
-                  // Mapeia o Listing para o Product esperado pelo ProductCard (gambiarra do frontend MVP)
-                  const mappedProduct = {
-                    ...product,
-                    slug: product.id,
-                    price: product.priceInCents ? product.priceInCents / 100 : undefined,
-                    categorySlug: product.categoryId ?? '',
-                    // F32: JSON.parse sem proteção derrubava a página inteira quando
-                    // `images` não era JSON válido (ex.: uma URL crua).
-                    images: safeParseImages(product.images),
+                  // `toProduct` é o mesmo conversor da home e da categoria.
+                  //
+                  // Aqui havia um mapeamento próprio que não convertia os campos
+                  // do leilão: `startingBidInCents` nunca virava `startingBid`,
+                  // então o card caía no `|| 0` e anunciava "R$ 0,00". Passava
+                  // despercebido porque leilão nenhum chegava a aparecer nesta
+                  // tela — o endpoint não mandava os dados do leilão.
+                  const mapped = {
+                    ...toProduct(product),
+                    // O perfil sabe o nome e o selo da loja; o conversor genérico não.
                     // F32: sem id/slug o card apontava para "/vendedor/undefined".
                     seller: { name: seller.name, slug: slug, id: slug, verified: !!seller.isVerified },
                   } as unknown as import('@/lib/mock-data').Product;
-                  return <ProductCard key={product.id} product={mappedProduct} />;
+                  return <ProductCard key={product.id} product={mapped} />;
                 })}
               </div>
             ) : (

@@ -54,6 +54,12 @@ export interface Product {
   bidsCount?: number;
   auctionEndsAt?: string;
   auctionStatus?: AuctionStatus;
+  /**
+   * Leilão pausado: existe e é legítimo, mas não recebe lance agora. O card
+   * troca a contagem regressiva pelo aviso — o `auctionEndsAt` de um pausado é
+   * a sentinela de 2099 e o relógio marcaria décadas.
+   */
+  auctionPaused?: boolean;
   seller: Seller;
   description: string;
   details: Record<string, string>;

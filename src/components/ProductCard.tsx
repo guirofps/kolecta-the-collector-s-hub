@@ -63,10 +63,18 @@ export default function ProductCard({ product, className = '' }: ProductCardProp
               Destaque
             </Badge>
           )}
+          {/* Pausado troca o selo em vez de somar outro: "Modo Lance" pulsando
+              ao lado de "Pausado" convida para um lance que será recusado. */}
           {isAuction && (
-            <Badge className="bg-accent text-accent-foreground text-[10px] font-heading font-bold uppercase tracking-wider animate-pulse-glow">
-              Modo Lance
-            </Badge>
+            product.auctionPaused ? (
+              <Badge variant="secondary" className="text-[10px] font-heading font-bold uppercase tracking-wider">
+                Leilão pausado
+              </Badge>
+            ) : (
+              <Badge className="bg-accent text-accent-foreground text-[10px] font-heading font-bold uppercase tracking-wider animate-pulse-glow">
+                Modo Lance
+              </Badge>
+            )
           )}
         </div>
 
@@ -116,8 +124,17 @@ export default function ProductCard({ product, className = '' }: ProductCardProp
                   {product.bidsCount} lances
                 </span>
               </div>
-              {product.auctionEndsAt && (
-                <AuctionCountdown endsAt={product.auctionEndsAt} compact />
+              {/* O `auctionEndsAt` de um leilão pausado é a sentinela de 2099:
+                  a contagem marcaria dezenas de milhares de dias. Troca pelo
+                  motivo, que é o que a pessoa precisa saber. */}
+              {product.auctionPaused ? (
+                <p className="text-[10px] text-muted-foreground">
+                  Sem lances no momento — volta com o tempo que faltava.
+                </p>
+              ) : (
+                product.auctionEndsAt && (
+                  <AuctionCountdown endsAt={product.auctionEndsAt} compact />
+                )
               )}
             </div>
           ) : (

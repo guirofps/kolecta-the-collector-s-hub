@@ -43,6 +43,24 @@ export function leilaoAberto(l: Listing, agora: Date = new Date()): boolean {
 }
 
 /**
+ * O leilão está pausado — existe, é legítimo, mas não recebe lance agora?
+ *
+ * Deliberadamente separado de `leilaoAberto`, que responde "aceita lance?" e é
+ * usado para habilitar o lance. Pausado NÃO aceita lance; juntar os dois faria
+ * o leilão parecer disputável.
+ *
+ * O que distingue pausado de leilão nunca iniciado é só `auctionPausedAt`: os
+ * dois carregam o mesmo `endsAt` sentinela de 2099. Sem este campo não há como
+ * mostrar um e esconder o outro.
+ */
+export function leilaoPausado(l: Pick<Listing, 'status'> & Partial<Listing>): boolean {
+  if (l.type !== 'auction') return false;
+  if (l.status !== 'active') return false;
+  if (l.auctionStatus && ENCERRADOS.includes(l.auctionStatus)) return false;
+  return Boolean(l.auctionPausedAt);
+}
+
+/**
  * Mesma regra para a lista de `/api/auctions`, que devolve outro formato: lá o
  * `status` é o do próprio leilão, não o do anúncio. A página do Modo Lance
  * mostrava os mesmos leilões parados que a home.

@@ -12,7 +12,7 @@
 // o backend invente nasce escondido, que é o lado seguro de errar.
 
 import type { Listing } from '@/lib/api';
-import { leilaoAberto } from '@/lib/leilao';
+import { leilaoAberto, leilaoPausado } from '@/lib/leilao';
 
 /** Único status que o público pode ver. */
 export const PUBLIC_STATUS = 'active';
@@ -40,4 +40,22 @@ export function isPubliclyVisible(l: Pick<Listing, 'status'> & Partial<Listing>)
  */
 export function onlyPublic<T extends Pick<Listing, 'status'> & Partial<Listing>>(listings: T[]): T[] {
   return listings.filter(isPubliclyVisible);
+}
+
+/**
+ * Visibilidade na LOJA do vendedor, que é mais larga que a da vitrine.
+ *
+ * A loja mostra também o leilão pausado, com selo. A vitrine (home, busca,
+ * categoria) não: lá a pessoa está procurando o que comprar, e leilão que não
+ * recebe lance só atrapalha. Na loja o contexto é outro — ela responde "o que
+ * este vendedor tem?", e esconder 12 dos 14 itens fazia lojas inteiras
+ * parecerem abandonadas quando o vendedor só estava esperando o KYC.
+ *
+ * Continua escondendo o leilão NUNCA INICIADO, que é o caso que a regra original
+ * queria pegar: aquele não é um item que existe à venda, é um rascunho.
+ */
+export function onlyPublicNaLoja<T extends Pick<Listing, 'status'> & Partial<Listing>>(
+  listings: T[],
+): T[] {
+  return listings.filter((l) => isPubliclyVisible(l) || leilaoPausado(l));
 }
