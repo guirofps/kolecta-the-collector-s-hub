@@ -221,10 +221,29 @@ export default function AuctionDetail() {
                     Este leilão foi encerrado.
                   </div>
                 )
-              ) : !isAuthenticated ? (
-                <Button variant="kolecta" className="w-full" asChild>
-                  <Link to="/entrar"><LogIn className="h-4 w-4 mr-2" /> Entrar para dar lance</Link>
-                </Button>
+              ) : /* Pausado vem ANTES da checagem de login: convidar a "entrar
+                     para dar lance" num leilão que não recebe lance faz a pessoa
+                     se cadastrar para descobrir que não dá. E vem separado por
+                     dono, porque a causa só é acionável para o vendedor. */
+              isSeller && pausado ? (
+                <div className="rounded-md bg-muted/40 border border-border p-4 space-y-3">
+                  <p className="flex items-start gap-2 text-sm text-muted-foreground">
+                    <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-kolecta-gold" />
+                    <span>
+                      <strong className="block text-foreground mb-0.5">
+                        Leilão pausado — falta sua conta de recebimento
+                      </strong>
+                      Para o dinheiro do arremate chegar até você, precisamos da
+                      sua conta de recebimento ativa. Enquanto ela não estiver
+                      pronta, o leilão fica pausado e não aceita lances. Assim
+                      que ativar, ele volta ao ar sozinho, com o{' '}
+                      <strong>mesmo tempo que faltava</strong>.
+                    </span>
+                  </p>
+                  <Button variant="kolecta" className="w-full" asChild>
+                    <Link to="/painel/recebedor">Criar conta de recebimento</Link>
+                  </Button>
+                </div>
               ) : isSeller ? (
                 <div className="rounded-md bg-secondary/50 border border-border p-3 text-sm text-muted-foreground">
                   Você é o vendedor deste leilão e não pode dar lances.
@@ -237,13 +256,16 @@ export default function AuctionDetail() {
                       <strong className="block text-foreground mb-0.5">
                         Leilão pausado
                       </strong>
-                      Os lances são garantidos por cartão de crédito, e o cartão
-                      está em liberação com nosso provedor. O leilão volta com o{' '}
-                      <strong>mesmo tempo que faltava</strong> — nada se perde.
-                      As compras diretas seguem normais, por <strong>Pix</strong>.
+                      O vendedor está finalizando o cadastro de recebimento. O
+                      leilão volta com o <strong>mesmo tempo que faltava</strong>{' '}
+                      — nada se perde. As compras diretas seguem normais.
                     </span>
                   </p>
                 </div>
+              ) : !isAuthenticated ? (
+                <Button variant="kolecta" className="w-full" asChild>
+                  <Link to="/entrar"><LogIn className="h-4 w-4 mr-2" /> Entrar para dar lance</Link>
+                </Button>
               ) : !isCardPaymentEnabled ? (
                 // Lance é garantido por pré-autorização no cartão. Com o cartão
                 // fechado, não há como dar lance — dizer isso aqui evita o
