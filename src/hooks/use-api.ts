@@ -1556,7 +1556,12 @@ export function useAdminFinancial() {
       const token = await getToken();
       return api.admin.getFinancial(token!);
     },
-    staleTime: 60_000,
+    // Acompanhamento de vendas: a tela fica aberta na mesa da equipe, então
+    // busca sozinha a cada 30s em vez de esperar alguém recarregar. Com 60s de
+    // staleTime a venda que acabou de sair demorava para aparecer.
+    staleTime: 15_000,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
   });
 }
 

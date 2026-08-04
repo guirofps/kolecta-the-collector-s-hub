@@ -1651,6 +1651,24 @@ export interface AdminFinancialTransaction {
   commissionPct: number | null;
   net: number | null;
   status: string;
+  // ── Acompanhamento (quem vendeu e o que foi vendido) ──
+  // Opcionais de propósito: o backend ainda não devolve. A tela mostra "—"
+  // enquanto não vierem, e passa a preencher sozinha quando o endpoint
+  // enriquecer (ver docs/backend-pendencias). Sem isso, uma venda aparece no
+  // painel sem dizer de qual vendedor nem de qual produto.
+  seller?: string;
+  product?: string;
+  listingId?: string;
+  /** pix | credit_card | wallet — como o comprador pagou. */
+  paymentInstrument?: string;
+  /** 'auction' = arremate do Modo Lance; 'direct' = compra direta. */
+  origin?: 'auction' | 'direct';
+  /**
+   * Já virou dinheiro? A lista passou a trazer TODO pedido, inclusive Pix
+   * gerado e não pago, então a tela precisa separar o que é venda de verdade
+   * do que é só intenção de compra.
+   */
+  isSale?: boolean;
 }
 
 export interface AdminFinancial {
