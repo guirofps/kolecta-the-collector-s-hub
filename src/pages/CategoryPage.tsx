@@ -1,9 +1,13 @@
 import { useState } from 'react';
 import { useParams, Navigate, Link } from 'react-router-dom';
+import { SlidersHorizontal } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
 import ProductCard from '@/components/ProductCard';
 import { useListings, useCategories } from '@/hooks/use-api';
 import { Button } from '@/components/ui/button';
+import {
+  Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter, SheetClose,
+} from '@/components/ui/sheet';
 import { onlyPublic } from '@/lib/listing-visibility';
 import { LIMITE_CATALOGO } from '@/lib/catalogo';
 import {
@@ -85,6 +89,16 @@ function CategoryIcon({ slug, size = 32 }: { slug: string; size?: number }) {
   }
 }
 
+// Estilo comum das "pílulas" de filtro. Fica aqui para o desktop e a gaveta do
+// mobile usarem exatamente o mesmo visual, sem duplicar a string de classes.
+function chipClass(active: boolean, disabled = false): string {
+  const base = 'rounded-md px-3 py-1.5 text-sm font-medium transition-colors';
+  if (disabled) return `${base} cursor-not-allowed text-muted-foreground/40`;
+  return active
+    ? `${base} bg-primary/15 text-primary`
+    : `${base} text-muted-foreground hover:bg-secondary/60 hover:text-foreground`;
+}
+
 // A API pública de anúncios só aceita limite, deslocamento e busca por texto:
 // não dá para filtrar por categoria no servidor. Então trazemos um lote grande
 // e filtramos aqui. Com 40 (o valor antigo) a categoria aparecia VAZIA mesmo
@@ -106,6 +120,8 @@ export default function CategoryPage() {
   const [filtroPreco, setFiltroPreco] = useState<string | null>(null);
   const [filtroCondicao, setFiltroCondicao] = useState<string | null>(null);
   const [ordem, setOrdem] = useState<Ordem>('relevancia');
+  // No mobile os filtros vivem numa gaveta (bottom sheet), aberta por este estado.
+  const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   // F29: antes passava o slug como `q` (busca de TEXTO), então procurava itens
   // com "funko-pop" no título → sempre vazio. Agora buscamos os anúncios e
   // filtramos pela CATEGORIA real (id resolvido pelo slug via API).
@@ -165,6 +181,13 @@ export default function CategoryPage() {
   const faixasPreco = faixasComItem(baseFiltros);
   const condicoes = condicoesComItem(baseFiltros);
   const temFiltroGenerico = filtroPreco !== null || filtroCondicao !== null || ordem !== 'relevancia';
+  // Quantos filtros o visitante ligou, para a bolinha no botão "Filtros" do mobile.
+  const filtrosAtivos =
+    (filtroTipo !== 'todos' ? 1 : 0) +
+    (filtroSub !== 'todas' ? 1 : 0) +
+    (filtroPreco !== null ? 1 : 0) +
+    (filtroCondicao !== null ? 1 : 0) +
+    (ordem !== 'relevancia' ? 1 : 0);
 
   const products = ordenar(
     aplicarFiltros(baseFiltros, { faixaPreco: filtroPreco, condicao: filtroCondicao }),
@@ -239,6 +262,88 @@ export default function CategoryPage() {
     auctionEndsAt: l.endsAt ?? undefined,
   }));
 
+  // ─── Pílulas de filtro, montadas uma vez e reaproveitadas no desktop (inline)
+  //     e no mobile (dentro da gaveta). Só os botões, sem embrulho, para cada
+  //     contexto colocá-los no container que quiser. ───
+  const chipsTipo = ([
+    { valor: 'todos', rotulo: 'Tudo', total: daCategoria.length },
+    { valor: 'direct', rotulo: 'Compra direta', total: totalDireta },
+    { valor: 'auction', rotulo: 'Modo Lance', total: totalLeilao },
+  ] as const).map((aba) => (
+    <button
+      key={aba.valor}
+      type="button"
+      onClick={() => setFiltroTipo(aba.valor)}
+      disabled={aba.total === 0}
+      className={chipClass(filtroTipo === aba.valor, aba.total === 0)}
+    >
+      {aba.rotulo} ({aba.total})
+    </button>
+  ));
+
+  const chipsSub = [
+    <button
+      key="__todas"
+      type="button"
+      onClick={() => setFiltroSub('todas')}
+      className={chipClass(filtroSub === 'todas')}
+    >
+      Todas ({daCategoria.length})
+    </button>,
+    ...subsComItem.map((nome) => (
+      <button
+        key={nome}
+        type="button"
+        onClick={() => setFiltroSub(nome)}
+        className={chipClass(filtroSub === nome)}
+      >
+        {nome} ({contagemSub[nome]})
+      </button>
+    )),
+  ];
+
+  const chipsPreco = faixasPreco.map((f) => {
+    const ativo = filtroPreco === f.chave;
+    return (
+      <button
+        key={f.chave}
+        type="button"
+        // Clicar de novo no ativo limpa o filtro de preço.
+        onClick={() => setFiltroPreco(ativo ? null : f.chave)}
+        className={chipClass(ativo)}
+      >
+        {f.rotulo} ({f.total})
+      </button>
+    );
+  });
+
+  const chipsCondicao = condicoes.map((c) => {
+    const ativo = filtroCondicao === c.value;
+    return (
+      <button
+        key={c.value}
+        type="button"
+        onClick={() => setFiltroCondicao(ativo ? null : c.value)}
+        className={chipClass(ativo)}
+      >
+        {c.label} ({c.total})
+      </button>
+    );
+  });
+
+  const chipsOrdem = ORDENS.map((o) => (
+    <button
+      key={o.valor}
+      type="button"
+      onClick={() => setOrdem(o.valor)}
+      className={chipClass(ordem === o.valor)}
+    >
+      {o.rotulo}
+    </button>
+  ));
+
+  const rotuloLabel = 'mb-2 text-[10px] font-heading uppercase tracking-wider text-muted-foreground';
+
   return (
     <Layout>
       <div className="container mx-auto px-4 py-8">
@@ -246,134 +351,68 @@ export default function CategoryPage() {
           <CategoryIcon slug={category.slug} size={32} />
           <div>
             <h1 className="font-heading text-3xl font-extrabold italic uppercase">{category.name}</h1>
-            {/* A contagem VIVE na linha de resultado, abaixo dos filtros, para
-                não repetir o número em dois lugares quando a pessoa filtra. */}
             <p className="text-sm text-muted-foreground">{category.description}</p>
           </div>
         </div>
 
-        {/* Compra direta e leilão são jornadas diferentes: uma tem preço fixo,
-            a outra tem prazo e disputa. Misturar na mesma grade confunde. */}
+        {/* ─── MOBILE: barra compacta com um botão que abre a gaveta de filtros.
+            Tira do topo a parede de pílulas que ficava amassada no celular. ─── */}
         {daCategoria.length > 0 && (
-          <div className="mb-6 flex flex-wrap gap-2">
-            {([
-              { valor: 'todos', rotulo: 'Tudo', total: daCategoria.length },
-              { valor: 'direct', rotulo: 'Compra direta', total: totalDireta },
-              { valor: 'auction', rotulo: 'Modo Lance', total: totalLeilao },
-            ] as const).map((aba) => (
-              <button
-                key={aba.valor}
-                type="button"
-                onClick={() => setFiltroTipo(aba.valor)}
-                disabled={aba.total === 0}
-                className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                  filtroTipo === aba.valor
-                    ? 'bg-primary/15 text-primary'
-                    : aba.total === 0
-                      ? 'cursor-not-allowed text-muted-foreground/40'
-                      : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground'
-                }`}
-              >
-                {aba.rotulo} ({aba.total})
-              </button>
-            ))}
+          <div className="mb-5 md:hidden">
+            <Button
+              variant="outline"
+              onClick={() => setFiltrosAbertos(true)}
+              className="w-full justify-center gap-2"
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+              Filtros e ordenação
+              {filtrosAtivos > 0 && (
+                <span className="ml-1 rounded-full bg-primary/15 px-2 py-0.5 text-xs font-semibold text-primary">
+                  {filtrosAtivos}
+                </span>
+              )}
+            </Button>
+          </div>
+        )}
+
+        {/* ─── DESKTOP: filtros inline, escondidos no mobile (lá vão na gaveta).
+            Compra direta e leilão são jornadas diferentes; misturar confunde. ─── */}
+        {daCategoria.length > 0 && (
+          <div className="mb-6 hidden md:block">
+            <div className="flex flex-wrap gap-2">{chipsTipo}</div>
           </div>
         )}
 
         {/* Prateleiras dentro da categoria. Sem isto, "Miniaturas" é uma pilha
             de 52 itens misturando Hot Wheels, Majorette e Bburago. */}
         {sub && subsComItem.length > 1 && (
-          <div className="mb-6">
-            <p className="mb-2 text-[10px] font-heading uppercase tracking-wider text-muted-foreground">
-              {sub.label}
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => setFiltroSub('todas')}
-                className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                  filtroSub === 'todas'
-                    ? 'bg-primary/15 text-primary'
-                    : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground'
-                }`}
-              >
-                Todas ({daCategoria.length})
-              </button>
-              {subsComItem.map((nome) => (
-                <button
-                  key={nome}
-                  type="button"
-                  onClick={() => setFiltroSub(nome)}
-                  className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                    filtroSub === nome
-                      ? 'bg-primary/15 text-primary'
-                      : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground'
-                  }`}
-                >
-                  {nome} ({contagemSub[nome]})
-                </button>
-              ))}
-            </div>
+          <div className="mb-6 hidden md:block">
+            <p className={rotuloLabel}>{sub.label}</p>
+            <div className="flex flex-wrap gap-2">{chipsSub}</div>
           </div>
         )}
 
-        {/* Preço, condição e ordenação: os filtros genéricos que todo
-            marketplace tem e a categoria não tinha. Cada bloco só aparece
-            quando há mais de uma opção, senão vira ruído. */}
+        {/* Preço e condição: os filtros genéricos que todo marketplace tem. Cada
+            bloco só aparece quando há mais de uma opção, senão vira ruído. */}
         {baseFiltros.length > 0 && (faixasPreco.length > 1 || condicoes.length > 1) && (
-          <div className="mb-6 space-y-4 rounded-lg border border-border bg-card/40 p-4">
+          <div className="mb-6 hidden space-y-4 rounded-lg border border-border bg-card/40 p-4 md:block">
             {faixasPreco.length > 1 && (
               <div>
-                <p className="mb-2 text-[10px] font-heading uppercase tracking-wider text-muted-foreground">Preço</p>
-                <div className="flex flex-wrap gap-2">
-                  {faixasPreco.map((f) => {
-                    const ativo = filtroPreco === f.chave;
-                    return (
-                      <button
-                        key={f.chave}
-                        type="button"
-                        // Clicar de novo no ativo limpa o filtro de preço.
-                        onClick={() => setFiltroPreco(ativo ? null : f.chave)}
-                        className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                          ativo ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground'
-                        }`}
-                      >
-                        {f.rotulo} ({f.total})
-                      </button>
-                    );
-                  })}
-                </div>
+                <p className={rotuloLabel}>Preço</p>
+                <div className="flex flex-wrap gap-2">{chipsPreco}</div>
               </div>
             )}
-
             {condicoes.length > 1 && (
               <div>
-                <p className="mb-2 text-[10px] font-heading uppercase tracking-wider text-muted-foreground">Condição</p>
-                <div className="flex flex-wrap gap-2">
-                  {condicoes.map((c) => {
-                    const ativo = filtroCondicao === c.value;
-                    return (
-                      <button
-                        key={c.value}
-                        type="button"
-                        onClick={() => setFiltroCondicao(ativo ? null : c.value)}
-                        className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                          ativo ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground'
-                        }`}
-                      >
-                        {c.label} ({c.total})
-                      </button>
-                    );
-                  })}
-                </div>
+                <p className={rotuloLabel}>Condição</p>
+                <div className="flex flex-wrap gap-2">{chipsCondicao}</div>
               </div>
             )}
           </div>
         )}
 
-        {/* Contagem do resultado + ordenação, na mesma linha. A ordenação fica
-            aqui embaixo dos filtros, junto do total, que é onde a pessoa olha
-            depois de filtrar. */}
+        {/* Contagem do resultado + ordenação. A ordenação por select fica só no
+            desktop; no mobile ela está dentro da gaveta. */}
         {baseFiltros.length > 0 && (
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-muted-foreground">
@@ -384,7 +423,7 @@ export default function CategoryPage() {
                 </button>
               )}
             </p>
-            <label className="flex items-center gap-2 text-sm text-muted-foreground">
+            <label className="hidden items-center gap-2 text-sm text-muted-foreground md:flex">
               Ordenar por
               <select
                 value={ordem}
@@ -446,6 +485,67 @@ export default function CategoryPage() {
             ))}
           </div>
         )}
+
+        {/* ─── MOBILE: a gaveta (bottom sheet) de filtros. Só monta no celular;
+            no desktop o botão que a abre está escondido, então ela nunca aparece. ─── */}
+        <Sheet open={filtrosAbertos} onOpenChange={setFiltrosAbertos}>
+          <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto rounded-t-2xl md:hidden">
+            <SheetHeader className="mb-4 text-left">
+              <SheetTitle>Filtros e ordenação</SheetTitle>
+            </SheetHeader>
+
+            <div className="space-y-5">
+              <div>
+                <p className={rotuloLabel}>Ordenar por</p>
+                <div className="flex flex-wrap gap-2">{chipsOrdem}</div>
+              </div>
+
+              {daCategoria.length > 0 && (
+                <div>
+                  <p className={rotuloLabel}>Tipo</p>
+                  <div className="flex flex-wrap gap-2">{chipsTipo}</div>
+                </div>
+              )}
+
+              {sub && subsComItem.length > 1 && (
+                <div>
+                  <p className={rotuloLabel}>{sub.label}</p>
+                  <div className="flex flex-wrap gap-2">{chipsSub}</div>
+                </div>
+              )}
+
+              {faixasPreco.length > 1 && (
+                <div>
+                  <p className={rotuloLabel}>Preço</p>
+                  <div className="flex flex-wrap gap-2">{chipsPreco}</div>
+                </div>
+              )}
+
+              {condicoes.length > 1 && (
+                <div>
+                  <p className={rotuloLabel}>Condição</p>
+                  <div className="flex flex-wrap gap-2">{chipsCondicao}</div>
+                </div>
+              )}
+            </div>
+
+            <SheetFooter className="mt-6 flex-row gap-3">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={limparTudo}
+                disabled={filtrosAtivos === 0}
+              >
+                Limpar
+              </Button>
+              <SheetClose asChild>
+                <Button variant="kolecta" className="flex-1">
+                  Ver {products.length} {products.length === 1 ? 'item' : 'itens'}
+                </Button>
+              </SheetClose>
+            </SheetFooter>
+          </SheetContent>
+        </Sheet>
       </div>
     </Layout>
   );
