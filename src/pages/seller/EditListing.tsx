@@ -16,7 +16,7 @@ import { definirCapa } from '@/lib/fotos-anuncio';
 import ProductDescription from '@/components/ProductDescription';
 import RejectionNotice from '@/components/RejectionNotice';
 import { isOpenRoute } from '@/components/LaunchGate';
-import { useListing, useUpdateListing, useUploadImage, useCategories } from '@/hooks/use-api';
+import { useListing, useUpdateListing, useUploadImage, useCategories, useTogglePauseListing } from '@/hooks/use-api';
 import type { CreateListingPayload } from '@/lib/api';
 import { toast } from 'sonner';
 import CategoryFieldsEditor from '@/components/CategoryFieldsEditor';
@@ -107,6 +107,7 @@ export default function EditListing() {
   const { data: listing, isLoading, isError } = useListing(id);
   const { data: categories } = useCategories();
   const updateListing = useUpdateListing();
+  const togglePause = useTogglePauseListing();
   const uploadImage = useUploadImage();
 
   // Categorias reais da API; cai para o mock se a API ainda não respondeu.
@@ -220,10 +221,16 @@ export default function EditListing() {
       return;
     }
 
-    // Estoque zero num anúncio no ar é venda que não pode ser cumprida.
-    if (listing?.type !== 'auction' && !(Number(form.stock) >= 1)) {
-      toast.error('Informe quantas unidades você tem (no mínimo 1).');
-      return;
+    // Estoque pode ser 0: zerar tira o anúncio do ar (pausamos no sucesso, mesma
+    // lógica do backend quando uma venda zera o estoque). Aqui só recusamos valor
+    // inválido ou o campo em branco.
+    if (listing?.type !== 'auction') {
+      const bruto = form.stock.trim();
+      const n = Number(bruto);
+      if (bruto === '' || !Number.isInteger(n) || n < 0) {
+        toast.error('Informe o estoque (0 ou mais).');
+        return;
+      }
     }
 
     const isAuction = listing?.type === 'auction';
@@ -251,6 +258,9 @@ export default function EditListing() {
       (v) => formatFieldValue(v) !== null,
     );
 
+    // Estoque pode ir a 0. Se zerar num anúncio ativo, tiramos do ar no sucesso.
+    const novoEstoque = isAuction ? undefined : Math.max(0, Number(form.stock) || 0);
+
     const payload: Partial<CreateListingPayload> = {
       title: form.title.trim(),
       description: form.description || undefined,
@@ -263,7 +273,7 @@ export default function EditListing() {
       attributes: hasAttributes ? JSON.stringify(cf) : undefined,
       sku: form.sku.trim() || undefined,
       // Leilão é de um item específico e não carrega quantidade.
-      stock: listing?.type === 'auction' ? undefined : Math.max(1, Number(form.stock) || 1),
+      stock: novoEstoque,
       condition: form.condition || undefined,
       priceInCents,
       images: JSON.stringify(form.photos),
@@ -275,7 +285,27 @@ export default function EditListing() {
 
     updateListing.mutate(
       { id, data: payload },
-      { onSuccess: () => navigate('/painel/anuncios') },
+      {
+        onSuccess: () => {
+          // Zerou o estoque de um anúncio no ar? Sai do ar: pausamos, do mesmo
+          // jeito que o backend faz quando uma venda leva o estoque a zero.
+          if (novoEstoque === 0 && listing?.status === 'active') {
+            togglePause.mutate(id, {
+              onSuccess: () => {
+                toast.info('Estoque zerado: o anúncio saiu do ar. Reponha e reative para voltar a vender.');
+                navigate('/painel/anuncios');
+              },
+              onError: () => {
+                // A edição salvou; só a pausa falhou. Não trava o vendedor.
+                toast.warning('Estoque salvo, mas não consegui tirar do ar sozinho. Use Pausar em Meus anúncios.');
+                navigate('/painel/anuncios');
+              },
+            });
+            return;
+          }
+          navigate('/painel/anuncios');
+        },
+      },
     );
   };
 
@@ -432,13 +462,13 @@ export default function EditListing() {
                     id="stock"
                     type="number"
                     inputMode="numeric"
-                    min={1}
+                    min={0}
                     placeholder="ex: 1"
                     value={form.stock}
                     onChange={(e) => updateField('stock', e.target.value)}
                   />
                   <p className="mt-1 text-[11px] text-muted-foreground">
-                    Repõe aqui depois de vender. Zerou, o anúncio sai do ar.
+                    Repõe aqui depois de vender. Zerar tira o anúncio do ar; reponha e reative em Meus anúncios para voltar.
                   </p>
                 </div>
               )}
