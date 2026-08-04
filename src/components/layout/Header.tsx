@@ -163,6 +163,18 @@ function DrawerContent() {
                     <ChevronRight className="w-4 h-4 opacity-50" />
                   </Link>
                 </SheetClose>
+                {/* Carteira e cartão: é aqui que se cadastra o cartão usado para
+                    dar lance. Faltava no menu do celular, e quem procurava caía
+                    no "Financeiro" do vendedor, que é outra coisa (repasses). */}
+                <SheetClose asChild>
+                  <Link to="/conta/pagamentos" className="flex items-center justify-between py-2 text-white/70 hover:text-white transition-colors">
+                    <div className="flex items-center gap-3">
+                      <CreditCard className="w-4 h-4" />
+                      <span className="text-sm">Carteira e Cartão</span>
+                    </div>
+                    <ChevronRight className="w-4 h-4 opacity-50" />
+                  </Link>
+                </SheetClose>
                 <SheetClose asChild>
                   <Link to="/conta/favoritos" className="flex items-center justify-between py-2 text-white/70 hover:text-white transition-colors">
                     <div className="flex items-center gap-3">

@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import {
-  Wallet, Clock, TrendingUp, ArrowDownToLine, AlertCircle, Copy, Loader2,
+  Wallet, Clock, TrendingUp, ArrowDownToLine, AlertCircle, Copy, Loader2, CreditCard,
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -314,6 +314,16 @@ export default function SellerFinancialPage() {
           <div>
             <h1 className="font-heading text-3xl font-bold tracking-tight">Financeiro</h1>
             <p className="text-sm text-muted-foreground mt-1">Saldo, repasses e histórico financeiro</p>
+            {/* Esta tela é o dinheiro que você RECEBE. Quem vem aqui atrás de
+                cadastrar cartão para dar lance procurava no lugar errado e não
+                achava, porque o cartão vive na conta do comprador. */}
+            <Link
+              to="/conta/pagamentos"
+              className="mt-2 inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
+            >
+              <CreditCard className="h-3.5 w-3.5" />
+              Procurando cadastrar seu cartão para dar lances? Fica em Carteira e Cartão
+            </Link>
           </div>
           {summary.recipientReady ? (
             <div className="flex gap-2">
