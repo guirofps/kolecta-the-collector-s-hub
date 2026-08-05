@@ -732,6 +732,14 @@ export const api = {
     getStatus: (token: string) =>
       request<{ data: BlingStatus }>('/api/bling/status', { token }).then(r => r.data),
 
+    // Pega a URL de autorização e só DEPOIS navega. Mandar o navegador direto
+    // ao backend não funciona: navegação de página não carrega o `Authorization`,
+    // e o cookie do Clerk é do domínio do site, não do domínio da API. O botão
+    // devolvia 401 em JSON na cara do lojista.
+    authorizeUrl: (token: string) =>
+      request<{ data: { url: string } }>('/api/bling/authorize-url', { token })
+        .then(r => r.data.url),
+
     disconnect: (token: string) =>
       request<{ data: BlingStatus }>('/api/bling/disconnect', { method: 'DELETE', token }).then(r => r.data),
   },
@@ -767,10 +775,10 @@ export const api = {
 
     // Transportadoras que o vendedor topa usar. Só RESTRINGE o que a Kolecta já
     // oferece: a cotação cruza as duas listas. Lista vazia volta ao padrão.
-    updateShipping: (token: string, services: number[]) =>
+    updateShipping: (token: string, services: number[], acceptsPickup?: boolean) =>
       request<{ data: SellerSelfProfile }>('/api/seller/shipping', {
         method: 'PUT',
-        body: JSON.stringify({ services }),
+        body: JSON.stringify({ services, acceptsPickup }),
         token,
       }).then(r => r.data),
   },
@@ -840,10 +848,10 @@ export const api = {
       height_cm?: number;
       length_cm?: number;
     }) =>
-      request<{ options: ShippingQuoteOption[] }>('/api/shipping/quote', {
+      request<{ options: ShippingQuoteOption[]; pickup?: boolean }>('/api/shipping/quote', {
         method: 'POST',
         body: JSON.stringify(body),
-      }).then((r) => r.options),
+      }),
 
     // Baixa o PDF do envio pela NOSSA autenticação. Não devolve link do
     // Melhor Envio: aquilo é página de painel e cai no login de uma conta que
@@ -1023,6 +1031,8 @@ export type LabelFileKind = 'completo' | 'etiqueta' | 'declaracao';
  */
 export interface SellerShippingPrefs {
   services: number[];
+  /** Entrega em mãos. true = o comprador vê "Retirada pessoal" no checkout. */
+  acceptsPickup: boolean;
   disponiveis: Array<{
     id: number;
     carrier: string;

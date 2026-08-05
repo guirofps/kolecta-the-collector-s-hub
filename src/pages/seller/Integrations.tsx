@@ -6,16 +6,15 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { useBlingStatus, useBlingDisconnect } from '@/hooks/use-api';
+import { useBlingStatus, useBlingConnect, useBlingDisconnect } from '@/hooks/use-api';
 import { CheckCircle2, XCircle, ExternalLink, Plug, PlugZap } from 'lucide-react';
-
-const BACKEND_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
 
 export default function IntegrationsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
 
   const { data: blingStatus, isLoading } = useBlingStatus();
+  const connectMutation = useBlingConnect();
   const disconnectMutation = useBlingDisconnect();
 
   // Feedback após callback OAuth
@@ -29,12 +28,6 @@ export default function IntegrationsPage() {
       setSearchParams({});
     }
   }, [searchParams, setSearchParams, toast]);
-
-  function handleConnect() {
-    // Redireciona para o backend que redireciona para o OAuth do Bling
-    const devUserId = localStorage.getItem('dev_user_id') || 'seller-001';
-    window.location.href = `${BACKEND_URL}/api/bling/connect`;
-  }
 
   const isConnected = blingStatus?.connected && !blingStatus?.expired;
   const isExpired = blingStatus?.connected && blingStatus?.expired;
@@ -115,9 +108,16 @@ export default function IntegrationsPage() {
                   {disconnectMutation.isPending ? 'Desconectando...' : 'Desconectar'}
                 </Button>
               ) : (
-                <Button variant="kolecta" size="sm" onClick={handleConnect}>
+                <Button
+                  variant="kolecta"
+                  size="sm"
+                  disabled={connectMutation.isPending}
+                  onClick={() => connectMutation.mutate()}
+                >
                   <PlugZap className="h-4 w-4 mr-1.5" />
-                  {isExpired ? 'Reconectar Bling' : 'Conectar Bling'}
+                  {connectMutation.isPending
+                    ? 'Abrindo o Bling...'
+                    : isExpired ? 'Reconectar Bling' : 'Conectar Bling'}
                 </Button>
               )}
 

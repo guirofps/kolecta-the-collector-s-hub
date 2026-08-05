@@ -185,9 +185,9 @@ export function useUpdateSellerShipping() {
   const { getToken } = useAuth();
   const { toast } = useToast();
   return useMutation({
-    mutationFn: async (services: number[]) => {
+    mutationFn: async (v: { services: number[]; acceptsPickup: boolean }) => {
       const token = await getToken();
-      return api.sellerSelf.updateShipping(token || '', services);
+      return api.sellerSelf.updateShipping(token || '', v.services, v.acceptsPickup);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['seller-self-profile'] });
@@ -1768,6 +1768,35 @@ export function useBlingStatus() {
       return api.bling.getStatus(token!);
     },
     staleTime: 30_000,
+  });
+}
+
+/**
+ * Leva o lojista para a tela de autorização do Bling.
+ *
+ * Busca a URL autenticado e só então navega. O botão antes apontava o navegador
+ * direto para o backend, que respondia 401 porque navegação de página não
+ * carrega o cabeçalho `Authorization`.
+ */
+export function useBlingConnect() {
+  const { getToken } = useAuth();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async () => {
+      const token = await getToken();
+      return api.bling.authorizeUrl(token!);
+    },
+    onSuccess: (url) => {
+      window.location.href = url;
+    },
+    onError: (err: Error) => {
+      toast({
+        title: 'Não foi possível conectar ao Bling',
+        description: err.message,
+        variant: 'destructive',
+      });
+    },
   });
 }
 

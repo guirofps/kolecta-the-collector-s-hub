@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Package, PlusCircle, ShoppingBag, Gavel, Wallet, MessageSquare, Settings, Megaphone } from 'lucide-react';
+import { LayoutDashboard, Package, PlusCircle, ShoppingBag, Gavel, Wallet, MessageSquare, Settings, Megaphone, Plug } from 'lucide-react';
 import Header from './Header';
 import { cn } from '@/lib/utils';
 
@@ -12,6 +12,7 @@ const sidebarLinks = [
   { label: 'Financeiro', href: '/painel/financeiro', icon: Wallet },
   { label: 'Mensagens', href: '/painel/mensagens', icon: MessageSquare },
   { label: 'Mídia', href: '/painel/midia', icon: Megaphone },
+  { label: 'Integrações', href: '/painel/integracoes', icon: Plug },
   { label: 'Configurações', href: '/painel/configuracoes', icon: Settings },
 ];
 
