@@ -17,6 +17,7 @@ import {
 import {
   subcategoriaField, normalizeSubcategoria, parseAttributes, formatFieldValue,
 } from '@/lib/category-fields';
+import { resolverFamilia } from '@/lib/category-familia';
 import type { ProductCondition, Product } from '@/lib/mock-data';
 import type { Listing } from '@/lib/api';
 
@@ -58,6 +59,11 @@ export default function CategoryPage() {
   const { slug } = useParams<{ slug: string }>();
   const [filtroTipo, setFiltroTipo] = useState<FiltroTipo>('todos');
   const [filtroSub, setFiltroSub] = useState<string>('todas');
+  // Acessórios é subcategoria de Miniaturas, não card próprio. Dentro da página
+  // de Miniaturas este seletor troca entre a família "Miniaturas" e a família
+  // "Acessórios" (rodas, expositores), que no banco continua sendo a categoria
+  // 'acessorios' — wizard, import e Bling intactos, só a navegação a aninha.
+  const [familia, setFamilia] = useState<'miniaturas' | 'acessorios'>('miniaturas');
   // Filtros genéricos de marketplace, que faltavam: preço, condição, ordem.
   const [filtroPreco, setFiltroPreco] = useState<string | null>(null);
   const [filtroCondicao, setFiltroCondicao] = useState<string | null>(null);
@@ -77,12 +83,30 @@ export default function CategoryPage() {
 
   const category = CATEGORIES.find((c) => c.slug === slug);
   const isLoading = listingsLoading || catsLoading;
-  const realCategoryId = (apiCategories ?? []).find((c) => c.slug === slug)?.id;
+  const idPorSlug = (s: string) => (apiCategories ?? []).find((c) => c.slug === s)?.id;
 
   // Só anúncio aprovado na vitrine (ver lib/listing-visibility).
-  const daCategoria = realCategoryId
-    ? onlyPublic(listingsData ?? []).filter((l) => l.categoryId === realCategoryId)
+  const publicos = onlyPublic(listingsData ?? []);
+
+  // Miniatura vs acessório (decisão pura em lib/category-familia). Fora de
+  // Miniaturas nada disto liga e a página segue como sempre.
+  const {
+    emAcessorios, slugAtivo, categoriaIdAtiva, totalMiniaturas, totalAcessorios, mostrarSeletor,
+  } = resolverFamilia({ slug, familia, idPorSlug, publicos });
+
+  const daCategoria = categoriaIdAtiva
+    ? publicos.filter((l) => l.categoryId === categoriaIdAtiva)
     : [];
+
+  // Trocar de família zera os filtros: as prateleiras de miniatura (marca) e de
+  // acessório (tipo) são listas diferentes, e um filtro preso confundiria.
+  const trocarFamilia = (f: 'miniaturas' | 'acessorios') => {
+    setFamilia(f);
+    setFiltroSub('todas');
+    setFiltroTipo('todos');
+    setFiltroPreco(null);
+    setFiltroCondicao(null);
+  };
 
   const totalDireta = daCategoria.filter((l) => l.type === 'direct').length;
   const totalLeilao = daCategoria.filter((l) => l.type === 'auction').length;
@@ -91,7 +115,7 @@ export default function CategoryPage() {
   // O valor vem de `attributes`, com as colunas do topo como reserva, e passa
   // pela normalização: sem ela, os 22 anúncios de Hot Wheels ficariam em 5
   // grupos por causa da grafia. Quem não encaixa em nada vira "Outros".
-  const sub = subcategoriaField(slug);
+  const sub = subcategoriaField(slugAtivo);
   const OUTROS = 'Outros';
 
   const subDe = (l: Listing): string => {
@@ -290,12 +314,36 @@ export default function CategoryPage() {
     <Layout>
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center gap-3 mb-5">
-          <CategoryIcon slug={category.slug} size={32} />
+          <CategoryIcon slug={emAcessorios ? 'acessorios' : category.slug} size={32} />
           <div>
             <h1 className="font-heading text-3xl font-extrabold italic uppercase">{category.name}</h1>
-            <p className="text-sm text-muted-foreground">{category.description}</p>
+            <p className="text-sm text-muted-foreground">
+              {emAcessorios ? 'Rodas, expositores e peças para suas miniaturas' : category.description}
+            </p>
           </div>
         </div>
+
+        {/* ─── Miniatura vs Acessório: acessório é peça PARA miniatura, então
+            vive aninhado aqui, não como card próprio na home. Só aparece quando
+            há acessório publicado, para não mostrar aba vazia. ─── */}
+        {mostrarSeletor && (
+          <div className="mb-6 inline-flex gap-1 rounded-lg border border-border bg-card/40 p-1">
+            <button
+              type="button"
+              onClick={() => trocarFamilia('miniaturas')}
+              className={chipClass(!emAcessorios)}
+            >
+              Miniaturas ({totalMiniaturas})
+            </button>
+            <button
+              type="button"
+              onClick={() => trocarFamilia('acessorios')}
+              className={chipClass(emAcessorios)}
+            >
+              Acessórios ({totalAcessorios})
+            </button>
+          </div>
+        )}
 
         {/* ─── MOBILE: barra compacta com um botão que abre a gaveta de filtros.
             Tira do topo a parede de pílulas que ficava amassada no celular. ─── */}

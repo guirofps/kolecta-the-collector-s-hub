@@ -4,6 +4,11 @@ import { Link } from 'react-router-dom';
 import { useCategories } from '@/hooks/use-api';
 import { categoryArt } from '@/lib/category-art';
 
+// Acessórios não é card próprio: virou subcategoria dentro de Miniaturas (ver
+// CategoryPage). Fica de fora da grade de categorias, mas segue existindo como
+// slug de dados, então /categoria/acessorios ainda resolve por link direto.
+const SLUGS_ANINHADOS = ['acessorios'];
+
 // Descrições curadas por slug — o endpoint /api/categories ainda não retorna `description`.
 const CATEGORY_DESCRIPTIONS: Record<string, string> = {
   'miniaturas-diecast': 'Die-cast, miniaturas escala, réplicas e customizados',
@@ -29,7 +34,7 @@ export default function CategoriesPage() {
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            {(categories ?? []).map((cat) => {
+            {(categories ?? []).filter((cat) => !SLUGS_ANINHADOS.includes(cat.slug)).map((cat) => {
               const art = categoryArt(cat.slug);
               return (
                 <Link

@@ -25,13 +25,15 @@ import { onlyPublic } from '@/lib/listing-visibility';
 import heroBg from '@/assets/hero-bg.jpg';
 import LaunchCountdown from './LaunchCountdown';
 
+// Acessórios (rodas, expositores) NÃO é card próprio na home: é subcategoria
+// dentro de Miniaturas. Acessório é peça PARA miniatura, não uma linha à parte,
+// então aparece dentro da página de Miniaturas (ver CategoryPage), não aqui.
 const CATEGORIES = [
   { id: '1', name: 'Miniaturas Diecast', slug: 'miniaturas-diecast', icon: '🚗', description: 'Hot Wheels, Mini GT, Tomica e mais' },
   { id: '2', name: 'Cards Colecionáveis', slug: 'cards-colecionaveis', icon: '🃏', description: 'Pokémon, One Piece, Magic e mais' },
   { id: '3', name: 'Action Figures', slug: 'action-figures', icon: '🦸', description: 'Marvel, DC, Anime e mais' },
   { id: '4', name: 'Funko Pop', slug: 'funko-pop', icon: '👾', description: 'Todas as linhas e edições' },
   { id: '5', name: 'Mangás & HQs', slug: 'mangas-hqs', icon: '📚', description: 'Volumes nacionais e importados' },
-  { id: '6', name: 'Acessórios', slug: 'acessorios', icon: '🛞', description: 'Rodas, expositores e peças para customizar' },
 ];
 
 // Atalhos do hero. Escolhidos entre o que o catálogo realmente tem: no acervo
