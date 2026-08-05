@@ -35,6 +35,20 @@ describe('variante — o que nunca pode ser misturado', () => {
     expect(detectarVariante(null)).toBe('regular');
   });
 
+  it('exclusivo de evento não é peça comum', () => {
+    // A esteira casou um "TAS 2026 Exclusive" de R$ 850 com o Mini GT comum do
+    // mesmo carro e devolveu R$ 181. Mesmo molde, tiragem completamente
+    // diferente.
+    for (const t of [
+      'Nissan LB-Super Silhouette 180SX - TAS 2026 Exclusive',
+      'Mini GT Tokyo Auto Salon 2025 Skyline',
+      'Kaido House Event Exclusive Datsun',
+      'KAIDO HOUSE MINI GT SKYLINE R34 SALÃO DIECAST',
+    ]) {
+      expect(detectarVariante(t), t).toBe('exclusivo-evento');
+    }
+  });
+
   it('"5th" não vira Treasure Hunt', () => {
     expect(detectarVariante('Hot Wheels 5th Anniversary Camaro')).toBe('regular');
   });

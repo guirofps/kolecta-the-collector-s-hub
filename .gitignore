@@ -30,6 +30,10 @@ scripts/email-fundadores/preview/
 scripts/email-fundadores/enviados.json
 emails/preview/
 
+# KPV: credenciais das APIs de preco (Mercado Livre, eBay). Ficam so na maquina.
+.env.kpv
+.env.kpv.*
+
 # Documentacao de trabalho fica so na maquina: o repositorio e publico e esses
 # arquivos carregam dado de negocio (pendencias, estrategia) e ate e-mail de
 # vendedor. As excecoes sao o README, que e a cara do repositorio, e o .agent/,
@@ -37,3 +41,7 @@ emails/preview/
 *.md
 !README.md
 !.agent/**/*.md
+.vercel
+
+# KPV: dados coletados das fontes externas ficam so na maquina
+scripts/kpv/dados/

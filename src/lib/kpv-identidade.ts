@@ -24,7 +24,8 @@ import {
  * Variante. Nunca pode ser misturada: chase e Treasure Hunt são outra peça,
  * com outro mercado, mesmo saindo do mesmo molde.
  */
-export type Variante = 'regular' | 'chase' | 'treasure-hunt' | 'super-treasure-hunt';
+export type Variante =
+  | 'regular' | 'chase' | 'treasure-hunt' | 'super-treasure-hunt' | 'exclusivo-evento';
 
 /** Condição que o KPV usa como base. Preço só é comparado dentro dela. */
 export const CONDICAO_BASE = 'novo-lacrado';
@@ -36,6 +37,17 @@ export const CONDICAO_BASE = 'novo-lacrado';
 const RE_SUPER_TH = /\bsuper\s*t\.?\s*(?:reasure\s*)?hunts?\b|\bsth\b|\bs\.?t\.?h\.?\b/i;
 const RE_TH = /\btreasure\s*hunts?\b|\bt[-\s]?hunts?\b|\bth\b/i;
 const RE_CHASE = /\bchase\b/i;
+
+/**
+ * Exclusivo de evento ou de loja: tiragem pequena, mercado próprio.
+ *
+ * Entrou depois que a esteira casou um "Nissan LB-Super Silhouette 180SX TAS
+ * 2026 Exclusive" de R$ 850 com o Mini GT comum do mesmo carro, e devolveu
+ * referência de R$ 181. Mesmo molde, tiragem completamente diferente. TAS é
+ * Tokyo Auto Salon; as outras siglas seguem a mesma lógica de feira.
+ */
+const RE_EXCLUSIVO =
+  /\b(tas\s*\d{0,4}\s*exclusive|tokyo\s*auto\s*salon|event\s*exclusive|exclusivo\s*(?:de\s*)?evento|store\s*exclusive|convention\s*exclusive|sdcc|mijo\s*exclusive|salão\s*diecast|salao\s*diecast)\b/i;
 
 /**
  * Lote, pack, kit: não é peça única, então não entra em comparação de preço.
@@ -169,12 +181,14 @@ export function detectarVariante(
   if (RE_SUPER_TH.test(t)) return 'super-treasure-hunt';
   if (RE_TH.test(t)) return 'treasure-hunt';
   if (RE_CHASE.test(t)) return 'chase';
+  if (RE_EXCLUSIVO.test(t)) return 'exclusivo-evento';
 
   const d = descricao ?? '';
   if (!d) return 'regular';
   if (ehDeclaracao(d, RE_SUPER_TH)) return 'super-treasure-hunt';
   if (ehDeclaracao(d, RE_TH)) return 'treasure-hunt';
   if (ehDeclaracao(d, RE_CHASE)) return 'chase';
+  if (ehDeclaracao(d, RE_EXCLUSIVO)) return 'exclusivo-evento';
   return 'regular';
 }
 
