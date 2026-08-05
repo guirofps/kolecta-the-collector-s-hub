@@ -10,7 +10,8 @@
 // esperado e frequente: no piloto, das 45 peças testadas só 8 tinham candidato
 // que de fato era a mesma peça.
 
-import { getML, salvar, carregar, pausa } from './comum';
+import { writeFileSync } from 'node:fs';
+import { getML, salvar, carregar, pausa, PASTA_DADOS } from './comum';
 import { identidadeDe, CONDICAO_BASE } from '../../src/lib/kpv-identidade';
 import { candidatoServe } from '../../src/lib/kpv-fonte';
 import type { AmostraPreco } from '../../src/lib/kpv-referencia';
@@ -56,7 +57,22 @@ let feitas = 0;
 
 for (const item of alvo) {
   feitas++;
-  if (feitas % 25 === 0) console.log(`  ... ${feitas}/${alvo.length}`);
+  if (feitas % 10 === 0) {
+    // Progresso vai para ARQUIVO, não só para o console: rodando em segundo
+    // plano o Node segura o stdout até o fim, e uma coleta de meia hora fica
+    // indistinguível de uma travada. O arquivo é gravado na hora.
+    const pct = Math.round((feitas / alvo.length) * 100);
+    const comPreco = coletas.filter((c) => c.amostras.length > 0).length;
+    writeFileSync(
+      `${PASTA_DADOS}\\progresso.txt`,
+      `${feitas}/${alvo.length} (${pct}%) · ${comPreco} com preço · ${new Date().toLocaleTimeString('pt-BR')}\n`,
+      'utf8',
+    );
+    console.log(`  ... ${feitas}/${alvo.length}`);
+  }
+  // Salva o acumulado a cada 50: se cair a luz ou eu precisar matar o
+  // processo, a próxima rodada retoma daqui em vez de recomeçar do zero.
+  if (feitas % 50 === 0) salvar('coletas.json', coletas);
 
   let escolhido: any = null;
   let ultimaRecusa = 'candidato sem identidade';
