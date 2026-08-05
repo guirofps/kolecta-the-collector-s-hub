@@ -595,6 +595,23 @@ export default function CommunityPage() {
  * algo que já não se compra frustra quem clica, e o texto do comentário
  * continua valendo sem ele.
  */
+/**
+ * O que aparece embaixo do título no card.
+ *
+ * Leilão não tem `priceInCents`: o valor mora no lance. Dizer só "Modo Lance"
+ * deixava o card sem número justamente onde ele mais precisa de um, e leilão é
+ * um em cada nove anúncios ativos.
+ */
+function valorDoCard(listing: NonNullable<CommunityComment['listing']>): string {
+  if (listing.type === 'auction') {
+    const atual = listing.currentBidInCents;
+    if (atual) return `Lance atual ${formatBRL(atual / 100)}`;
+    const inicial = listing.startingBidInCents;
+    return inicial ? `Lances a partir de ${formatBRL(inicial / 100)}` : 'Modo Lance';
+  }
+  return listing.priceInCents ? formatBRL(listing.priceInCents / 100) : 'ver preço';
+}
+
 function CardDoAnuncio({ listing }: { listing: NonNullable<CommunityComment['listing']> }) {
   if (listing.status !== 'active') return null;
 
@@ -618,13 +635,7 @@ function CardDoAnuncio({ listing }: { listing: NonNullable<CommunityComment['lis
       )}
       <span className="min-w-0 flex-1">
         <span className="block text-xs font-medium truncate text-foreground">{listing.title}</span>
-        <span className="block text-xs text-muted-foreground">
-          {listing.type === 'auction'
-            ? 'Modo Lance'
-            : listing.priceInCents
-              ? formatBRL(listing.priceInCents / 100)
-              : 'ver preço'}
-        </span>
+        <span className="block text-xs text-muted-foreground">{valorDoCard(listing)}</span>
       </span>
     </Link>
   );

@@ -1545,6 +1545,9 @@ export interface CommunityComment {
     images: string | null;
     type: string | null;
     status: string | null;
+    /** Leilão não usa `priceInCents`; o valor dele vem daqui. */
+    startingBidInCents: number | null;
+    currentBidInCents: number | null;
   } | null;
 }
 
