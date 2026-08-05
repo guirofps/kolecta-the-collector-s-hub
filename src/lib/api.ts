@@ -379,6 +379,27 @@ export const api = {
   // ── Admin ──────────────────────────────────────────────────────────────────
 
   admin: {
+    // ── Moderação da comunidade ──────────────────────────────────────────────
+    // Posts e comentários juntos, inclusive o que já foi ocultado: a listagem
+    // pública só mostra `active`, então sem isto não há como achar o que
+    // moderar nem desfazer.
+    comunidade: (token: string, status?: string) =>
+      request<{ data: ItemComunidade[] }>(
+        `/api/community/admin/conteudo${status && status !== 'todos' ? `?status=${status}` : ''}`,
+        { token },
+      ).then(r => r.data),
+
+    moderarComunidade: (
+      token: string,
+      tipo: 'post' | 'comentario',
+      id: string,
+      acao: 'hide' | 'remove' | 'restore',
+    ) =>
+      request<{ success: boolean; status: string }>(
+        `/api/community/admin/${tipo === 'post' ? 'posts' : 'comments'}/${id}/${acao}`,
+        { method: 'PATCH', token },
+      ),
+
     getStats: (token: string) =>
       request<{ data: AdminStats }>('/api/admin/stats', { token }).then(r => r.data),
 
@@ -1046,6 +1067,20 @@ export interface SellerSelfProfile {
     email: string | null;
     createdAt: string | null;
   };
+}
+
+/** Linha da fila de moderação: post ou comentário, na mesma lista. */
+export interface ItemComunidade {
+  id: string;
+  tipo: 'post' | 'comentario';
+  titulo: string | null;
+  corpo: string | null;
+  status: 'active' | 'hidden' | 'removed';
+  autorId: string;
+  autor: string | null;
+  /** Só em comentário: o post onde ele está. */
+  postId: string | null;
+  createdAt: string | number | null;
 }
 
 export interface ColocarEmLeilaoBody {

@@ -1379,6 +1379,56 @@ export function useColocarEmLeilao() {
   });
 }
 
+// ── Moderação da comunidade (admin) ────────────────────────────────────────
+// A coluna `status` existia em posts E comentários desde sempre, mas só post
+// tinha endpoint. Descoberto com spam de concorrente em 3 dos 9 comentários.
+
+export function useComunidadeAdmin(status: string) {
+  const { getToken } = useAuth();
+  return useQuery({
+    queryKey: ['admin', 'comunidade', status],
+    queryFn: async () => {
+      const token = await getToken();
+      return api.admin.comunidade(token || '', status);
+    },
+    staleTime: 30_000,
+  });
+}
+
+export function useModerarComunidade() {
+  const { getToken } = useAuth();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (v: {
+      tipo: 'post' | 'comentario';
+      id: string;
+      acao: 'hide' | 'remove' | 'restore';
+    }) => {
+      const token = await getToken();
+      return api.admin.moderarComunidade(token || '', v.tipo, v.id, v.acao);
+    },
+    onSuccess: (_r, v) => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'comunidade'] });
+      queryClient.invalidateQueries({ queryKey: ['community'] });
+      toast({
+        title:
+          v.acao === 'hide' ? 'Ocultado da comunidade'
+          : v.acao === 'remove' ? 'Removido'
+          : 'De volta ao ar',
+        description:
+          v.acao === 'remove'
+            ? 'O texto continua no banco, para servir de prova se o autor for banido.'
+            : undefined,
+      });
+    },
+    onError: (err: Error) => {
+      toast({ title: 'Não foi possível moderar', description: err.message, variant: 'destructive' });
+    },
+  });
+}
+
 // ── useDownloadLabel (baixar o PDF do envio) ────────────────────────────────
 // O arquivo vem do nosso backend, que busca no Melhor Envio na hora. O vendedor
 // não precisa de conta lá — e nem saberia que ela existe.
