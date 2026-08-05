@@ -91,6 +91,10 @@ describe('lote e franquia — o que sai da comparação', () => {
       'Hot Wheels Formula 1 Pack Com 5 Conjunto',
       'Lote 10 carrinhos Hot Wheels',
       'Pack 5 Hot Wheels Velozes E Furiosos',
+      // "lot" em inglês passou batido no piloto e casou um lote de 3 com um
+      // carro avulso, dando -100% de diferença.
+      'Hot Wheels LOT 3 (Porsche 356A Outlaw, Porsche Taycan Turbo S)',
+      'Hot Wheels 5 pcs Ferrari',
     ]) {
       expect(ehLote(t), t).toBe(true);
     }

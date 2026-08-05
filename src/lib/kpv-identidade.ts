@@ -35,9 +35,16 @@ const RE_SUPER_TH = /\bsuper\s*t\.?\s*(?:reasure\s*)?hunts?\b|\bsth\b|\bs\.?t\.?
 const RE_TH = /\btreasure\s*hunts?\b|\bt[-\s]?hunts?\b|\bth\b/i;
 const RE_CHASE = /\bchase\b/i;
 
-/** Lote, pack, kit: não é peça única, então não entra em comparação de preço. */
+/**
+ * Lote, pack, kit: não é peça única, então não entra em comparação de preço.
+ *
+ * "lot" em inglês entrou depois: um anúncio "Hot Wheels LOT 3 (Porsche 356A,
+ * Taycan…)" passou pelo filtro e casou com um Taycan avulso, dando -100% de
+ * diferença. Lote de 3 carros comparado com 1 carro é exatamente o tipo de
+ * número que destrói a confiança na referência.
+ */
 const RE_LOTE =
-  /\b(lotes?|kit\s*com|packs?|conjuntos?|sets?|combos?|\d+\s*(?:pe(?:ç|c)as|unidades|minis|carrinhos|miniaturas))\b/i;
+  /\b(lotes?|lot\s*\d|kit\s*com|packs?|conjuntos?|sets?|combos?|\d+\s*(?:pe(?:ç|c)as|unidades|minis|carrinhos|miniaturas|pcs|pieces|cars)|com\s+\d+\s+carr)\b/i;
 
 /**
  * Veículo de franquia (nave, avião, personagem). Sai da comparação porque não

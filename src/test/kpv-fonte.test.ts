@@ -71,6 +71,30 @@ describe('o porteiro — casos reais que o piloto errou', () => {
     expect(candidatoServe(nosso, ml).motivo).toMatch(/escala/);
   });
 
+  it('RECUSA linha diferente no mesmo carro', () => {
+    // Do piloto 2: "Porsche 911 GT3 RS Then and Now" casou com o mesmo carro
+    // na linha "Fast & Furious". Mesmo molde, séries diferentes, preços
+    // diferentes.
+    const nosso = identidadeDe({
+      title: 'Hot Wheels Porsche 911 GT3 RS Then And Now', brand: 'Hot Wheels',
+      line: 'Then and Now', scale: '1:64', condition: CONDICAO_BASE,
+    })!;
+    const ml = identidadeDe({
+      title: 'Porsche 911 GT3 RS Hot Wheels Fast And Furious', brand: 'Hot Wheels',
+      line: 'Fast & Furious', scale: '1:64', condition: CONDICAO_BASE,
+    })!;
+    expect(candidatoServe(nosso, ml).motivo).toMatch(/linha/);
+  });
+
+  it('RECUSA quando só a montadora bate', () => {
+    // "Mclaren Formula 1 Team" casou com "McLaren Solus": a palavra "mclaren"
+    // sozinha já dava 50% num nome de duas palavras.
+    const nosso = id('Hot Wheels Mclaren Formula 1 Team', 'Hot Wheels');
+    const ml = id('Carrinho Hot Wheels McLaren Solus 2023', 'Hot Wheels');
+    const v = candidatoServe(nosso, ml);
+    expect(v.serve).toBe(false);
+  });
+
   it('ACEITA o par que é de fato a mesma peça', () => {
     // O caso que funcionou: 58 vendedores, mediana estável.
     const nosso = id('Hot Wheels Ferrari 365 GTB4 Competizione', 'Hot Wheels');

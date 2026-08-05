@@ -73,11 +73,30 @@ export function candidatoServe(nossa: IdentidadeKPV, candidato: IdentidadeKPV): 
     return { serve: false, motivo: `marca diferente (${nossa.marca} vs ${candidato.marca})` };
   }
 
-  // 4) Modelo. "Kaido House DGK Trueno" casou com "Honda NSX Kaido Works".
-  //    Exige sobreposição real de palavras, não semelhança vaga.
+  // 4) Linha, quando os dois lados declaram. Um "Porsche 911 GT3 RS Then and
+  //    Now" casou com o "Fast & Furious" do mesmo carro: mesmo molde, séries
+  //    diferentes, preços diferentes.
+  if (nossa.linha && candidato.linha) {
+    const l1 = nossa.linha.toLowerCase().trim();
+    const l2 = candidato.linha.toLowerCase().trim();
+    if (l1 !== l2 && !l1.includes(l2) && !l2.includes(l1)) {
+      return { serve: false, motivo: `linha diferente (${nossa.linha} vs ${candidato.linha})` };
+    }
+  }
+
+  // 5) Modelo. "Kaido House DGK Trueno" casou com "Honda NSX Kaido Works".
   const sim = semelhancaModelo(nossa.modelo, candidato.modelo);
   if (sim < 0.5) {
     return { serve: false, motivo: `modelo pouco parecido (${(sim * 100).toFixed(0)}% de sobreposição)` };
+  }
+
+  // 6) Sobreposição ABSOLUTA, não só proporcional. "Mclaren Formula 1 Team"
+  //    casou com "McLaren Solus" porque a palavra "mclaren" sozinha já dava
+  //    50% num nome de duas palavras. Nome curto precisa de duas palavras em
+  //    comum para ser a mesma peça; com uma só, é a montadora batendo.
+  const comuns = palavrasComuns(nossa.modelo, candidato.modelo);
+  if (comuns < 2 && contarPalavras(nossa.modelo) >= 2 && contarPalavras(candidato.modelo) >= 2) {
+    return { serve: false, motivo: `só ${comuns} palavra em comum no modelo` };
   }
 
   return { serve: true };
@@ -90,11 +109,26 @@ export function candidatoServe(nossa: IdentidadeKPV, candidato: IdentidadeKPV): 
  * aparecem no nome do produto do ML e não mudam a identidade da peça, mas
  * derrubariam a semelhança de um par que é o mesmo carro.
  */
+const CORES = /^(preto|preta|branco|branca|vermelho|vermelha|azul|verde|amarelo|amarela|cinza|prata|dourado|dourada|laranja|roxo|rosa|marrom|bege|black|white|red|blue|green|yellow|grey|gray|silver|gold|orange|purple|pink|brown)$/i;
+
+const tokens = (s: string) => new Set(
+  s.toLowerCase().split(/[^a-z0-9]+/).filter((t) => t.length >= 2 && !CORES.test(t)),
+);
+
+/** Quantas palavras os dois modelos têm em comum, ignorando cor. */
+export function palavrasComuns(a: string, b: string): number {
+  const A = tokens(a), B = tokens(b);
+  let n = 0;
+  for (const t of A) if (B.has(t)) n++;
+  return n;
+}
+
+/** Palavras úteis do modelo (sem cor, sem token de uma letra). */
+export function contarPalavras(s: string): number {
+  return tokens(s).size;
+}
+
 export function semelhancaModelo(a: string, b: string): number {
-  const CORES = /^(preto|preta|branco|branca|vermelho|vermelha|azul|verde|amarelo|amarela|cinza|prata|dourado|dourada|laranja|roxo|rosa|marrom|bege|black|white|red|blue|green|yellow|grey|gray|silver|gold|orange|purple|pink|brown)$/i;
-  const tokens = (s: string) => new Set(
-    s.toLowerCase().split(/[^a-z0-9]+/).filter((t) => t.length >= 2 && !CORES.test(t)),
-  );
   const A = tokens(a), B = tokens(b);
   if (!A.size || !B.size) return 0;
   let comuns = 0;
