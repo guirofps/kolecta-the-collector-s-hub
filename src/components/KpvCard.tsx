@@ -161,7 +161,7 @@ export default function KpvCard({
             />
           ))}
         </span>
-        <span>{explicarConfianca(kpv.confianca)}</span>
+        <span>{explicarConfianca(kpv.confianca, kpv.amostra)}</span>
         {kpv.desatualizada && (
           <span className="w-full text-kpv-alto">Levantamento com mais de 6 meses</span>
         )}
