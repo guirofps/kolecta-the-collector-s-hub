@@ -334,7 +334,15 @@ export const api = {
       }).then(async (res) => {
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));
-          throw new ApiError(res.status, body?.message ?? `HTTP ${res.status}`);
+          const bruto = body?.message ?? `HTTP ${res.status}`;
+          // O parser multipart do servidor devolve "Unexpected end of form"
+          // quando a foto estoura o limite e o corpo chega cortado. Para o
+          // vendedor isso não diz nada; traduz para uma ação clara.
+          const grande = res.status === 413
+            || /multipart|unexpected end of form|too large|payload|entity too large/i.test(String(bruto));
+          throw new ApiError(res.status, grande
+            ? 'A imagem é muito grande para enviar. Tente uma foto menor ou com menos resolução.'
+            : bruto);
         }
         return res.json();
       });

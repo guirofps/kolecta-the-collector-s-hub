@@ -13,6 +13,7 @@ import { CATALOGO_STALE_MS, LIMITE_CATALOGO } from '@/lib/catalogo';
 import { lerCatalogo, guardarCatalogo } from '@/lib/catalogo-cache';
 import { CLERK_ENABLED } from '@/lib/clerk';
 import { COMMISSION_RATE } from '@/lib/fees';
+import { comprimirImagem } from '@/lib/comprimir-imagem';
 
 /**
  * Token do Clerk, sem derrubar a tela quando o Clerk não está montado.
@@ -1997,7 +1998,11 @@ export function useUploadImage() {
   return useMutation({
     mutationFn: async (file: File) => {
       const token = await getToken();
-      return api.media.upload(token || '', file);
+      // Comprime antes de subir: foto de celular vem com 3 a 8 MB e estourava o
+      // limite do servidor ("Multipart: Unexpected end of form"). Se não couber
+      // comprimir, sobe o original (ver lib/comprimir-imagem).
+      const enviavel = await comprimirImagem(file);
+      return api.media.upload(token || '', enviavel);
     },
   });
 }
