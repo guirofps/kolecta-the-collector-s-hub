@@ -4,7 +4,7 @@ import { useCart } from '@/contexts/CartContext';
 import {
   Heart, ShieldCheck, Star, Gavel, ShoppingCart, Flag,
   ChevronRight, ArrowLeft, MessageSquare, CreditCard,
-  AlertTriangle, Loader2, Package, Store,
+  AlertTriangle, CalendarClock, Loader2, Package, Store,
 } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
 import { cn } from '@/lib/utils';
@@ -24,6 +24,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { conditionLabel, formatBRL } from '@/lib/mock-data';
+import { avisoPreVenda } from '@/lib/pre-venda';
+import { parseAttributes } from '@/lib/category-fields';
 import type { ProductCondition, ListingStatus, Product, ProductType } from '@/lib/mock-data';
 import { api } from '@/lib/api';
 import type { Listing } from '@/lib/api';
@@ -289,6 +291,53 @@ export default function ProductDetail() {
                       {priceInBRL != null ? formatBRL(priceInBRL) : 'A consultar'}
                     </div>
                   </div>
+
+                  {/* Pré-venda: a peça ainda não está com o vendedor. Isto fica
+                      ACIMA do botão de comprar de propósito — é a informação
+                      que muda a decisão, e descobrir depois de pagar é
+                      exatamente o que gera reclamação. */}
+                  {avisoPreVenda(parseAttributes(listing.attributes)) && (() => {
+                    const aviso = avisoPreVenda(parseAttributes(listing.attributes))!;
+                    return (
+                      <div
+                        className={
+                          aviso.atrasado
+                            ? 'rounded-md border border-destructive/30 bg-destructive/10 p-3 text-xs'
+                            : 'rounded-md border border-primary/30 bg-primary/10 p-3 text-xs'
+                        }
+                      >
+                        <div className="flex items-start gap-2">
+                          <CalendarClock
+                            className={`h-4 w-4 shrink-0 mt-0.5 ${aviso.atrasado ? 'text-destructive' : 'text-primary'}`}
+                          />
+                          <div>
+                            <p className="font-medium text-foreground">
+                              Pré-venda: esta peça ainda não chegou ao vendedor
+                            </p>
+                            <p className="mt-1 text-muted-foreground">
+                              {aviso.atrasado ? (
+                                <>
+                                  A chegada estava prevista para{' '}
+                                  <span className="text-destructive">{aviso.dataFormatada}</span> e
+                                  o prazo já passou. Fale com o vendedor antes de comprar.
+                                </>
+                              ) : (
+                                <>
+                                  Chegada prevista para{' '}
+                                  <span className="text-foreground">{aviso.dataFormatada}</span>. O
+                                  envio começa depois dessa data.
+                                </>
+                              )}
+                            </p>
+                            <p className="mt-1 text-muted-foreground">
+                              Você paga agora e a Kolecta segura o valor até você confirmar que
+                              recebeu.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {!isAvailable && (
                     <div className="rounded-md bg-destructive/10 border border-destructive/30 p-3 text-xs text-destructive flex items-start gap-2">

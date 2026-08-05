@@ -1,22 +1,34 @@
 // ─── Pré-venda ───────────────────────────────────────────────────────────────
 //
-// Vendedor anuncia peça que ainda não chegou e cobra um sinal (a "entrada") em
-// vez do valor cheio. Duas regras vieram fechadas do produto:
+// Peça encomendada que ainda não chegou ao vendedor. Ele anuncia agora e
+// entrega quando receber.
 //
-//  1. O percentual da entrada é SELETOR, nunca campo aberto. Campo aberto vira
-//     "entrada de 95%", que é pré-venda no nome e risco cheio para o comprador.
-//  2. O título mostra que é pré-venda, sem depender do vendedor lembrar de
-//     escrever. Quem varre a grade precisa ver antes de clicar.
-
-/** Percentuais oferecidos. O teto de 50% é regra de produto, não sugestão. */
-export const PERCENTUAIS_ENTRADA = [10, 20, 30, 40, 50] as const;
-
-export type PercentualEntrada = (typeof PERCENTUAIS_ENTRADA)[number];
-
-export const PERCENTUAL_ENTRADA_PADRAO: PercentualEntrada = 30;
+// É uma MARCAÇÃO num anúncio de venda direta comum, não um terceiro modo de
+// anúncio. O comprador paga o valor cheio hoje, como em qualquer compra, e o
+// escrow segura o dinheiro até a confirmação de entrega: ou seja, quem paga em
+// agosto para receber em dezembro continua protegido pelo mesmo mecanismo de
+// sempre.
+//
+// A alternativa avaliada era reservar por pré-autorização no cartão, como o
+// Modo Lance. Foi descartada: a adquirente garante a retenção por ~5 dias
+// (ver AUTH_VALIDITY_DAYS no backend), então uma pré-venda de 4 meses exigiria
+// ~24 renovações seguidas no mesmo cartão. Isso é o padrão que antifraude trata
+// como teste de cartão, e o limite do comprador ficaria bloqueado o período
+// inteiro.
+//
+// Duas regras vieram fechadas do produto:
+//
+//  1. Data prevista é OBRIGATÓRIA e aparece no anúncio. Sem data escrita não
+//     existe prazo a descumprir, e aí qualquer atraso vira problema da
+//     plataforma. Com data, os três lados sabem o combinado.
+//  2. Teto de 90 dias. Além disso não é pré-venda, é encomenda especulativa, e
+//     a chance de a peça nunca chegar cresce demais.
 
 /** Como a tag aparece no título. */
 export const TAG_PRE_VENDA = '[PRÉ-VENDA]';
+
+/** Distância máxima entre hoje e a data prometida. */
+export const JANELA_MAXIMA_DIAS = 90;
 
 // Reconhece a tag já escrita à mão pelo vendedor, em qualquer grafia vista:
 // "PRE VENDA", "pré-venda", "[PRÉ VENDA]", com ou sem colchete, hífen ou acento.
@@ -59,100 +71,145 @@ export function tituloComPreVenda(titulo: string | null | undefined, preVenda: b
  *
  * O campo do wizard tem limite de 80 caracteres. A tag entra na hora de
  * publicar, então sem descontar aqui o vendedor escreve 80, a tag soma 12 e o
- * título publicado passa do limite (ou é cortado no meio da palavra).
+ * título publicado passa do limite.
  */
 export function limiteTitulo(limiteTotal: number, preVenda: boolean): number {
   return preVenda ? Math.max(0, limiteTotal - (TAG_PRE_VENDA.length + 1)) : limiteTotal;
 }
 
-export interface ResumoEntrada {
-  /** O que o comprador paga agora, em centavos. */
-  entradaEmCentavos: number;
-  /** O que fica para pagar quando a peça chegar, em centavos. */
-  restanteEmCentavos: number;
-  percentual: PercentualEntrada;
+// ─── Data prevista ───────────────────────────────────────────────────────────
+
+/**
+ * Converte "2026-12-15" numa data LOCAL à meia-noite.
+ *
+ * `new Date('2026-12-15')` é interpretado como UTC, e em UTC-3 isso vira 21h do
+ * dia 14: a data escolhida pelo vendedor aparece um dia mais cedo para ele e a
+ * comparação com "hoje" erra na virada. Montar componente a componente resolve.
+ */
+function dataLocal(iso: string): Date | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso.trim());
+  if (!m) return null;
+  const [ano, mes, dia] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const d = new Date(ano, mes - 1, dia);
+  // Rejeita data que não existe: "2026-02-31" viraria 3 de março silenciosamente.
+  if (d.getFullYear() !== ano || d.getMonth() !== mes - 1 || d.getDate() !== dia) {
+    return null;
+  }
+  return d;
+}
+
+/** Zera a hora, para comparar dias sem o horário atrapalhar. */
+function inicioDoDia(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+const UM_DIA = 24 * 60 * 60 * 1000;
+
+/** Quantos dias faltam para a data (negativo se já passou). */
+export function diasAte(iso: string, hoje: Date = new Date()): number | null {
+  const alvo = dataLocal(iso);
+  if (!alvo) return null;
+  return Math.round((alvo.getTime() - inicioDoDia(hoje).getTime()) / UM_DIA);
+}
+
+export interface ErroData {
+  /** Mensagem pronta para o vendedor. */
+  mensagem: string;
 }
 
 /**
- * Divide o preço entre entrada e restante.
+ * Valida a data prometida. Devolve null quando está tudo certo.
  *
- * Arredonda a entrada para o centavo mais próximo e tira o RESTANTE por
- * subtração, nunca por um segundo arredondamento: assim entrada + restante bate
- * exatamente com o preço, sempre. Calcular os dois separado deixa um centavo
- * sobrando ou faltando, e o comprador que confere não perdoa.
+ * Aceita a data de HOJE: quem recebeu a remessa de manhã e vai despachar à
+ * tarde ainda é pré-venda legítima, e recusar isso só empurraria o vendedor a
+ * mentir a data.
  */
-export function calcularEntrada(
-  precoEmCentavos: number,
-  percentual: PercentualEntrada,
-): ResumoEntrada {
-  const preco = Math.max(0, Math.round(precoEmCentavos || 0));
-  const entradaEmCentavos = Math.round((preco * percentual) / 100);
-  return {
-    entradaEmCentavos,
-    restanteEmCentavos: preco - entradaEmCentavos,
-    percentual,
-  };
+export function validarDataPrevista(
+  iso: string | null | undefined,
+  hoje: Date = new Date(),
+): ErroData | null {
+  const texto = (iso ?? '').trim();
+  if (!texto) return { mensagem: 'Informe a data prevista de chegada.' };
+
+  const dias = diasAte(texto, hoje);
+  if (dias === null) return { mensagem: 'Data inválida.' };
+
+  if (dias < 0) return { mensagem: 'A data prevista não pode estar no passado.' };
+  if (dias > JANELA_MAXIMA_DIAS) {
+    return {
+      mensagem: `A data prevista não pode passar de ${JANELA_MAXIMA_DIAS} dias. Prazo maior que isso não é pré-venda, é encomenda.`,
+    };
+  }
+  return null;
 }
 
-/** É um dos percentuais permitidos? Guarda contra dado antigo ou adulterado. */
-export function percentualValido(valor: unknown): valor is PercentualEntrada {
-  return PERCENTUAIS_ENTRADA.includes(Number(valor) as PercentualEntrada);
+/** Maior data aceita, no formato do <input type="date">. Serve de `max`. */
+export function dataMaximaPreVenda(hoje: Date = new Date()): string {
+  const d = new Date(inicioDoDia(hoje).getTime() + JANELA_MAXIMA_DIAS * UM_DIA);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-/**
- * Percentual seguro a partir de qualquer entrada.
- *
- * O anúncio guarda o percentual em `attributes` (JSON), que é texto vindo do
- * banco: pode chegar como "30", como 30, ou como lixo de um anúncio antigo.
- * Nada disso pode virar cobrança errada, então o que não for da lista cai no
- * padrão.
- */
-export function normalizarPercentual(valor: unknown): PercentualEntrada {
-  return percentualValido(valor) ? (Number(valor) as PercentualEntrada) : PERCENTUAL_ENTRADA_PADRAO;
+/** "2026-12-15" vira "15/12/2026". Data inválida volta vazia, nunca "NaN". */
+export function formatarDataPrevista(iso: string | null | undefined): string {
+  const d = dataLocal((iso ?? '').trim());
+  if (!d) return '';
+  return d.toLocaleDateString('pt-BR');
 }
+
+// ─── Gravação e leitura no anúncio ───────────────────────────────────────────
 
 export interface DadosPreVenda {
   preVenda: true;
-  preVendaPercentual: PercentualEntrada;
-  preVendaEntradaEmCentavos: number;
+  preVendaDataPrevista: string;
 }
 
-/**
- * O bloco que vai para `attributes` do anúncio.
- *
- * Grava o valor da entrada JÁ CALCULADO, além do percentual. O percentual
- * sozinho obrigaria todo lugar que exibe o anúncio a recalcular, e basta uma
- * arredondada diferente em um deles para a vitrine e o checkout mostrarem
- * valores distintos para a mesma peça.
- */
-export function dadosPreVenda(
-  precoEmCentavos: number,
-  percentual: PercentualEntrada,
-): DadosPreVenda {
-  const { entradaEmCentavos } = calcularEntrada(precoEmCentavos, percentual);
-  return {
-    preVenda: true,
-    preVendaPercentual: percentual,
-    preVendaEntradaEmCentavos: entradaEmCentavos,
-  };
+/** O bloco que vai para `attributes` do anúncio. */
+export function dadosPreVenda(dataPrevista: string): DadosPreVenda {
+  return { preVenda: true, preVendaDataPrevista: dataPrevista.trim() };
 }
 
 /** O anúncio é pré-venda? Lê `attributes` já parseado. */
 export function ehPreVenda(attrs: Record<string, unknown> | null | undefined): boolean {
+  // Aceita o booleano vindo como texto: `attributes` é JSON guardado como
+  // string, e nem todo caminho de escrita preserva o tipo.
   return attrs?.preVenda === true || attrs?.preVenda === 'true';
 }
 
-/**
- * Resumo de um anúncio de pré-venda já salvo, ou null se não for pré-venda.
- *
- * Recalcula a partir do preço atual em vez de confiar no valor gravado: o
- * vendedor pode editar o preço depois de publicar, e aí a entrada guardada fica
- * velha. O que manda é sempre o percentual escolhido sobre o preço de hoje.
- */
-export function resumoPreVenda(
-  attrs: Record<string, unknown> | null | undefined,
-  precoEmCentavos: number | null | undefined,
-): ResumoEntrada | null {
+/** Data prometida do anúncio, ou null quando não é pré-venda. */
+export function dataPrevistaDe(attrs: Record<string, unknown> | null | undefined): string | null {
   if (!ehPreVenda(attrs)) return null;
-  return calcularEntrada(precoEmCentavos ?? 0, normalizarPercentual(attrs?.preVendaPercentual));
+  const bruto = attrs?.preVendaDataPrevista;
+  const texto = typeof bruto === 'string' ? bruto.trim() : '';
+  return dataLocal(texto) ? texto : null;
+}
+
+export interface AvisoPreVenda {
+  /** Data prometida já formatada em pt-BR. */
+  dataFormatada: string;
+  /** Dias que faltam. Negativo quer dizer que o prazo estourou. */
+  dias: number;
+  /** O prazo prometido passou e a peça não saiu. */
+  atrasado: boolean;
+}
+
+/**
+ * O que mostrar na vitrine e na página do produto, ou null se não é pré-venda.
+ *
+ * Marca o atraso em vez de esconder: prazo estourado é justamente a informação
+ * que o comprador precisa ver ANTES de comprar, e o vendedor precisa ver para
+ * atualizar a data.
+ */
+export function avisoPreVenda(
+  attrs: Record<string, unknown> | null | undefined,
+  hoje: Date = new Date(),
+): AvisoPreVenda | null {
+  const iso = dataPrevistaDe(attrs);
+  if (!iso) return null;
+  const dias = diasAte(iso, hoje) ?? 0;
+  return {
+    dataFormatada: formatarDataPrevista(iso),
+    dias,
+    atrasado: dias < 0,
+  };
 }

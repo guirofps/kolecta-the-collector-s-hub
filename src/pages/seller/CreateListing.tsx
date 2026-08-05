@@ -24,14 +24,13 @@ import { loadDraft, saveDraft, clearDraft } from '@/lib/listing-draft';
 import { CONDITIONS } from '@/lib/conditions';
 import { MARCAS_MINIATURA, ESCALAS_MINIATURA } from '@/lib/marcas';
 import {
-  PERCENTUAIS_ENTRADA,
-  PERCENTUAL_ENTRADA_PADRAO,
   TAG_PRE_VENDA,
-  calcularEntrada,
   dadosPreVenda,
+  dataMaximaPreVenda,
+  formatarDataPrevista,
   limiteTitulo,
   tituloComPreVenda,
-  type PercentualEntrada,
+  validarDataPrevista,
 } from '@/lib/pre-venda';
 import { MIN_PHOTOS, MAX_PHOTOS } from '@/lib/photos';
 import { freteFaltando, AVISO_EMBALAGEM } from '@/lib/frete';
@@ -90,10 +89,10 @@ interface FormData {
   duration: string;
   reservePrice: string;
   antiSniper: boolean;
-  /** Peça que ainda não chegou: cobra só um sinal e ganha tag no título. */
+  /** Peça encomendada que ainda não chegou ao vendedor. */
   preVenda: boolean;
-  /** Fatia do preço cobrada agora. Só os valores de PERCENTUAIS_ENTRADA. */
-  preVendaPercentual: PercentualEntrada;
+  /** Data prometida de chegada, "AAAA-MM-DD". Obrigatória na pré-venda. */
+  preVendaDataPrevista: string;
   // Envio (frete): peso em gramas, dimensões em cm.
   weightGrams: string;
   widthCm: string;
@@ -134,7 +133,7 @@ const initialForm: FormData = {
   reservePrice: '',
   antiSniper: true,
   preVenda: false,
-  preVendaPercentual: PERCENTUAL_ENTRADA_PADRAO,
+  preVendaDataPrevista: '',
   weightGrams: '',
   widthCm: '',
   heightCm: '',
@@ -278,6 +277,13 @@ export default function CreateListing() {
           : parsePriceToCents(form.startingBid);
         const label = form.type === 'direct' ? 'um preço de venda' : 'um lance inicial';
         if (!cents || cents <= 0) return `Defina ${label} maior que zero`;
+        // Pré-venda sem data prometida não pode ir ao ar: é a data que dá ao
+        // comprador prazo a cobrar, e sem ela qualquer atraso vira problema da
+        // plataforma em vez de descumprimento do combinado.
+        if (form.type === 'direct' && form.preVenda) {
+          const erro = validarDataPrevista(form.preVendaDataPrevista);
+          if (erro) return erro.mensagem;
+        }
         // F5: reserva abaixo do lance inicial não faz sentido (nunca vende).
         if (form.type === 'auction' && form.reservePrice) {
           const reserve = parsePriceToCents(form.reservePrice);
@@ -313,15 +319,13 @@ export default function CreateListing() {
     // com coluna própria (brand/line/scale/year/edition) vão para o topo; o mapa
     // completo (jogo, raridade, personagem, número, grading…) vai em `attributes`
     // (coluna JSON no backend).
-    // Pré-venda só existe em venda direta: leilão já tem o próprio fluxo de
-    // pagamento (pré-autorização no lance) e não comporta sinal.
-    const ehPreVenda = !isAuction && form.preVenda;
+    // Pré-venda só existe em venda direta: no leilão a data de entrega depende
+    // de quando o item arremata, então prometer chegada antes disso é chute.
+    const ehPreVenda = !isAuction && form.preVenda && !!form.preVendaDataPrevista;
 
     const cf: Record<string, any> = {
       ...(form.categoryFields ?? {}),
-      ...(ehPreVenda
-        ? dadosPreVenda(toCents(form.price) ?? 0, form.preVendaPercentual)
-        : {}),
+      ...(ehPreVenda ? dadosPreVenda(form.preVendaDataPrevista) : {}),
     };
     const hasAttributes = Object.keys(cf).length > 0;
 
@@ -1442,6 +1446,14 @@ function StepPhotos({
 // ─── Step 4: Pricing ───────────────────────────────────────
 
 function StepPricing({ form, update }: { form: FormData; update: (f: keyof FormData, v: any) => void }) {
+  // Só reclama depois que o vendedor mexeu no campo: acusar "informe a data"
+  // no instante em que ele liga a chave é ranzinza, e o botão de avançar já
+  // está travado de qualquer jeito.
+  const erroData =
+    form.preVenda && form.preVendaDataPrevista
+      ? validarDataPrevista(form.preVendaDataPrevista)
+      : null;
+
   return (
     <div className="space-y-5">
       <h2 className="font-heading text-lg font-bold uppercase mb-1">
@@ -1487,10 +1499,10 @@ function StepPricing({ form, update }: { form: FormData; update: (f: keyof FormD
         </div>
 
         {/* ─── Pré-venda ─────────────────────────────────────
-            Peça encomendada que ainda não chegou. O vendedor cobra um sinal
-            agora em vez do valor cheio. O percentual é seletor com teto de
-            50%: campo aberto viraria "entrada de 95%", que é pré-venda no
-            nome e risco cheio para quem compra. */}
+            Peça encomendada que ainda não chegou ao vendedor. Continua sendo
+            venda direta comum: o comprador paga o valor cheio e o escrow
+            segura o dinheiro até a entrega, como em qualquer compra. O que
+            muda é o aviso — tag no título e data prometida no anúncio. */}
         <div className="rounded-md border border-border bg-card p-4 max-w-xl">
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -1498,8 +1510,8 @@ function StepPricing({ form, update }: { form: FormData; update: (f: keyof FormD
                 É uma pré-venda
               </Label>
               <p className="mt-1 text-xs text-muted-foreground">
-                Para peça encomendada que ainda não chegou. O título recebe a
-                tag <span className="text-foreground">{TAG_PRE_VENDA}</span> sozinho.
+                Para peça encomendada que ainda não chegou até você. O título
+                recebe a tag <span className="text-foreground">{TAG_PRE_VENDA}</span> sozinho.
               </p>
             </div>
             <Switch
@@ -1511,54 +1523,30 @@ function StepPricing({ form, update }: { form: FormData; update: (f: keyof FormD
 
           {form.preVenda && (
             <div className="mt-4 space-y-3">
-              <div>
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-                  Entrada cobrada agora
-                </Label>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {PERCENTUAIS_ENTRADA.map((p) => (
-                    <button
-                      key={p}
-                      type="button"
-                      onClick={() => update('preVendaPercentual', p)}
-                      className={
-                        form.preVendaPercentual === p
-                          ? 'rounded-md bg-primary/15 px-4 py-2 text-sm font-medium text-primary'
-                          : 'rounded-md px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary/60 hover:text-foreground'
-                      }
-                    >
-                      {p}%
-                    </button>
-                  ))}
-                </div>
+              <div className="max-w-xs">
+                <Label htmlFor="pre-venda-data">Data prevista de chegada *</Label>
+                <Input
+                  id="pre-venda-data"
+                  type="date"
+                  value={form.preVendaDataPrevista}
+                  onChange={(e) => update('preVendaDataPrevista', e.target.value)}
+                  max={dataMaximaPreVenda()}
+                  className="mt-1.5"
+                />
+                {erroData ? (
+                  <p className="mt-1.5 text-xs text-destructive">{erroData.mensagem}</p>
+                ) : (
+                  <p className="mt-1.5 text-xs text-muted-foreground">
+                    Aparece no anúncio. É o prazo com o qual você se compromete.
+                  </p>
+                )}
               </div>
 
-              {form.price ? (
-                <div className="rounded-md bg-kolecta-dark/40 p-3 text-xs">
-                  {(() => {
-                    const { entradaEmCentavos, restanteEmCentavos } = calcularEntrada(
-                      Math.round(Number(form.price) * 100),
-                      form.preVendaPercentual,
-                    );
-                    return (
-                      <div className="space-y-1 text-muted-foreground">
-                        <div className="flex justify-between font-medium text-foreground">
-                          <span>Comprador paga agora</span>
-                          <span className="text-primary">{formatBRL(entradaEmCentavos / 100)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Fica para quando a peça chegar</span>
-                          <span>{formatBRL(restanteEmCentavos / 100)}</span>
-                        </div>
-                      </div>
-                    );
-                  })()}
-                </div>
-              ) : (
-                <p className="text-xs text-muted-foreground">
-                  Preencha o preço acima para ver quanto fica a entrada.
-                </p>
-              )}
+              <p className="rounded-md bg-kolecta-dark/40 p-3 text-xs text-muted-foreground">
+                O comprador paga o valor cheio na hora da compra, e a Kolecta
+                segura o dinheiro até ele confirmar que recebeu. Você recebe
+                quando entregar.
+              </p>
             </div>
           )}
         </div>
@@ -1746,26 +1734,17 @@ function StepReview({ form, categories }: { form: FormData; categories: Category
             {tituloComPreVenda(form.title, form.type === 'direct' && form.preVenda) || 'Sem título'}
           </h3>
 
-          {form.type === 'direct' && form.preVenda && form.price && (
+          {form.type === 'direct' && form.preVenda && form.preVendaDataPrevista && (
             <div className="rounded-md border border-border bg-kolecta-dark/40 p-3 text-xs">
               <div className="flex justify-between font-medium text-foreground">
-                <span>Entrada ({form.preVendaPercentual}%)</span>
+                <span>Chegada prevista</span>
                 <span className="text-primary">
-                  {formatBRL(
-                    calcularEntrada(Math.round(Number(form.price) * 100), form.preVendaPercentual)
-                      .entradaEmCentavos / 100,
-                  )}
+                  {formatarDataPrevista(form.preVendaDataPrevista)}
                 </span>
               </div>
-              <div className="mt-1 flex justify-between text-muted-foreground">
-                <span>Restante na chegada</span>
-                <span>
-                  {formatBRL(
-                    calcularEntrada(Math.round(Number(form.price) * 100), form.preVendaPercentual)
-                      .restanteEmCentavos / 100,
-                  )}
-                </span>
-              </div>
+              <p className="mt-1 text-muted-foreground">
+                É o prazo que vai aparecer no anúncio e com o qual você se compromete.
+              </p>
             </div>
           )}
 

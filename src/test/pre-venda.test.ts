@@ -1,35 +1,27 @@
 import { describe, it, expect } from 'vitest';
 import {
-  PERCENTUAIS_ENTRADA,
   TAG_PRE_VENDA,
+  JANELA_MAXIMA_DIAS,
   temTagPreVenda,
   removerTagPreVenda,
   aplicarTagPreVenda,
   tituloComPreVenda,
   limiteTitulo,
-  calcularEntrada,
-  percentualValido,
-  normalizarPercentual,
+  diasAte,
+  validarDataPrevista,
+  dataMaximaPreVenda,
+  formatarDataPrevista,
   dadosPreVenda,
   ehPreVenda,
-  resumoPreVenda,
+  dataPrevistaDe,
+  avisoPreVenda,
 } from '@/lib/pre-venda';
 
-describe('percentuais oferecidos', () => {
-  it('é exatamente 10/20/30/40/50', () => {
-    expect([...PERCENTUAIS_ENTRADA]).toEqual([10, 20, 30, 40, 50]);
-  });
-
-  it('não passa de 50%: entrada maior que metade não é sinal, é o item quase todo', () => {
-    expect(Math.max(...PERCENTUAIS_ENTRADA)).toBe(50);
-  });
-
-  it('recusa qualquer valor fora da lista', () => {
-    for (const v of [0, 5, 15, 60, 100, -10, 'muito', null, undefined, NaN]) {
-      expect(percentualValido(v)).toBe(false);
-    }
-  });
-});
+// Data fixa de referência, construída LOCAL: usar new Date('2026-08-04') faria
+// o teste passar em UTC e falhar em UTC-3, que é onde o app roda.
+const HOJE = new Date(2026, 7, 4); // 04/08/2026
+const iso = (ano: number, mes: number, dia: number) =>
+  `${ano}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
 
 describe('tag no título', () => {
   it('põe a tag na frente', () => {
@@ -62,12 +54,10 @@ describe('tag no título', () => {
     expect(temTagPreVenda('[PRÉ-VENDA] Supra')).toBe(true);
     expect(temTagPreVenda('pre venda supra')).toBe(true);
     expect(temTagPreVenda('Supra MK4')).toBe(false);
-    expect(temTagPreVenda('')).toBe(false);
     expect(temTagPreVenda(null)).toBe(false);
   });
 
   it('não confunde palavra parecida no meio do título', () => {
-    // "venda" solta, ou pré-venda citada na descrição do item, não conta.
     expect(temTagPreVenda('Supra MK4 em pré-venda no Japão')).toBe(false);
     expect(temTagPreVenda('Lote para venda rápida')).toBe(false);
   });
@@ -87,15 +77,17 @@ describe('tag no título', () => {
     expect(aplicarTagPreVenda(null)).toBe('');
     expect(aplicarTagPreVenda('   ')).toBe('');
   });
+
+  it('remover tag de título sem tag não estraga o texto', () => {
+    expect(removerTagPreVenda('Supra MK4')).toBe('Supra MK4');
+  });
 });
 
 describe('limite do título', () => {
   it('desconta a tag para o publicado não estourar 80', () => {
     const limite = limiteTitulo(80, true);
     expect(limite).toBe(80 - (TAG_PRE_VENDA.length + 1));
-
-    const titulo = 'x'.repeat(limite);
-    expect(aplicarTagPreVenda(titulo).length).toBeLessThanOrEqual(80);
+    expect(aplicarTagPreVenda('x'.repeat(limite)).length).toBeLessThanOrEqual(80);
   });
 
   it('sem pré-venda o limite é o cheio', () => {
@@ -103,94 +95,111 @@ describe('limite do título', () => {
   });
 });
 
-describe('cálculo da entrada', () => {
-  it('o caso que o Guilherme deu: R$ 600 a 50% dá R$ 300', () => {
-    const r = calcularEntrada(60000, 50);
-    expect(r.entradaEmCentavos).toBe(30000);
-    expect(r.restanteEmCentavos).toBe(30000);
+describe('data prevista', () => {
+  it('conta os dias que faltam', () => {
+    expect(diasAte(iso(2026, 8, 4), HOJE)).toBe(0);
+    expect(diasAte(iso(2026, 8, 5), HOJE)).toBe(1);
+    expect(diasAte(iso(2026, 8, 3), HOJE)).toBe(-1);
   });
 
-  it('30% de R$ 600 é R$ 180, sobrando R$ 420', () => {
-    const r = calcularEntrada(60000, 30);
-    expect(r.entradaEmCentavos).toBe(18000);
-    expect(r.restanteEmCentavos).toBe(42000);
+  it('não erra o dia por fuso', () => {
+    // O bug clássico: new Date('2026-12-15') é meia-noite UTC, que em UTC-3 é
+    // 21h do dia 14. A data escolhida tem que continuar sendo a mesma.
+    expect(formatarDataPrevista(iso(2026, 12, 15))).toBe('15/12/2026');
+    expect(formatarDataPrevista(iso(2026, 1, 1))).toBe('01/01/2026');
   });
 
-  it('entrada + restante bate com o preço, mesmo com centavo quebrado', () => {
-    // 10% de R$ 99,99 é R$ 9,999: arredondar os dois lados separado perderia
-    // ou inventaria um centavo.
-    for (const preco of [9999, 3333, 1, 7, 12345, 99991]) {
-      for (const p of PERCENTUAIS_ENTRADA) {
-        const r = calcularEntrada(preco, p);
-        expect(r.entradaEmCentavos + r.restanteEmCentavos).toBe(preco);
-        expect(r.entradaEmCentavos).toBeGreaterThanOrEqual(0);
-        expect(r.restanteEmCentavos).toBeGreaterThanOrEqual(0);
-      }
-    }
+  it('a hora de "hoje" não muda a contagem', () => {
+    const cedo = new Date(2026, 7, 4, 0, 5);
+    const tarde = new Date(2026, 7, 4, 23, 55);
+    expect(diasAte(iso(2026, 8, 10), cedo)).toBe(diasAte(iso(2026, 8, 10), tarde));
   });
 
-  it('a entrada nunca passa da metade do preço', () => {
-    for (const preco of [100, 5000, 60000, 999999]) {
-      for (const p of PERCENTUAIS_ENTRADA) {
-        expect(calcularEntrada(preco, p).entradaEmCentavos).toBeLessThanOrEqual(
-          Math.ceil(preco / 2),
-        );
-      }
-    }
+  it('aceita prazo dentro da janela', () => {
+    expect(validarDataPrevista(iso(2026, 10, 1), HOJE)).toBeNull();
   });
 
-  it('preço zerado ou inválido não quebra', () => {
-    expect(calcularEntrada(0, 30).entradaEmCentavos).toBe(0);
-    expect(calcularEntrada(NaN, 30).entradaEmCentavos).toBe(0);
-    expect(calcularEntrada(-500, 30).entradaEmCentavos).toBe(0);
-  });
-});
-
-describe('percentual vindo do banco', () => {
-  it('texto do JSON vira número da lista', () => {
-    expect(normalizarPercentual('30')).toBe(30);
-    expect(normalizarPercentual(40)).toBe(40);
+  it('aceita a data de hoje: quem recebeu de manhã e despacha à tarde', () => {
+    expect(validarDataPrevista(iso(2026, 8, 4), HOJE)).toBeNull();
   });
 
-  it('lixo cai no padrão em vez de virar cobrança errada', () => {
-    for (const v of [null, undefined, '', 'abc', 90, 0, -1]) {
-      expect(PERCENTUAIS_ENTRADA).toContain(normalizarPercentual(v));
-    }
-    expect(normalizarPercentual(90)).toBe(30);
+  it('recusa data no passado', () => {
+    expect(validarDataPrevista(iso(2026, 8, 3), HOJE)?.mensagem).toMatch(/passado/i);
+  });
+
+  it('recusa prazo além da janela de 90 dias', () => {
+    const dentro = new Date(HOJE.getTime() + JANELA_MAXIMA_DIAS * 24 * 3600 * 1000);
+    const fora = new Date(HOJE.getTime() + (JANELA_MAXIMA_DIAS + 1) * 24 * 3600 * 1000);
+    const fmt = (d: Date) => iso(d.getFullYear(), d.getMonth() + 1, d.getDate());
+
+    expect(validarDataPrevista(fmt(dentro), HOJE)).toBeNull();
+    expect(validarDataPrevista(fmt(fora), HOJE)?.mensagem).toMatch(/90 dias/);
+  });
+
+  it('recusa data vazia: sem prazo escrito não existe prazo a cumprir', () => {
+    expect(validarDataPrevista('', HOJE)?.mensagem).toMatch(/informe/i);
+    expect(validarDataPrevista(null, HOJE)).not.toBeNull();
+  });
+
+  it('recusa data que não existe no calendário', () => {
+    // 2026 não é bissexto, e fevereiro nunca teve 31.
+    expect(validarDataPrevista('2026-02-30', HOJE)?.mensagem).toMatch(/inválida/i);
+    expect(validarDataPrevista('2026-13-01', HOJE)?.mensagem).toMatch(/inválida/i);
+    expect(validarDataPrevista('15/12/2026', HOJE)?.mensagem).toMatch(/inválida/i);
+  });
+
+  it('a data máxima oferecida é aceita pela própria validação', () => {
+    const max = dataMaximaPreVenda(HOJE);
+    expect(validarDataPrevista(max, HOJE)).toBeNull();
+    expect(diasAte(max, HOJE)).toBe(JANELA_MAXIMA_DIAS);
+  });
+
+  it('data inválida formata vazio, nunca "Invalid Date"', () => {
+    expect(formatarDataPrevista('nada')).toBe('');
+    expect(formatarDataPrevista(null)).toBe('');
   });
 });
 
 describe('leitura do anúncio salvo', () => {
-  it('grava percentual e valor da entrada', () => {
-    expect(dadosPreVenda(60000, 50)).toEqual({
+  it('grava a marcação e a data', () => {
+    expect(dadosPreVenda(iso(2026, 12, 15))).toEqual({
       preVenda: true,
-      preVendaPercentual: 50,
-      preVendaEntradaEmCentavos: 30000,
+      preVendaDataPrevista: '2026-12-15',
     });
   });
 
   it('anúncio comum não é pré-venda', () => {
     expect(ehPreVenda({})).toBe(false);
     expect(ehPreVenda(null)).toBe(false);
-    expect(resumoPreVenda({ brand: 'Mini GT' }, 60000)).toBeNull();
+    expect(avisoPreVenda({ brand: 'Mini GT' }, HOJE)).toBeNull();
   });
 
   it('aceita o booleano vindo como texto do JSON', () => {
     expect(ehPreVenda({ preVenda: 'true' })).toBe(true);
   });
 
-  it('preço editado depois de publicar recalcula a entrada', () => {
-    // O anúncio foi salvo a R$ 600 (entrada R$ 300). O vendedor subiu para
-    // R$ 800: a entrada tem que virar R$ 400, não continuar R$ 300.
-    const attrs = { ...dadosPreVenda(60000, 50) } as Record<string, unknown>;
-    const r = resumoPreVenda(attrs, 80000);
-    expect(r?.entradaEmCentavos).toBe(40000);
-    expect(r?.restanteEmCentavos).toBe(40000);
+  it('pré-venda sem data utilizável não inventa aviso', () => {
+    expect(dataPrevistaDe({ preVenda: true })).toBeNull();
+    expect(dataPrevistaDe({ preVenda: true, preVendaDataPrevista: 'qualquer' })).toBeNull();
+    expect(avisoPreVenda({ preVenda: true }, HOJE)).toBeNull();
   });
 
-  it('percentual adulterado no banco não vira entrada de 90%', () => {
-    const r = resumoPreVenda({ preVenda: true, preVendaPercentual: 90 }, 60000);
-    expect(r?.percentual).toBe(30);
-    expect(r?.entradaEmCentavos).toBe(18000);
+  it('monta o aviso da vitrine', () => {
+    const a = avisoPreVenda({ preVenda: true, preVendaDataPrevista: iso(2026, 10, 1) }, HOJE);
+    expect(a?.dataFormatada).toBe('01/10/2026');
+    expect(a?.dias).toBe(58);
+    expect(a?.atrasado).toBe(false);
+  });
+
+  it('prazo estourado aparece como atraso em vez de sumir', () => {
+    // É justamente o que o comprador precisa ver ANTES de comprar.
+    const a = avisoPreVenda({ preVenda: true, preVendaDataPrevista: iso(2026, 7, 20) }, HOJE);
+    expect(a?.atrasado).toBe(true);
+    expect(a?.dias).toBeLessThan(0);
+  });
+
+  it('a data de hoje ainda não é atraso', () => {
+    const a = avisoPreVenda({ preVenda: true, preVendaDataPrevista: iso(2026, 8, 4) }, HOJE);
+    expect(a?.atrasado).toBe(false);
   });
 });
