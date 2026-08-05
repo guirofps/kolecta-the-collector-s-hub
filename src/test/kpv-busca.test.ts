@@ -73,6 +73,9 @@ const id = (over: Partial<IdentidadeKPV> = {}): IdentidadeKPV => ({
   variante: 'regular',
   escala: 'SO_1_64',
   linha: null,
+  condicao: 'novo-lacrado',
+  codigo: null,
+  chave: 'teste',
   ...over,
 });
 
@@ -104,9 +107,11 @@ describe('candidatoServe: linha completa o modelo (carro no campo errado)', () =
   const nossa: IdentidadeKPV = {
     marca: 'Minichamps', modelo: 'mexico 1991', variante: 'regular',
     escala: 'SO_1_18', linha: 'McLaren Honda MP4/6 Ayrton Senna',
+    condicao: 'novo-lacrado', codigo: null, chave: 'nossa',
   };
   const idMini = (over: Partial<IdentidadeKPV>): IdentidadeKPV => ({
-    marca: 'Minichamps', modelo: '', variante: 'regular', escala: 'SO_1_18', linha: null, ...over,
+    marca: 'Minichamps', modelo: '', variante: 'regular', escala: 'SO_1_18', linha: null,
+    condicao: 'novo-lacrado', codigo: null, chave: 'cand', ...over,
   });
 
   it('casa o modelo fraco com o candidato via linha', () => {

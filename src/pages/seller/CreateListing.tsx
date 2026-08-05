@@ -538,7 +538,7 @@ export default function CreateListing() {
             {step === 1 && <StepType form={form} update={update} />}
             {step === 2 && <StepDetails form={form} update={update} categories={categories} />}
             {step === 3 && <StepPhotos form={form} onFilesSelect={handleFilesSelect} removePhoto={removePhoto} setCapa={setCapa} uploadingCount={uploadingCount} />}
-            {step === 4 && <StepPricing form={form} update={update} />}
+            {step === 4 && <StepPricing form={form} update={update} taxaComissao={taxaComissao} />}
             {step === 5 && <StepReview form={form} categories={categories} />}
           </motion.div>
         </AnimatePresence>
@@ -1462,7 +1462,7 @@ function StepPhotos({
 
 // ─── Step 4: Pricing ───────────────────────────────────────
 
-function StepPricing({ form, update }: { form: FormData; update: (f: keyof FormData, v: any) => void }) {
+function StepPricing({ form, update, taxaComissao }: { form: FormData; update: (f: keyof FormData, v: any) => void; taxaComissao: number }) {
   // Só reclama depois que o vendedor mexeu no campo: acusar "informe a data"
   // no instante em que ele liga a chave é ranzinza, e o botão de avançar já
   // está travado de qualquer jeito.
