@@ -1345,6 +1345,40 @@ export function useInstallmentsSimulation() {
 }
 
 
+/**
+ * Coloca um anúncio de compra direta em leilão.
+ *
+ * A mensagem muda conforme o que o backend fez: converter mexeu no anúncio que
+ * ele já tinha, duplicar criou um novo e tirou uma unidade do original. Dizer
+ * "pronto" nos dois casos deixaria o vendedor sem entender o que aconteceu com
+ * o estoque dele.
+ */
+export function useColocarEmLeilao() {
+  const { getToken } = useAuth();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (v: { id: string; config: import('@/lib/api').ColocarEmLeilaoBody }) => {
+      const token = await getToken();
+      return api.listings.colocarEmLeilao(token || '', v.id, v.config);
+    },
+    onSuccess: (r) => {
+      queryClient.invalidateQueries({ queryKey: ['my-listings'] });
+      queryClient.invalidateQueries({ queryKey: ['listings'] });
+      toast({
+        title: r.acao === 'converter' ? 'Anúncio virou leilão' : 'Leilão criado a partir da cópia',
+        description: r.acao === 'converter'
+          ? 'Como era peça única, o próprio anúncio virou leilão. Ele volta para análise antes de ir ao ar.'
+          : 'Uma unidade saiu do anúncio direto e virou leilão. O resto continua à venda normalmente.',
+      });
+    },
+    onError: (err: Error) => {
+      toast({ title: 'Não foi possível colocar em leilão', description: err.message, variant: 'destructive' });
+    },
+  });
+}
+
 // ── useDownloadLabel (baixar o PDF do envio) ────────────────────────────────
 // O arquivo vem do nosso backend, que busca no Melhor Envio na hora. O vendedor
 // não precisa de conta lá — e nem saberia que ela existe.

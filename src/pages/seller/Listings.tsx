@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { PlusCircle, Search, MoreHorizontal, Eye, Pencil, Pause, Play, Trash2, Loader2, Sparkles, Rocket, Copy, Package, SearchX, Upload } from 'lucide-react';
+import { PlusCircle, Search, MoreHorizontal, Eye, Pencil, Pause, Play, Trash2, Loader2, Sparkles, Rocket, Copy, Package, SearchX, Upload, Gavel } from 'lucide-react';
 import SellerLayout from '@/components/layout/SellerLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { formatBRL, conditionLabel } from '@/lib/mock-data';
 import { isListingFeatured } from '@/lib/api';
-import { useMyListings, useDeleteListing, useTogglePauseListing, usePublishListing, useMyFounder, useUseFounderCredit, useIsFounderActive } from '@/hooks/use-api';
+import { useMyListings, useDeleteListing, useTogglePauseListing, usePublishListing, useMyFounder, useUseFounderCredit, useIsFounderActive, useColocarEmLeilao } from '@/hooks/use-api';
 import type { Listing } from '@/lib/api';
 import EmptyState from '@/components/EmptyState';
 import RejectionNotice from '@/components/RejectionNotice';
@@ -15,6 +15,12 @@ import { isOpenRoute } from '@/components/LaunchGate';
 import { saveDraft, draftFromListing } from '@/lib/listing-draft';
 import { hasLaunched } from '@/lib/launch';
 import { toast } from 'sonner';
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -85,6 +91,49 @@ export default function SellerListings() {
    * preenchido. Poupa o vendedor de repetir categoria, condição, descrição e
    * dimensões a cada item parecido (o caso de quem tem estoque).
    */
+  // ── Colocar em leilão ──────────────────────────────────────────────────
+  // O vendedor já montou o anúncio. Quem decide entre converter e duplicar é o
+  // BACKEND, pelo estoque: peça única vira leilão no lugar, para não existirem
+  // dois anúncios do mesmo objeto físico.
+  const leilao = useColocarEmLeilao();
+  const [paraLeilao, setParaLeilao] = useState<Listing | null>(null);
+  const [cfg, setCfg] = useState({
+    lanceInicial: '', incremento: '10', duracao: '48', reserva: '', antiSniper: true,
+  });
+
+  const abrirLeilao = (product: Listing) => {
+    setParaLeilao(product);
+    setCfg({
+      // Sugere o preço de venda como lance inicial: é o número que ele já
+      // pensou para a peça, e continua editável.
+      lanceInicial: product.priceInCents ? String(product.priceInCents / 100) : '',
+      incremento: '10', duracao: '48', reserva: '', antiSniper: true,
+    });
+  };
+
+  const confirmarLeilao = () => {
+    if (!paraLeilao) return;
+    const reais = (v: string) => Math.round(Number(String(v).replace(',', '.')) * 100);
+    const inicial = reais(cfg.lanceInicial);
+    if (!Number.isFinite(inicial) || inicial <= 0) {
+      toast.error('Informe o lance inicial.');
+      return;
+    }
+    leilao.mutate(
+      {
+        id: paraLeilao.id,
+        config: {
+          startingBidInCents: inicial,
+          minIncrementInCents: reais(cfg.incremento) || undefined,
+          reservePriceInCents: cfg.reserva ? reais(cfg.reserva) : undefined,
+          durationHours: Number(cfg.duracao) || undefined,
+          antiSniper: cfg.antiSniper,
+        },
+      },
+      { onSuccess: () => setParaLeilao(null) },
+    );
+  };
+
   const duplicar = (product: Listing) => {
     saveDraft(draftFromListing(product));
     toast.success('Cópia criada', {
@@ -284,6 +333,12 @@ export default function SellerListings() {
                         <DropdownMenuItem className="gap-2 text-sm" onClick={() => duplicar(product)}>
                           <Copy className="h-3.5 w-3.5" /> Duplicar
                         </DropdownMenuItem>
+                        {/* Só faz sentido em compra direta: leilão já é leilão. */}
+                        {product.type !== 'auction' && (
+                          <DropdownMenuItem className="gap-2 text-sm" onClick={() => abrirLeilao(product)}>
+                            <Gavel className="h-3.5 w-3.5" /> Colocar em leilão
+                          </DropdownMenuItem>
+                        )}
                         {/* "Enviar para análise", não "Publicar": quem coloca no
                             ar é a moderação. O nome antigo prometia publicação
                             imediata e o vendedor não entenderia por que o
@@ -355,6 +410,86 @@ export default function SellerListings() {
           </div>
         )}
       </div>
+
+      {/* ── Colocar em leilão ── */}
+      <Dialog open={!!paraLeilao} onOpenChange={(o) => !o && setParaLeilao(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-heading">Colocar em leilão</DialogTitle>
+            <DialogDescription>
+              {paraLeilao && Number(paraLeilao.stock ?? 1) > 1 ? (
+                <>
+                  Você tem {paraLeilao.stock} unidades. Uma vai para o leilão e o
+                  anúncio de compra direta segue com {Number(paraLeilao.stock) - 1}.
+                </>
+              ) : (
+                <>
+                  É peça única, então o próprio anúncio vira leilão. Ele volta
+                  para análise antes de ir ao ar.
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Lance inicial (R$) *</Label>
+                <Input
+                  value={cfg.lanceInicial}
+                  onChange={(e) => setCfg((c) => ({ ...c, lanceInicial: e.target.value }))}
+                  placeholder="149,90"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Incremento (R$)</Label>
+                <Input
+                  value={cfg.incremento}
+                  onChange={(e) => setCfg((c) => ({ ...c, incremento: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Duração (horas)</Label>
+                <Input
+                  value={cfg.duracao}
+                  onChange={(e) => setCfg((c) => ({ ...c, duracao: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Preço de reserva (R$)</Label>
+                <Input
+                  value={cfg.reserva}
+                  onChange={(e) => setCfg((c) => ({ ...c, reserva: e.target.value }))}
+                  placeholder="opcional"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <Label>Anti-sniper</Label>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Lance nos minutos finais estica o prazo, para ninguém arrematar
+                  no estalo.
+                </p>
+              </div>
+              <Switch
+                checked={cfg.antiSniper}
+                onCheckedChange={(v) => setCfg((c) => ({ ...c, antiSniper: v }))}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setParaLeilao(null)}>Cancelar</Button>
+            <Button variant="kolecta" disabled={leilao.isPending} onClick={confirmarLeilao}>
+              {leilao.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Colocar em leilão
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </SellerLayout>
   );
 }

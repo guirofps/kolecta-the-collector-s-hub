@@ -190,6 +190,18 @@ export const api = {
         token,
       }).then(r => r.data),
 
+    /**
+     * Transforma um anúncio de compra direta em leilão.
+     *
+     * Estoque 1 converte o próprio anúncio; estoque maior duplica e tira uma
+     * unidade do original. Quem decide é o backend, porque a regra existe para
+     * impedir venda dupla e não pode depender do que o navegador acha.
+     */
+    colocarEmLeilao: (token: string, id: string, body: ColocarEmLeilaoBody) =>
+      request<{ data: ResultadoLeilao }>(`/api/listings/${id}/colocar-em-leilao`, {
+        method: 'POST', body: JSON.stringify(body), token,
+      }).then(r => r.data),
+
     togglePause: (token: string, id: string) =>
       request<{ data: Listing }>(`/api/listings/${id}/toggle-pause`, {
         method: 'PATCH',
@@ -1034,6 +1046,22 @@ export interface SellerSelfProfile {
     email: string | null;
     createdAt: string | null;
   };
+}
+
+export interface ColocarEmLeilaoBody {
+  startingBidInCents: number;
+  minIncrementInCents?: number;
+  reservePriceInCents?: number;
+  durationHours?: number;
+  antiSniper?: boolean;
+}
+
+export interface ResultadoLeilao {
+  /** `converter` mexeu no próprio anúncio; `duplicar` criou um novo. */
+  acao: 'converter' | 'duplicar';
+  /** Anúncio que virou leilão (o mesmo, ou a cópia). */
+  listingId: string;
+  original: string;
 }
 
 // ── Bling: catálogo e importação ─────────────────────────────────────────────
