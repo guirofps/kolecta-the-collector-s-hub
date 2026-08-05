@@ -25,6 +25,8 @@ import { CONDITIONS } from '@/lib/conditions';
 import {
   MARCAS_MINIATURA, ESCALAS_MINIATURA, marcaParaSalvar, escalaParaSalvar,
 } from '@/lib/marcas';
+import { linhaParaSalvar } from '@/lib/linhas';
+import SeletorLinha from '@/components/SeletorLinha';
 import {
   TAG_PRE_VENDA,
   dadosPreVenda,
@@ -341,7 +343,7 @@ export default function CreateListing() {
       // Normaliza na saída: ver marcaParaSalvar. O seletor sozinho não segurou
       // ("Hotwheels " entrou por outro caminho depois que ele subiu).
       brand: marcaParaSalvar(cf.brand || form.brand, form.title),
-      line: cf.line || form.line || undefined,
+      line: linhaParaSalvar(cf.line || form.line, cf.brand || form.brand),
       scale: escalaParaSalvar(cf.scale || form.scale),
       year: cf.year || form.year || undefined,
       edition: cf.edition || form.edition || undefined,
@@ -1019,7 +1021,15 @@ function StepDetails({ form, update, categories }: { form: FormData; update: (f:
                 </div>
                 <div>
                   <Label htmlFor="c1-line">Linha / Série</Label>
-                  <Input id="c1-line" placeholder="Ex: LB-Works, Kaido House" value={form.categoryFields?.line || ''} onChange={(e) => updateCatField('line', e.target.value)} className="mt-1.5" />
+                  {/* Lista depende do fabricante escolhido acima, com "Outra"
+                      liberando campo livre: colaboração e exclusivo de evento
+                      aparecem o tempo todo e não cabem em lista fechada. */}
+                  <SeletorLinha
+                    id="c1-line"
+                    marca={form.categoryFields?.brand || form.brand}
+                    value={form.categoryFields?.line || ''}
+                    onChange={(v) => updateCatField('line', v)}
+                  />
                 </div>
                 <div>
                   <Label>Escala *</Label>

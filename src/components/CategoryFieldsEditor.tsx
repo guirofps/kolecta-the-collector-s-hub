@@ -7,6 +7,7 @@ import {
   fieldsForCategory, isFieldApplicable, formatFieldValue,
   type CategoryField,
 } from '@/lib/category-fields';
+import SeletorLinha from '@/components/SeletorLinha';
 
 interface CategoryFieldsEditorProps {
   /** Slug da categoria do anúncio. Desconhecido = não renderiza nada. */
@@ -63,7 +64,16 @@ export default function CategoryFieldsEditor({
               {campo.required && <span className="text-destructive"> *</span>}
             </Label>
 
-            {campo.options ? (
+            {campo.key === 'line' ? (
+              /* Linha é o único campo cuja lista depende de OUTRO campo (o
+                 fabricante), então não cabe em `options` estático. */
+              <SeletorLinha
+                id={`cat-${campo.key}`}
+                marca={formatFieldValue(values.brand) ?? ''}
+                value={valorDe(campo)}
+                onChange={(v) => onChange(campo.key, v)}
+              />
+            ) : campo.options ? (
               <Select
                 value={valorDe(campo)}
                 onValueChange={(v) => onChange(campo.key, v)}

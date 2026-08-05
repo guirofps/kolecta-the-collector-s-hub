@@ -24,6 +24,7 @@ import {
   fieldsForCategory, parseAttributes, formatFieldValue, isFieldApplicable,
 } from '@/lib/category-fields';
 import { marcaParaSalvar, escalaParaSalvar } from '@/lib/marcas';
+import { linhaParaSalvar } from '@/lib/linhas';
 
 const MAX_PHOTOS = 8;
 
@@ -271,7 +272,7 @@ export default function EditListing() {
       // e sem isto a grafia voltava intacta ao banco quando o vendedor salvava
       // sem encostar no campo.
       brand: marcaParaSalvar(texto('brand') ?? form.brand, form.title),
-      line: texto('line') ?? (form.line || undefined),
+      line: linhaParaSalvar(texto('line') ?? form.line, texto('brand') ?? form.brand),
       scale: escalaParaSalvar(texto('scale') ?? form.scale),
       year: texto('year') ?? (form.year || undefined),
       edition: texto('edition') ?? (form.edition || undefined),
