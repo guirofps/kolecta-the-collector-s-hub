@@ -257,7 +257,9 @@ export function marcaParaSalvar(
 // ─── Escala ──────────────────────────────────────────────────────────────────
 
 export const ESCALAS_MINIATURA = [
-  '1:64', '1:43', '1:32', '1:24', '1:18', '1:12', 'Outra',
+  // 1:41 é a escala da coleção Shell Ferrari (Bburago). Fora da lista, os
+  // anúncios dela caíam em "Outra" e sumiam de qualquer filtro por escala.
+  '1:64', '1:43', '1:41', '1:32', '1:24', '1:18', '1:12', 'Outra',
 ] as const;
 
 /**

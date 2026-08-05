@@ -93,7 +93,7 @@ export const CATEGORY_FIELDS: Record<string, CategoryField[]> = {
       subcategoria: true,
       options: [
         'Pokémon', 'Magic: The Gathering', 'Yu-Gi-Oh!', 'One Piece',
-        'Dragon Ball', 'Digimon', 'Sport Cards', 'Outro',
+        'Dragon Ball', 'Digimon', 'Sport Cards', 'UNO', 'Outro',
       ],
     },
     { key: 'numero', label: 'Número da carta' },
