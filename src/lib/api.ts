@@ -181,6 +181,15 @@ export const api = {
         token,
       }).then(r => r.data),
 
+    // Ordem da vitrine da loja: manda os ids na ordem desejada (o primeiro é o
+    // topo). O backend grava position=índice só nos anúncios do próprio vendedor.
+    reorder: (token: string, ids: string[]) =>
+      request<{ data: { ok: boolean } }>('/api/listings/reorder', {
+        method: 'PATCH',
+        body: JSON.stringify({ ids }),
+        token,
+      }).then(r => r.data),
+
     remove: (token: string, id: string) =>
       request<void>(`/api/listings/${id}`, { method: 'DELETE', token }),
 
@@ -1493,6 +1502,9 @@ export interface Listing {
   // Destaque (vitrine): ISO até quando o anúncio fica em destaque. Passado/null = não.
   featuredUntil?: string | null;
   featuredSource?: string | null;
+  // Ordem escolhida pelo vendedor para a vitrine da loja (menor = mais acima).
+  // null = ainda não ordenado. Só a página do vendedor usa isto.
+  position?: number | null;
   createdAt: string;
   updatedAt: string;
 }

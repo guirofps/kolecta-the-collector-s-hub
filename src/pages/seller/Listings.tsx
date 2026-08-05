@@ -1,14 +1,16 @@
 import { useState } from 'react';
+import { Reorder } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
-import { PlusCircle, Search, MoreHorizontal, Eye, Pencil, Pause, Play, Trash2, Loader2, Sparkles, Rocket, Copy, Package, SearchX, Upload, Gavel } from 'lucide-react';
+import { PlusCircle, Search, MoreHorizontal, Eye, Pencil, Pause, Play, Trash2, Loader2, Sparkles, Rocket, Copy, Package, SearchX, Upload, Gavel, GripVertical, Check, ArrowUpDown } from 'lucide-react';
 import SellerLayout from '@/components/layout/SellerLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { formatBRL, conditionLabel } from '@/lib/mock-data';
 import { isListingFeatured } from '@/lib/api';
-import { useMyListings, useDeleteListing, useTogglePauseListing, usePublishListing, useMyFounder, useUseFounderCredit, useIsFounderActive, useColocarEmLeilao } from '@/hooks/use-api';
+import { useMyListings, useDeleteListing, useTogglePauseListing, usePublishListing, useMyFounder, useUseFounderCredit, useIsFounderActive, useColocarEmLeilao, useReorderListings } from '@/hooks/use-api';
 import type { Listing } from '@/lib/api';
+import { ordenarPorPosicao } from '@/lib/ordenar-vitrine';
 import EmptyState from '@/components/EmptyState';
 import RejectionNotice from '@/components/RejectionNotice';
 import { isOpenRoute } from '@/components/LaunchGate';
@@ -61,6 +63,10 @@ const statusLabels: Record<string, string> = {
 export default function SellerListings() {
   const [activeTab, setActiveTab] = useState<string>('todos');
   const [search, setSearch] = useState('');
+  // Modo de organizar a vitrine: arrastar os anúncios ATIVOS para a ordem em que
+  // aparecem na página do vendedor. Fica separado da gestão normal para não
+  // brigar com os cliques de editar/pausar de cada card.
+  const [reordenando, setReordenando] = useState(false);
   const navigate = useNavigate();
 
   const { data: myProducts, isLoading } = useMyListings();
@@ -85,6 +91,11 @@ export default function SellerListings() {
 
   const semAnuncios = (myProducts || []).length === 0;
   const filtroAtivo = activeTab !== 'todos' || search.trim() !== '';
+
+  // Só anúncio ATIVO aparece na vitrine pública, então só ele entra na
+  // reordenação, já na ordem que o público vê (posição, depois data).
+  const ativos = ordenarPorPosicao((myProducts || []).filter((p) => p.status === 'active'));
+  const podeReordenar = ativos.length >= 2;
 
   /**
    * Duplicar: grava uma cópia do anúncio como rascunho e abre o wizard já
@@ -151,6 +162,12 @@ export default function SellerListings() {
             <p className="text-sm text-muted-foreground mt-1">{(myProducts || []).length} anúncios no total</p>
           </div>
           <div className="flex items-center gap-2">
+            {podeReordenar && !reordenando && (
+              <Button variant="outline" size="sm" onClick={() => setReordenando(true)}>
+                <ArrowUpDown className="h-4 w-4" />
+                Organizar vitrine
+              </Button>
+            )}
             <Button variant="outline" size="sm" asChild>
               <Link to="/painel/importar">
                 <Upload className="h-4 w-4" />
@@ -166,6 +183,12 @@ export default function SellerListings() {
           </div>
         </div>
 
+        {/* Organizar vitrine: arrastar os ativos para a ordem da página pública. */}
+        {reordenando && (
+          <ReorderVitrine ativos={ativos} onSair={() => setReordenando(false)} />
+        )}
+
+        {!reordenando && (<>
         {/* Tabs */}
         <div className="flex items-center gap-2 overflow-x-auto pb-2 mb-4">
           {statusTabs.map((tab) => (
@@ -409,6 +432,7 @@ export default function SellerListings() {
             })}
           </div>
         )}
+        </>)}
       </div>
 
       {/* ── Colocar em leilão ── */}
@@ -491,5 +515,63 @@ export default function SellerListings() {
       </Dialog>
 
     </SellerLayout>
+  );
+}
+
+// ─── Organizar vitrine (arrastar para reordenar) ─────────────────────────────
+//
+// Lista separada e enxuta só com os anúncios ativos: o vendedor arrasta pela
+// alça e a ordem é gravada ao soltar. A UI mostra a nova ordem na hora (estado
+// local do Reorder); a persistência acontece no fim de cada arraste.
+function ReorderVitrine({ ativos, onSair }: { ativos: Listing[]; onSair: () => void }) {
+  const reorder = useReorderListings();
+  const [ordem, setOrdem] = useState<Listing[]>(ativos);
+
+  const persistir = () => reorder.mutate(ordem.map((l) => l.id));
+
+  return (
+    <div>
+      <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-border bg-card/40 p-3">
+        <p className="text-sm text-muted-foreground">
+          Arraste pela alça para ordenar. O topo aparece primeiro na sua página.
+          {reorder.isPending && <span className="ml-2 text-primary">salvando…</span>}
+        </p>
+        <Button variant="kolecta" size="sm" onClick={onSair}>
+          <Check className="h-4 w-4" /> Concluir
+        </Button>
+      </div>
+
+      <Reorder.Group axis="y" values={ordem} onReorder={setOrdem} className="space-y-2">
+        {ordem.map((l) => (
+          <ReorderItem key={l.id} listing={l} onSoltar={persistir} />
+        ))}
+      </Reorder.Group>
+    </div>
+  );
+}
+
+function ReorderItem({ listing, onSoltar }: { listing: Listing; onSoltar: () => void }) {
+  let imgs: string[] = [];
+  try { if (listing.images) imgs = JSON.parse(listing.images); } catch { /* sem foto */ }
+
+  return (
+    <Reorder.Item
+      value={listing}
+      onDragEnd={onSoltar}
+      className="flex items-center gap-3 rounded-lg border border-border bg-card p-3 cursor-grab active:cursor-grabbing"
+    >
+      <GripVertical className="h-5 w-5 shrink-0 text-muted-foreground" />
+      <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-md bg-secondary">
+        {imgs[0] ? (
+          <img src={imgs[0]} alt="" className="h-full w-full object-cover" />
+        ) : (
+          <span className="text-[9px] text-muted-foreground">Sem foto</span>
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium">{listing.title}</p>
+        <p className="text-xs text-muted-foreground">{formatBRL((listing.priceInCents || 0) / 100)}</p>
+      </div>
+    </Reorder.Item>
   );
 }

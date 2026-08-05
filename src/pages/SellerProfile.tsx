@@ -20,6 +20,7 @@ import { useCategories } from '@/hooks/use-api';
 import { api } from '@/lib/api';
 import { onlyPublicNaLoja } from '@/lib/listing-visibility';
 import { toProduct } from '@/lib/home-sections';
+import { ESCALAS_MINIATURA, normalizarEscala } from '@/lib/marcas';
 
 // O parse defensivo de `images` (F32) agora vem de `parseImages`, dentro de
 // `toProduct`: mesmo comportamento — JSON de array, URL crua ou nulo, sem nunca
@@ -85,6 +86,7 @@ export default function SellerProfilePage() {
   // Listing filters
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [scaleFilter, setScaleFilter] = useState('all');
   const [sortBy, setSortBy] = useState('recent');
 
   // Queries
@@ -137,11 +139,24 @@ export default function SellerProfilePage() {
   // `getAllListings` devolve o array direto (já juntou as páginas), não { data }.
   const publicProducts = onlyPublicNaLoja(listingsResponse ?? []);
 
+  // Escalas realmente presentes na loja (miniatura), normalizadas para não
+  // duplicar "1/64" e "1:64". Só assim o filtro de escala aparece quando faz
+  // sentido — vendedor só de cards não vê filtro de escala.
+  const escalasPresentes = ESCALAS_MINIATURA.filter((e) =>
+    publicProducts.some((p) => normalizarEscala(p.scale) === e),
+  );
+
   let filteredProducts = publicProducts;
   if (searchQuery) {
     const q = searchQuery.toLowerCase();
     filteredProducts = filteredProducts.filter((p) => p.title.toLowerCase().includes(q));
   }
+  if (scaleFilter !== 'all') {
+    filteredProducts = filteredProducts.filter((p) => normalizarEscala(p.scale) === scaleFilter);
+  }
+  // Cópia antes de ordenar por preço: `.sort` muta, e sem a cópia a ordenação
+  // do vendedor (posição, que vem do backend) seria embaralhada no próprio cache.
+  filteredProducts = [...filteredProducts];
   if (sortBy === 'price-asc') filteredProducts.sort((a, b) => (a.priceInCents || 0) - (b.priceInCents || 0));
   if (sortBy === 'price-desc') filteredProducts.sort((a, b) => (b.priceInCents || 0) - (a.priceInCents || 0));
 
@@ -280,6 +295,22 @@ export default function SellerProfilePage() {
                   ))}
                 </SelectContent>
               </Select>
+              {/* Escala só aparece quando a loja tem miniatura com escala. Quem
+                  vende de várias escalas junto (o pedido do vendedor) deixa o
+                  comprador achar a que quer sem sair da loja. */}
+              {escalasPresentes.length > 0 && (
+                <Select value={scaleFilter} onValueChange={setScaleFilter}>
+                  <SelectTrigger className="w-full sm:w-[140px]">
+                    <SelectValue placeholder="Escala" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas escalas</SelectItem>
+                    {escalasPresentes.map((e) => (
+                      <SelectItem key={e} value={e}>{e}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
               <Select value={sortBy} onValueChange={setSortBy}>
                 <SelectTrigger className="w-full sm:w-[160px]">
                   <SelectValue placeholder="Ordenar" />

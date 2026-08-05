@@ -514,6 +514,35 @@ export function useUpdateListing() {
   });
 }
 
+/**
+ * Persiste a ordem da vitrine da loja (arrastar para reordenar). A UI já mostra
+ * a nova ordem na hora (estado local do Reorder), então aqui só grava e revalida
+ * a loja pública; sem toast de sucesso, para não poluir a cada arraste.
+ */
+export function useReorderListings() {
+  const queryClient = useQueryClient();
+  const { getToken } = useAuth();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (ids: string[]) => {
+      const token = await getToken();
+      return api.listings.reorder(token || '', ids);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['my-listings'] });
+      queryClient.invalidateQueries({ queryKey: ['sellerListings'] });
+    },
+    onError: (err: Error) => {
+      toast({
+        title: 'Não foi possível salvar a ordem',
+        description: err.message,
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
 export function useDeleteListing() {
   const queryClient = useQueryClient();
   const { getToken } = useAuth();
