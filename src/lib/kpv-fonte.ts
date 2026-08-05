@@ -16,6 +16,7 @@
 //    publica número inventado, que é pior do que não publicar nada.
 
 import type { IdentidadeKPV } from './kpv-identidade';
+import { ehConjunto } from './kpv-identidade';
 import { normalizarMarca } from './marcas';
 
 export type FonteKPV = 'mercado-livre' | 'ebay';
@@ -124,6 +125,13 @@ export function candidatoServe(nossa: IdentidadeKPV, candidato: IdentidadeKPV): 
   const comuns = palavrasComuns(nossa.modelo, candidato.modelo);
   if (comuns < 2 && contarPalavras(nossa.modelo) >= 2 && contarPalavras(candidato.modelo) >= 2) {
     return { serve: false, motivo: `só ${comuns} palavra em comum no modelo` };
+  }
+
+  // 7) Conjunto vs peça única. Um kit "F-100 transportando um Bronco" casou com
+  //    um "M2 Hauler Fanta F-100": mesmo veículo principal, produtos
+  //    diferentes. Conjunto só compara com conjunto.
+  if (ehConjunto(nossa.modelo) !== ehConjunto(candidato.modelo)) {
+    return { serve: false, motivo: 'conjunto de veículos de um lado só' };
   }
 
   return { serve: true };

@@ -69,6 +69,18 @@ const RE_FRANQUIA =
   /\b(star\s*trek|batman|batplane|batmobile|x-?men|x-?jet|marvel|guardi(?:õ|o)es|nave|enterprise|vengeance|mario\s*kart|snoopy|jurass?[ai]c|jurr?asc|dc\s*comics|hello\s*kitty|simpsons)\b/i;
 
 /**
+ * Conjunto de dois ou mais veículos, mesmo sem a palavra "kit" ou "set" que o
+ * RE_LOTE pega. O vendedor brasileiro descreve o tema por extenso ("F-100
+ * transportando um Bronco", "GMC Sierra, uma van Safari e um reboque"), e essa
+ * frase, depois de limpa, vira um modelo genérico que casa com um produto
+ * DIFERENTE que só compartilha o veículo principal. O anúncio internacional de
+ * peça única não traz esses termos, então o casamento é sempre falso: conjunto
+ * só compara com conjunto.
+ */
+const RE_CONJUNTO =
+  /\b(transportando|rebocando|reboque|carreta|guincho|puxando)\b/i;
+
+/**
  * Código de catálogo, só nos formatos comprovadamente confiáveis.
  *
  * O "#NNNN" do Mini GT é numeração de coleção de verdade. Já o código de
@@ -198,6 +210,11 @@ export function ehLote(titulo: string | null | undefined): boolean {
 
 export function ehFranquia(titulo: string | null | undefined): boolean {
   return RE_FRANQUIA.test(titulo ?? '');
+}
+
+/** Conjunto de dois ou mais veículos descrito por extenso (F-100 + Bronco). */
+export function ehConjunto(texto: string | null | undefined): boolean {
+  return RE_CONJUNTO.test(texto ?? '');
 }
 
 /** Código de catálogo confiável, ou null. */

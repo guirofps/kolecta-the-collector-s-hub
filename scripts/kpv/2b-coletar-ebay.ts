@@ -16,16 +16,24 @@ import { writeFileSync } from 'node:fs';
 import { carregar, salvar, buscarEbay, buscarEbayGtin, cotacaoDolar, pausa, brl, PASTA_DADOS } from './comum';
 import { identidadeDe, CONDICAO_BASE } from '../../src/lib/kpv-identidade';
 import { candidatoServe, converterDeDolar } from '../../src/lib/kpv-fonte';
+import { termoBuscaExterna } from '../../src/lib/kpv-busca';
 import type { AmostraPreco } from '../../src/lib/kpv-referencia';
 import type { ItemDaFila } from './1-preparar';
 import type { Coleta } from './2-coletar';
 
-const limite = Number(process.argv[2]) || Infinity;
+// O número pode vir em qualquer posição (o resto são flags). Ler só argv[2]
+// já fez `--todas 30` virar Infinity e varrer tudo; aqui pega o primeiro
+// argumento que é número, venha antes ou depois das flags.
+const limite = Number(process.argv.slice(2).find((a) => /^\d+$/.test(a))) || Infinity;
 // `--todas` varre o eBay em TODA peça comparável, não só as especiais. O eBay é
 // o maior mercado de miniatura do mundo, então serve de segunda fonte para o
 // que o ML já tem (leva à confiança alta) e de cobertura para o que ele não
 // achou. Sem a flag, roda só as roteadas (chase/exclusivo), como antes.
 const todas = process.argv.includes('--todas');
+// `--sem-preco` mira só a peça que hoje não tem preço de NENHUMA fonte. É a
+// população para medir se a busca melhorada recupera o que antes escapava, sem
+// gastar consulta em quem já tem referência.
+const soSemPreco = process.argv.includes('--sem-preco');
 const fila = carregar<ItemDaFila[]>('fila.json');
 
 let jaFeitas: Coleta[] = [];
@@ -34,8 +42,13 @@ try { jaFeitas = carregar<Coleta[]>('coletas.json'); } catch { jaFeitas = []; }
 const resolvidasEbay = new Set(
   jaFeitas.filter((c) => c.fonte === 'ebay' && c.amostras.length > 0).map((c) => c.chave),
 );
+// Peça com preço de QUALQUER fonte (ML, eBay, loja). Usado pelo --sem-preco.
+const comPrecoQualquer = new Set(
+  jaFeitas.filter((c) => c.amostras.length > 0).map((c) => c.chave),
+);
 const alvo = fila
   .filter((f) => (todas || f.fonte === 'ebay') && !resolvidasEbay.has(f.chave))
+  .filter((f) => !soSemPreco || !comPrecoQualquer.has(f.chave))
   .slice(0, limite);
 
 // Imposto de importação (Remessa Conforme, 2026): até US$50 são 20%, acima
@@ -44,7 +57,11 @@ const cambio = await cotacaoDolar();
 console.log(`fila eBay: ${fila.filter((f) => f.fonte === 'ebay').length} peças`);
 console.log(`nesta rodada: ${alvo.length}   |   dólar hoje: R$ ${cambio.toFixed(2)}\n`);
 
-const coletas: Coleta[] = [...jaFeitas];
+// Reprocessando uma peça (ex.: busca melhorada), a coleta eBay antiga dela sai
+// antes de a nova entrar, senão o arquivo acumularia duas entradas eBay para a
+// mesma chave.
+const alvoChaves = new Set(alvo.map((a) => a.chave));
+const coletas: Coleta[] = jaFeitas.filter((c) => !(c.fonte === 'ebay' && alvoChaves.has(c.chave)));
 const recusas: Record<string, number> = {};
 let feitas = 0;
 let comPreco = 0;
@@ -68,7 +85,10 @@ for (const item of alvo) {
   let viaEan = anuncios.length > 0;
   await pausa(400);
   if (!anuncios.length) {
-    const termo = `${item.identidade.marca} ${item.identidade.modelo}`.slice(0, 90);
+    // Termo normalizado: traduz o que o mercado global indexa em inglês
+    // ("velozes e furiosos" some no eBay US, "fast furious" acha aos milhares) e
+    // tira o ruído que transforma título em frase. Ver kpv-busca.
+    const termo = termoBuscaExterna(item.identidade.marca, item.identidade.modelo);
     anuncios = await buscarEbay(termo, 50);
     viaEan = false;
     await pausa(400);
