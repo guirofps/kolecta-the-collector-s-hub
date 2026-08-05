@@ -1671,10 +1671,36 @@ export interface AdminFinancialTransaction {
   isSale?: boolean;
 }
 
+/** Um lance do Modo Lance. Não é pedido: só vira venda se o leilão fechar. */
+export interface AdminFinancialBid {
+  id: string;
+  date: string;
+  /** Quem deu o lance. */
+  bidder: string;
+  seller: string;
+  product: string | null;
+  listingId: string | null;
+  amount: number;
+  status: string;
+  /** Retenção criada no cartão? Lance sem isto não está garantido. */
+  hasPreAuth: boolean;
+}
+
 export interface AdminFinancial {
-  summary: { revenue: number; volume: number; payouts: number; pendingWithdrawals: number };
+  summary: {
+    revenue: number;
+    /** Parte da receita já finalizada (entrega confirmada). Opcional: só vem
+     *  depois que o backend novo sobe. */
+    revenueSettled?: number;
+    shippingPassThrough?: number;
+    volume: number;
+    payouts: number;
+    pendingWithdrawals: number;
+  };
   transactions: AdminFinancialTransaction[];
   pendingWithdrawals: { id: string; date: string; seller: string; amount: number }[];
+  /** Lances recentes. Opcional enquanto o backend novo não subiu. */
+  bids?: AdminFinancialBid[];
 }
 
 export interface AdminAuctionItem {

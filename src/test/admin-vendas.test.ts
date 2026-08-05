@@ -2,8 +2,9 @@ import { describe, it, expect } from 'vitest';
 import {
   ehDeHoje, vendasDeHoje, totaisDe, tempoRelativo, horaDe, filtrarBusca, dataDa,
   ehVenda, rotuloOrigem, rotuloPagamento, resumoDoDia,
+  eventosDe, filtrarPeriodo, resumoEventos,
 } from '@/lib/admin-vendas';
-import type { AdminFinancialTransaction } from '@/lib/api';
+import type { AdminFinancialTransaction, AdminFinancialBid } from '@/lib/api';
 
 /** Transação mínima; sobrescreva o que o teste precisa. */
 function tx(over: Partial<AdminFinancialTransaction> = {}): AdminFinancialTransaction {
@@ -163,6 +164,95 @@ describe('resumoDoDia', () => {
     expect(r.vendas.quantidade).toBe(0);
     expect(r.aguardando.quantidade).toBe(0);
     expect(r.modoLance.quantidade).toBe(0);
+  });
+});
+
+function lance(over: Partial<AdminFinancialBid> = {}): AdminFinancialBid {
+  return {
+    id: 'b1',
+    date: '2026-08-04T14:00:00.000Z',
+    bidder: 'Artminis Toys',
+    seller: 'Rock Wheels',
+    product: 'Hot Wheels RLC Silvia S15',
+    listingId: 'l1',
+    amount: 600,
+    status: 'active',
+    hasPreAuth: true,
+    ...over,
+  };
+}
+
+describe('eventosDe', () => {
+  it('junta venda e lance na mesma linha do tempo, mais recente primeiro', () => {
+    const eventos = eventosDe(
+      [tx({ id: 'v', date: '2026-08-04T10:00:00.000Z' })],
+      [lance({ id: 'b', date: '2026-08-04T16:00:00.000Z' })],
+    );
+    expect(eventos.map((e) => e.tipo)).toEqual(['lance', 'venda']);
+  });
+
+  it('lance traz quem deu, produto e vendedor', () => {
+    const [ev] = eventosDe([], [lance()]);
+    expect(ev.pessoa).toBe('Artminis Toys');
+    expect(ev.vendedor).toBe('Rock Wheels');
+    expect(ev.valor).toBe(600);
+    expect(ev.origem).toBe('auction');
+  });
+
+  it('lance sem retencao no cartao nao conta como garantido', () => {
+    const [ev] = eventosDe([], [lance({ hasPreAuth: false })]);
+    expect(ev.confirmado).toBe(false);
+  });
+
+  it('funciona quando a API ainda nao manda lances', () => {
+    expect(eventosDe([tx()])).toHaveLength(1);
+  });
+});
+
+describe('filtrarPeriodo', () => {
+  const eventos = eventosDe([
+    tx({ id: 'hoje', date: new Date(2026, 7, 4, 10).toISOString() }),
+    tx({ id: 'ha3dias', date: new Date(2026, 7, 1, 10).toISOString() }),
+    tx({ id: 'ha20dias', date: new Date(2026, 6, 15, 10).toISOString() }),
+    tx({ id: 'antigo', date: new Date(2026, 5, 1, 10).toISOString() }),
+  ]);
+
+  it('hoje pega so o dia', () => {
+    expect(filtrarPeriodo(eventos, 'hoje', AGORA)).toHaveLength(1);
+  });
+
+  it('7 dias inclui hoje e os 6 anteriores', () => {
+    expect(filtrarPeriodo(eventos, '7d', AGORA)).toHaveLength(2);
+  });
+
+  it('30 dias alcanca o de 20 dias atras', () => {
+    expect(filtrarPeriodo(eventos, '30d', AGORA)).toHaveLength(3);
+  });
+
+  it('tudo nao filtra nada', () => {
+    expect(filtrarPeriodo(eventos, 'tudo', AGORA)).toHaveLength(4);
+  });
+});
+
+describe('resumoEventos', () => {
+  it('separa venda, pendente e lance', () => {
+    const eventos = eventosDe(
+      [
+        tx({ id: 'v1', status: 'paid', gross: 100, commission: 11 }),
+        tx({ id: 'p1', status: 'cancelled', gross: 50, commission: 5 }),
+      ],
+      [lance({ id: 'b1', amount: 600 }), lance({ id: 'b2', amount: 200, hasPreAuth: false })],
+    );
+    const r = resumoEventos(eventos);
+    expect(r.vendas).toEqual({ quantidade: 1, bruto: 100, comissao: 11 });
+    expect(r.aguardando.quantidade).toBe(1);
+    expect(r.lances).toEqual({ quantidade: 2, valor: 800, garantidos: 1 });
+  });
+
+  it('lance nao entra no bruto de vendas', () => {
+    const r = resumoEventos(eventosDe([], [lance({ amount: 600 })]));
+    expect(r.vendas.bruto).toBe(0);
+    expect(r.lances.valor).toBe(600);
   });
 });
 

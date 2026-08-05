@@ -9,8 +9,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFoo
 import { formatBRL } from '@/lib/currency';
 import { useAdminFinancial } from '@/hooks/use-api';
 import {
-  vendasDeHoje, resumoDoDia, tempoRelativo, horaDe, filtrarBusca,
-  rotuloOrigem, rotuloPagamento, ehVenda,
+  eventosDe, filtrarPeriodo, resumoEventos, PERIODOS, type Periodo,
+  tempoRelativo, horaDe, filtrarBusca, rotuloOrigem, rotuloPagamento, ehVenda,
 } from '@/lib/admin-vendas';
 import { DollarSign, ShoppingBag, ArrowUpFromLine, Wallet, Clock, Package, Store, User, Gavel } from 'lucide-react';
 
@@ -27,14 +27,19 @@ const statusConfig: Record<string, { label: string; variant: 'default' | 'second
   pending_payment: { label: 'Aguardando pagamento', variant: 'outline' },
   cancelled: { label: 'Não pago', variant: 'destructive' },
   disputed: { label: 'Em disputa', variant: 'destructive' },
+  // Status de LANCE (a linha do tempo mistura venda e lance).
+  active: { label: 'Lance ativo', variant: 'secondary' },
+  won: { label: 'Arrematou', variant: 'default' },
+  outbid: { label: 'Superado', variant: 'outline' },
+  lost: { label: 'Perdeu', variant: 'outline' },
 };
 
 function fmtDate(d: string) {
   return new Date(d).toLocaleDateString('pt-BR');
 }
 
-function SummaryCard({ title, value, icon: Icon, valueClass }: {
-  title: string; value: string; icon: React.ElementType; valueClass?: string;
+function SummaryCard({ title, value, icon: Icon, valueClass, hint }: {
+  title: string; value: string; icon: React.ElementType; valueClass?: string; hint?: string;
 }) {
   return (
     <Card className="bg-gradient-card border-border">
@@ -44,6 +49,10 @@ function SummaryCard({ title, value, icon: Icon, valueClass }: {
           <Icon className="h-4 w-4 text-muted-foreground" />
         </div>
         <p className={`font-heading text-3xl font-extrabold italic ${valueClass ?? ''}`}>{value}</p>
+        {/* A régua do número, embaixo dele: sem isto a receita parecia errada,
+            porque contava só o pedido já finalizado e ignorava a venda paga que
+            ainda estava a caminho. */}
+        {hint && <p className="mt-1 text-[11px] text-muted-foreground">{hint}</p>}
       </CardContent>
     </Card>
   );
@@ -71,10 +80,11 @@ export default function AdminFinancial() {
   // Busca agora varre vendedor e produto também (ver lib/admin-vendas).
   const filteredTransactions = filtrarBusca(transactions, txSearch);
 
-  // Acompanhamento do dia: é a pergunta que a equipe faz ("saiu venda hoje?
-  // de quem?"), e que o painel não respondia.
-  const hoje = vendasDeHoje(transactions);
-  const resumo = resumoDoDia(hoje);
+  // Linha do tempo da plataforma: venda E lance, no mesmo lugar. Lance não é
+  // pedido, então antes não aparecia em canto nenhum do painel.
+  const [periodo, setPeriodo] = useState<Periodo>('hoje');
+  const eventos = filtrarPeriodo(eventosDe(transactions, data?.bids ?? []), periodo);
+  const resumo = resumoEventos(eventos);
 
   // Soma só venda confirmada: a lista passou a incluir Pix gerado e pedido não
   // pago, e somá-los aqui daria um total que nunca entrou no caixa.
@@ -102,8 +112,23 @@ export default function AdminFinancial() {
           </div>
         ) : (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <SummaryCard title="Receita da plataforma" value={formatBRL(summary?.revenue ?? 0)} icon={DollarSign} valueClass="text-kolecta-gold" />
-            <SummaryCard title="Volume transacionado" value={formatBRL(summary?.volume ?? 0)} icon={ShoppingBag} />
+            <SummaryCard
+              title="Receita da plataforma"
+              value={formatBRL(summary?.revenue ?? 0)}
+              icon={DollarSign}
+              valueClass="text-kolecta-gold"
+              hint={
+                summary?.revenueSettled != null
+                  ? `Comissão de toda venda paga. ${formatBRL(summary.revenueSettled)} já finalizado (entrega confirmada).`
+                  : 'Comissão sobre as vendas pagas.'
+              }
+            />
+            <SummaryCard
+              title="Volume transacionado"
+              value={formatBRL(summary?.volume ?? 0)}
+              icon={ShoppingBag}
+              hint="Só vendas pagas. Pix gerado e não pago fica de fora."
+            />
             <SummaryCard title="Repasses (líquido liberado)" value={formatBRL(summary?.payouts ?? 0)} icon={ArrowUpFromLine} />
             <SummaryCard title="Saques pendentes" value={formatBRL(summary?.pendingWithdrawals ?? 0)} icon={Wallet} />
           </div>
@@ -122,8 +147,26 @@ export default function AdminFinancial() {
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-kolecta-gold opacity-75" />
                   <span className="relative inline-flex h-2 w-2 rounded-full bg-kolecta-gold" />
                 </span>
-                <h2 className="font-heading text-lg font-bold uppercase tracking-wide">Vendas de hoje</h2>
+                <h2 className="font-heading text-lg font-bold uppercase tracking-wide">Atividade</h2>
                 <span className="text-[11px] text-muted-foreground">atualiza sozinho</span>
+                {/* Recorte por período: o painel só mostrava "as últimas 100",
+                    sem responder "quanto saiu esta semana?". */}
+                <div className="ml-2 flex items-center gap-1">
+                  {PERIODOS.map((p) => (
+                    <button
+                      key={p.valor}
+                      type="button"
+                      onClick={() => setPeriodo(p.valor)}
+                      className={`rounded-md px-2 py-1 text-[11px] font-medium transition-colors ${
+                        periodo === p.valor
+                          ? 'bg-primary/15 text-primary'
+                          : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground'
+                      }`}
+                    >
+                      {p.rotulo}
+                    </button>
+                  ))}
+                </div>
               </div>
               {/* Venda confirmada e pedido não pago vivem em colunas separadas
                   de propósito: somar os dois no "bruto" prometeria dinheiro que
@@ -142,8 +185,13 @@ export default function AdminFinancial() {
                   <span className="font-heading text-xl font-bold text-kolecta-gold">{formatBRL(resumo.vendas.comissao)}</span>
                 </div>
                 <div className="border-l border-border pl-5">
-                  <span className="block text-[10px] uppercase tracking-wider text-muted-foreground">Modo Lance</span>
-                  <span className="font-heading text-xl font-bold">{resumo.modoLance.quantidade}</span>
+                  <span className="block text-[10px] uppercase tracking-wider text-muted-foreground">Lances</span>
+                  <span className="font-heading text-xl font-bold">{resumo.lances.quantidade}</span>
+                  {resumo.lances.quantidade > 0 && (
+                    <span className="ml-1 text-[10px] text-muted-foreground">
+                      ({formatBRL(resumo.lances.valor)})
+                    </span>
+                  )}
                 </div>
                 <div>
                   <span className="block text-[10px] uppercase tracking-wider text-muted-foreground">Não pagos</span>
@@ -155,67 +203,71 @@ export default function AdminFinancial() {
           <CardContent className="p-0">
             {isLoading ? (
               <div className="p-4 space-y-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-12 rounded" />)}</div>
-            ) : hoje.length === 0 ? (
+            ) : eventos.length === 0 ? (
               <p className="px-4 py-10 text-center text-sm text-muted-foreground">
-                Nenhum pedido hoje ainda. Assim que alguém comprar ou arrematar, aparece aqui sozinho.
+                Nada neste período ainda. Venda ou lance que acontecer aparece aqui sozinho.
               </p>
             ) : (
               <ul className="divide-y divide-border">
-                {hoje.map((tx) => {
-                  const sc = statusConfig[tx.status] ?? { label: tx.status, variant: 'outline' as const };
-                  const confirmada = ehVenda(tx);
-                  const arremate = tx.origin === 'auction';
+                {eventos.map((ev) => {
+                  const sc = statusConfig[ev.status] ?? { label: ev.status, variant: 'outline' as const };
+                  const eLance = ev.tipo === 'lance';
                   return (
                     <li
-                      key={tx.id}
-                      // Pedido que não virou venda entra apagado: aparece (é o
-                      // que o acompanhamento pede) sem competir com o que é
+                      key={ev.id}
+                      // O que não está garantido (pedido não pago, lance sem
+                      // retenção no cartão) entra apagado: aparece, porque é o
+                      // que o acompanhamento pede, sem competir com o que é
                       // dinheiro de verdade.
-                      className={`flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 ${confirmada ? '' : 'opacity-60'}`}
+                      className={`flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 ${ev.confirmado ? '' : 'opacity-60'}`}
                     >
                       <div className="w-14 shrink-0">
-                        <span className="block font-heading text-sm font-bold">{horaDe(tx)}</span>
-                        <span className="block text-[10px] text-muted-foreground">{tempoRelativo(tx)}</span>
+                        <span className="block font-heading text-sm font-bold">{horaDe(ev)}</span>
+                        <span className="block text-[10px] text-muted-foreground">{tempoRelativo(ev)}</span>
                       </div>
 
                       <div className="min-w-[180px] flex-1">
-                        {/* Produto e vendedor só aparecem quando o backend passar
-                            a devolvê-los; até lá o traço deixa claro que falta o
-                            dado, em vez de sumir a coluna. */}
                         <span className="flex items-center gap-1.5 text-sm font-medium">
-                          <Package className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                          {tx.product ?? '—'}
+                          {eLance
+                            ? <Gavel className="h-3.5 w-3.5 shrink-0 text-primary" />
+                            : <Package className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
+                          {ev.produto ?? '—'}
                         </span>
                         <span className="mt-0.5 flex flex-wrap items-center gap-x-3 text-[11px] text-muted-foreground">
                           <span className="flex items-center gap-1">
-                            <Store className="h-3 w-3" /> {tx.seller ?? '—'}
+                            <Store className="h-3 w-3" /> {ev.vendedor ?? '—'}
                           </span>
                           <span className="flex items-center gap-1">
-                            <User className="h-3 w-3" /> {tx.buyer}
+                            <User className="h-3 w-3" /> {ev.pessoa}
                           </span>
-                          <span>{tx.orderId}</span>
                         </span>
                       </div>
 
-                      {/* Origem e forma de pagamento: sem isso, um arremate de
-                          leilão e um Pix comum ficam iguais na lista. */}
+                      {/* Venda ou lance, e como foi pago. Sem isso, um arremate
+                          e um Pix comum ficam iguais na lista. */}
                       <div className="flex items-center gap-1.5">
                         <Badge
-                          variant={arremate ? 'default' : 'outline'}
-                          className={`text-[10px] ${arremate ? '' : 'text-muted-foreground'}`}
+                          variant={eLance ? 'default' : 'outline'}
+                          className={`text-[10px] ${eLance ? '' : 'text-muted-foreground'}`}
                         >
-                          {arremate && <Gavel className="mr-1 h-3 w-3" />}
-                          {rotuloOrigem(tx)}
+                          {eLance ? <><Gavel className="mr-1 h-3 w-3" />Lance</> : rotuloOrigem({ origin: ev.origem })}
                         </Badge>
-                        <Badge variant="outline" className="text-[10px] text-muted-foreground">
-                          {rotuloPagamento(tx)}
-                        </Badge>
+                        {!eLance && (
+                          <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                            {rotuloPagamento({ paymentInstrument: ev.pagamento })}
+                          </Badge>
+                        )}
+                        {eLance && !ev.confirmado && (
+                          <Badge variant="destructive" className="text-[10px]">sem retenção</Badge>
+                        )}
                       </div>
 
                       <div className="text-right">
-                        <span className="block font-heading text-sm font-bold">{formatBRL(tx.gross)}</span>
+                        <span className="block font-heading text-sm font-bold">{formatBRL(ev.valor)}</span>
                         <span className="block text-[10px] text-kolecta-gold">
-                          {tx.commissionPct != null ? `comissão ${formatBRL(tx.commission)}` : 'comissão —'}
+                          {eLance
+                            ? (ev.confirmado ? 'retido no cartão' : '—')
+                            : (ev.comissao ? `comissão ${formatBRL(ev.comissao)}` : 'comissão —')}
                         </span>
                       </div>
 
