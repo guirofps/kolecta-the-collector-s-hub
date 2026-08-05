@@ -742,6 +742,23 @@ export const api = {
 
     disconnect: (token: string) =>
       request<{ data: BlingStatus }>('/api/bling/disconnect', { method: 'DELETE', token }).then(r => r.data),
+
+    /** Uma página do catálogo do Bling do lojista. Listagem barata, sem peso nem GTIN. */
+    produtos: (token: string, pagina: number) =>
+      request<{ data: BlingCatalogoPagina }>(`/api/bling/produtos?pagina=${pagina}`, { token })
+        .then(r => r.data),
+
+    /** O que falta em cada produto, SEM criar nada. */
+    conferir: (token: string, body: BlingImportBody) =>
+      request<{ data: BlingConferencia }>('/api/bling/conferir', {
+        method: 'POST', body: JSON.stringify(body), token,
+      }).then(r => r.data),
+
+    /** Cria os anúncios dos que passam. Os que não passam voltam com o motivo. */
+    importar: (token: string, body: BlingImportBody) =>
+      request<{ data: BlingResultadoImport }>('/api/bling/importar', {
+        method: 'POST', body: JSON.stringify(body), token,
+      }).then(r => r.data),
   },
 
   // ── Seller (self, autenticado) ───────────────────────────────────────────────
@@ -1017,6 +1034,53 @@ export interface SellerSelfProfile {
     email: string | null;
     createdAt: string | null;
   };
+}
+
+// ── Bling: catálogo e importação ─────────────────────────────────────────────
+
+export interface BlingProduto {
+  id: number;
+  nome: string;
+  sku: string | null;
+  precoEmReais: number | null;
+  estoque: number | null;
+  imagem: string | null;
+  /** Situação no ERP. Produto inativo lá não deveria virar anúncio no ar. */
+  ativo: boolean;
+}
+
+export interface BlingCatalogoPagina {
+  produtos: BlingProduto[];
+  pagina: number;
+  /** A API do Bling não devolve total: página cheia sugere que há mais. */
+  temMais: boolean;
+}
+
+export interface BlingImportBody {
+  ids: number[];
+  /** Slug da categoria Kolecta. O Bling não tem esse conceito. */
+  categoria: string;
+  condicao: string;
+}
+
+export interface BlingItemConferido {
+  blingProductId: number;
+  titulo: string;
+  /** Mensagens no mesmo texto da importação por planilha. */
+  pendencias: string[];
+  jaImportado: boolean;
+  pronto: boolean;
+}
+
+export interface BlingConferencia {
+  itens: BlingItemConferido[];
+  resumo: { total: number; prontos: number; comPendencia: number; jaImportados: number };
+}
+
+export interface BlingResultadoImport {
+  /** `aviso` vem preenchido quando o anúncio entrou com uma foto só. */
+  criados: Array<{ blingProductId: number; titulo: string; aviso?: string }>;
+  recusados: Array<{ blingProductId: number; titulo: string; motivos: string[] }>;
 }
 
 /** Arquivo do envio que o vendedor pode baixar. */

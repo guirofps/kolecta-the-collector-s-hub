@@ -144,7 +144,7 @@ export const CATEGORY_FIELDS: Record<string, CategoryField[]> = {
     { key: 'tituloObra', label: 'Título da obra', required: true },
     {
       key: 'editora',
-      label: 'Editora',
+      label: 'Editora', required: true,
       subcategoria: true,
       options: [
         'Panini', 'JBK', 'JBC', 'Devir', 'NewPOP', 'Pipoca & Nanquim',

@@ -60,6 +60,7 @@ import SellerSettingsPage from "./pages/seller/Settings";
 import SellerMediaPage from "./pages/seller/Media";
 import BulkImportPage from "./pages/seller/BulkImport";
 import IntegrationsPage from "./pages/seller/Integrations";
+import BlingImportPage from "./pages/seller/BlingImport";
 import AdminOverview from "./pages/admin/Overview";
 import AdminListings from "./pages/admin/Listings";
 import AdminUsers from "./pages/admin/Users";
@@ -178,6 +179,7 @@ const App = () => (
             <Route path="/painel/pedidos/:id" element={<ProtectedRoute><SellerOrderDetailPage /></ProtectedRoute>} />
             <Route path="/painel/modo-lance" element={<ProtectedRoute><AuctionManagerPage /></ProtectedRoute>} />
             <Route path="/painel/integracoes" element={<ProtectedRoute><IntegrationsPage /></ProtectedRoute>} />
+            <Route path="/painel/anuncios/importar-bling" element={<ProtectedRoute><BlingImportPage /></ProtectedRoute>} />
             <Route path="/painel/financeiro" element={<ProtectedRoute><SellerFinancialPage /></ProtectedRoute>} />
             {/* Stripe Connect aposentado (migração p/ Pagar.me): redireciona ao recebedor. */}
             <Route path="/painel/stripe-onboarding" element={<Navigate to="/painel/recebedor" replace />} />

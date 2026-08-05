@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import SellerLayout from '@/components/layout/SellerLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useBlingStatus, useBlingConnect, useBlingDisconnect } from '@/hooks/use-api';
-import { CheckCircle2, XCircle, ExternalLink, Plug, PlugZap } from 'lucide-react';
+import { CheckCircle2, XCircle, ExternalLink, Plug, PlugZap, PackageSearch } from 'lucide-react';
 
 export default function IntegrationsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -81,7 +81,7 @@ export default function IntegrationsPage() {
             <ul className="text-sm text-muted-foreground space-y-1.5">
               <li className="flex items-center gap-2">
                 <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
-                Pedido pago na Kolecta → criado automaticamente no Bling
+                Importe seu catálogo do Bling como anúncios, em lote
               </li>
               <li className="flex items-center gap-2">
                 <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
@@ -133,9 +133,19 @@ export default function IntegrationsPage() {
             </div>
 
             {isConnected && (
-              <p className="text-xs text-muted-foreground">
-                Cada pedido pago na Kolecta é sincronizado automaticamente com seu Bling.
-              </p>
+              <>
+                <p className="text-xs text-muted-foreground">
+                  Cada pedido pago na Kolecta é sincronizado automaticamente com seu Bling.
+                </p>
+                {/* Sem este atalho a tela de importação ficaria órfã, que foi
+                    exatamente o que aconteceu com esta página aqui. */}
+                <Button variant="outline-gold" size="sm" asChild>
+                  <Link to="/painel/anuncios/importar-bling">
+                    <PackageSearch className="h-4 w-4 mr-1.5" />
+                    Importar catálogo do Bling
+                  </Link>
+                </Button>
+              </>
             )}
           </CardContent>
         </Card>

@@ -142,6 +142,21 @@ export const COLUNAS: ColunaModelo[] = [
     chave: 'edition', titulo: 'Edição', obrigatoria: false,
     ajuda: 'Opcional', exemplo: '',
   },
+  {
+    chave: 'editora', titulo: 'Editora', obrigatoria: false,
+    ajuda: 'Obrigatória em mangas-hqs. É por ela que o comprador navega na categoria',
+    exemplo: 'Panini',
+  },
+  {
+    chave: 'tipo', titulo: 'Tipo de acessório', obrigatoria: false,
+    ajuda: 'Obrigatório em acessorios. Ex: Rodas | Pneus | Expositor / Display',
+    exemplo: 'Rodas',
+  },
+  {
+    chave: 'escalaCompativel', titulo: 'Escala compatível', obrigatoria: false,
+    ajuda: 'Obrigatória em acessorios. Ex: 1:64 | 1:18 | Várias',
+    exemplo: '1:64',
+  },
 ];
 
 /** Escapa um campo para CSV (aspas duplas quando há vírgula, aspas ou quebra). */

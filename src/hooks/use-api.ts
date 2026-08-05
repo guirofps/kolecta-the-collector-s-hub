@@ -1800,6 +1800,62 @@ export function useBlingConnect() {
   });
 }
 
+/** Uma página do catálogo do Bling. `enabled` para não buscar sem conexão. */
+export function useBlingProdutos(pagina: number, enabled: boolean) {
+  const { getToken } = useAuth();
+  return useQuery({
+    queryKey: ['bling', 'produtos', pagina],
+    queryFn: async () => {
+      const token = await getToken();
+      return api.bling.produtos(token || '', pagina);
+    },
+    enabled,
+    // O catálogo do ERP não muda a cada segundo, e cada busca custa uma
+    // requisição do teto de 3/s do Bling.
+    staleTime: 5 * 60_000,
+  });
+}
+
+/** Confere o lote sem criar nada. Sempre roda antes de importar. */
+export function useBlingConferir() {
+  const { getToken } = useAuth();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (body: import('@/lib/api').BlingImportBody) => {
+      const token = await getToken();
+      return api.bling.conferir(token || '', body);
+    },
+    onError: (err: Error) => {
+      toast({ title: 'Não foi possível conferir', description: err.message, variant: 'destructive' });
+    },
+  });
+}
+
+export function useBlingImportar() {
+  const { getToken } = useAuth();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (body: import('@/lib/api').BlingImportBody) => {
+      const token = await getToken();
+      return api.bling.importar(token || '', body);
+    },
+    onSuccess: (r) => {
+      queryClient.invalidateQueries({ queryKey: ['listings'] });
+      queryClient.invalidateQueries({ queryKey: ['my-listings'] });
+      toast({
+        title: `${r.criados.length} anúncio(s) criado(s)`,
+        description: r.recusados.length
+          ? `${r.recusados.length} ficaram de fora, veja o motivo na lista.`
+          : 'Todos entraram e estão em análise.',
+      });
+    },
+    onError: (err: Error) => {
+      toast({ title: 'Falha ao importar', description: err.message, variant: 'destructive' });
+    },
+  });
+}
+
 export function useBlingDisconnect() {
   const { getToken } = useAuth();
   const queryClient = useQueryClient();
