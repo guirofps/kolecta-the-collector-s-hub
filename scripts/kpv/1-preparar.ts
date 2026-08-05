@@ -7,7 +7,9 @@
 //
 // Sai um arquivo em scripts/kpv/dados/fila.json, que o passo 2 consome.
 
+import { readFileSync, existsSync } from 'node:fs';
 import { consultar, salvar } from './comum';
+import { lerDicionario, casarNoDicionario } from '../../src/lib/kpv-dicionario';
 import { identidadeDe, motivoNaoComparavel, type AnuncioParaKPV, type IdentidadeKPV } from '../../src/lib/kpv-identidade';
 import { fonteRecomendada, type FonteKPV } from '../../src/lib/kpv-fonte';
 
@@ -20,9 +22,26 @@ export interface ItemDaFila {
   chave: string;
   identidade: IdentidadeKPV;
   fonte: FonteKPV;
+  /**
+   * EAN, quando o dicionário conseguiu identificar a peça. Com ele o coletor
+   * VERIFICA em vez de comparar nome, e acerta o produto em 93% dos casos.
+   */
+  ean?: string;
+  sku?: string;
   /** Anúncios nossos que são esta peça. */
   anuncios: { id: string; title: string; precoEmCentavos: number }[];
 }
+
+// ── Dicionário de EAN ──
+// Exportação de catálogo de loja própria. Vale como identidade, NÃO como preço:
+// usar o preço da própria casa como "referência de mercado" seria circular.
+const CAMINHO_DICIONARIO = 'C:\\Users\\Guilherme Rojas\\Downloads\\Planilha importacao .csv';
+const dicionario = existsSync(CAMINHO_DICIONARIO)
+  ? lerDicionario(readFileSync(CAMINHO_DICIONARIO).toString('latin1'))
+  : [];
+console.log(dicionario.length
+  ? `dicionário: ${dicionario.length} produtos, ${dicionario.filter((e) => e.ean).length} com EAN válido`
+  : 'dicionário: não encontrado, seguindo só por nome');
 
 const rows = await consultar<AnuncioBanco>(`
   SELECT id, title, COALESCE(description,'') AS description, brand, line, scale,
@@ -51,8 +70,17 @@ for (const r of rows) {
     title: String(r.title),
     precoEmCentavos: Number(r.price_in_cents) || 0,
   };
-  if (atual) atual.anuncios.push(anuncio);
-  else grupos.set(id.chave, { chave: id.chave, identidade: id, fonte: fonteRecomendada(id), anuncios: [anuncio] });
+  if (atual) { atual.anuncios.push(anuncio); continue; }
+
+  const casado = dicionario.length ? casarNoDicionario(anuncio.title, dicionario) : null;
+  grupos.set(id.chave, {
+    chave: id.chave,
+    identidade: id,
+    fonte: fonteRecomendada(id),
+    ean: casado?.entrada.ean || undefined,
+    sku: casado?.entrada.sku || undefined,
+    anuncios: [anuncio],
+  });
 }
 
 const fila = [...grupos.values()]
@@ -71,6 +99,8 @@ for (const [m, n] of Object.entries(descartes).sort((a, b) => b[1] - a[1])) {
 console.log(`\npeças distintas na fila: ${fila.length}`);
 for (const [f, n] of Object.entries(porFonte)) console.log(`  ${String(n).padStart(4)}  ${f}`);
 console.log(`  ${fila.filter((f) => f.anuncios.length > 1).length} peças têm mais de um anúncio nosso`);
+const comEan = fila.filter((f) => f.ean).length;
+console.log(`  ${comEan} peças com EAN (${Math.round((comEan / fila.length) * 100)}%): casamento verificado, não estimado`);
 
 const caminho = salvar('fila.json', fila);
 console.log(`\nfila gravada em ${caminho}`);

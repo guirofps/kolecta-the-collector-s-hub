@@ -51,37 +51,60 @@ console.log(`(${fila.filter((f) => f.fonte === 'ebay').length} aguardam a creden
 // Começa com o que já estava resolvido, para o arquivo final ficar completo.
 const coletas: Coleta[] = jaFeitas.filter((c) => c.amostras.length > 0);
 const recusas: Record<string, number> = {};
+const porVia: Record<string, number> = {};
 let feitas = 0;
 
 for (const item of alvo) {
   feitas++;
   if (feitas % 25 === 0) console.log(`  ... ${feitas}/${alvo.length}`);
 
-  const termo = `${item.identidade.marca} ${item.identidade.modelo}`.slice(0, 90);
-  const busca = await getML(`/products/search?status=active&site_id=MLB&q=${encodeURIComponent(termo)}`);
-  await pausa();
-
-  const candidatos = busca.corpo?.results ?? [];
-  if (!candidatos.length) {
-    coletas.push({ chave: item.chave, fonte: 'mercado-livre', amostras: [], recusa: 'nenhum produto na fonte' });
-    recusas['nenhum produto na fonte'] = (recusas['nenhum produto na fonte'] ?? 0) + 1;
-    continue;
-  }
-
-  // Testa todos os candidatos, não só o primeiro: o produto certo pode não ser
-  // o mais bem rankeado pela busca deles.
   let escolhido: any = null;
   let ultimaRecusa = 'candidato sem identidade';
-  for (const p of candidatos.slice(0, 8)) {
-    const at = Object.fromEntries((p.attributes ?? []).map((a: any) => [a.name, a.value_name]));
-    const cand = identidadeDe({
-      title: p.name, brand: at['Marca'], line: at['Série do veículo'],
-      scale: at['Escala'], condition: CONDICAO_BASE,
-    });
-    if (!cand) continue;
-    const v = candidatoServe(item.identidade, cand);
-    if (v.serve) { escolhido = p; break; }
-    ultimaRecusa = v.motivo!;
+  let via: 'ean' | 'nome' = 'nome';
+
+  // ── Caminho 1: EAN. Verifica em vez de comparar. ──
+  // Quando o dicionário deu um EAN, a busca devolve o produto exato e o GTIN
+  // dos atributos CONFIRMA que é ele. Nada de porteiro: ou o código bate, ou
+  // não bate.
+  if (item.ean) {
+    const r = await getML(`/products/search?status=active&site_id=MLB&q=${item.ean}`);
+    await pausa();
+    for (const p of r.corpo?.results ?? []) {
+      const at = Object.fromEntries((p.attributes ?? []).map((a: any) => [a.name, a.value_name]));
+      const gtin = String(at['Código universal de produto'] ?? at['GTIN'] ?? '').replace(/\D/g, '');
+      // Compara sem os zeros à esquerda: o ML devolve GTIN-14 e o nosso é
+      // EAN-13, então "00810152148402" e "0810152148402" são o mesmo código.
+      if (gtin && gtin.replace(/^0+/, '') === item.ean.replace(/^0+/, '')) {
+        escolhido = p;
+        via = 'ean';
+        break;
+      }
+    }
+    if (!escolhido) ultimaRecusa = 'EAN sem produto correspondente na fonte';
+  }
+
+  // ── Caminho 2: nome, com o porteiro. ──
+  if (!escolhido) {
+    const termo = `${item.identidade.marca} ${item.identidade.modelo}`.slice(0, 90);
+    const busca = await getML(`/products/search?status=active&site_id=MLB&q=${encodeURIComponent(termo)}`);
+    await pausa();
+
+    const candidatos = busca.corpo?.results ?? [];
+    if (!candidatos.length) ultimaRecusa = 'nenhum produto na fonte';
+
+    // Testa todos os candidatos, não só o primeiro: o produto certo pode não
+    // ser o mais bem rankeado pela busca deles.
+    for (const p of candidatos.slice(0, 8)) {
+      const at = Object.fromEntries((p.attributes ?? []).map((a: any) => [a.name, a.value_name]));
+      const cand = identidadeDe({
+        title: p.name, brand: at['Marca'], line: at['Série do veículo'],
+        scale: at['Escala'], condition: CONDICAO_BASE,
+      });
+      if (!cand) continue;
+      const v = candidatoServe(item.identidade, cand);
+      if (v.serve) { escolhido = p; break; }
+      ultimaRecusa = v.motivo!;
+    }
   }
 
   if (!escolhido) {
@@ -90,6 +113,7 @@ for (const item of alvo) {
     coletas.push({ chave: item.chave, fonte: 'mercado-livre', amostras: [], recusa: chave });
     continue;
   }
+  porVia[via] = (porVia[via] ?? 0) + 1;
 
   // Anúncios reais daquele produto de catálogo.
   const amostras: AmostraPreco[] = [];
@@ -122,7 +146,10 @@ const comAmostra = coletas.filter((c) => c.amostras.length > 0);
 console.log(`\nconsultadas nesta rodada: ${feitas}`);
 console.log(`total acumulado: ${coletas.length}`);
 console.log(`com preço: ${comAmostra.length} (${Math.round(comAmostra.length / Math.max(1, coletas.length) * 100)}%)`);
-console.log(`\nrecusas do porteiro:`);
+console.log(`\ncomo o produto foi identificado:`);
+console.log(`  ${String(porVia.ean ?? 0).padStart(4)}  por EAN (verificado pelo GTIN)`);
+console.log(`  ${String(porVia.nome ?? 0).padStart(4)}  por nome (passou pelo porteiro)`);
+console.log(`\nrecusas:`);
 for (const [m, n] of Object.entries(recusas).sort((a, b) => b[1] - a[1])) {
   console.log(`  ${String(n).padStart(4)}  ${m}`);
 }
