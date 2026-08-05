@@ -131,8 +131,10 @@ describe('Criar anúncio: fluxo até os detalhes', () => {
   it('mostra os campos obrigatórios da categoria escolhida', () => {
     renderWizard();
     irAteDetalhes();
-    // Miniaturas exige marca e escala.
-    expect(screen.getByLabelText(/Marca/i)).toBeInTheDocument();
+    // Miniaturas exige fabricante e escala. O rótulo diz "Fabricante da
+    // miniatura", e não "Marca", porque metade do catálogo preencheu a
+    // montadora do carro (Ferrari, Honda) no lugar de quem fabrica a peça.
+    expect(screen.getByText(/Fabricante da miniatura/i)).toBeInTheDocument();
     expect(screen.getByText(/Escala/i)).toBeInTheDocument();
   });
 
@@ -176,10 +178,10 @@ describe('Criar anúncio: envio de fotos', () => {
     fireEvent.change(screen.getByLabelText(/Descrição/i), {
       target: { value: 'Lacrado, nunca aberto. Peça protegida desde o primeiro dia.' },
     });
-    fireEvent.change(screen.getByLabelText(/Marca/i), { target: { value: 'Hot Wheels' } });
-    // Escala é um select do Radix; setamos direto pelo campo de detalhes.
-    const escala = document.querySelector('[id^="c1-"]');
-    if (escala) fireEvent.change(escala, { target: { value: '1:64' } });
+    // Fabricante e escala são selects do Radix (lista fechada), então não dá
+    // para digitar: o preenchimento acontece pela interação real do usuário nos
+    // testes que precisam disso. Aqui basta que os campos existam.
+    expect(screen.getByText(/Fabricante da miniatura/i)).toBeInTheDocument();
   }
 
   function enviarArquivo(nome = 'foto.jpg') {

@@ -21,6 +21,7 @@ import { categoryArt } from '@/lib/category-art';
 import { parsePriceToCents } from '@/lib/currency';
 import { loadDraft, saveDraft, clearDraft } from '@/lib/listing-draft';
 import { CONDITIONS } from '@/lib/conditions';
+import { MARCAS_MINIATURA, ESCALAS_MINIATURA } from '@/lib/marcas';
 import { MIN_PHOTOS, MAX_PHOTOS } from '@/lib/photos';
 import { freteFaltando, AVISO_EMBALAGEM } from '@/lib/frete';
 import { definirCapa, removerFoto } from '@/lib/fotos-anuncio';
@@ -1020,8 +1021,22 @@ function StepDetails({ form, update, categories }: { form: FormData; update: (f:
             {catSlug === 'miniaturas-diecast' && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="c1-brand">Marca *</Label>
-                  <Input id="c1-brand" placeholder="Ex: Mini GT, Tarmac Works, Hot Wheels" value={form.categoryFields?.brand || ''} onChange={(e) => updateCatField('brand', e.target.value)} className="mt-1.5" />
+                  {/* Lista fechada, não campo livre. Como texto livre, a mesma
+                      marca entrou de seis jeitos ("Hotweels", "HOT WELLS",
+                      "HotWheels"): 343 dos 821 anúncios ficaram fora do padrão,
+                      quebrando filtro, busca e comparação de preço. */}
+                  <Label htmlFor="c1-brand">Fabricante da miniatura *</Label>
+                  <Select value={form.categoryFields?.brand || ''} onValueChange={(v) => updateCatField('brand', v)}>
+                    <SelectTrigger id="c1-brand" className="mt-1.5"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>
+                      {MARCAS_MINIATURA.map((m) => (
+                        <SelectItem key={m} value={m}>{m}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Quem fabrica a miniatura (Hot Wheels, Mini GT…), não a montadora do carro.
+                  </p>
                 </div>
                 <div>
                   <Label htmlFor="c1-line">Linha / Série</Label>
@@ -1032,7 +1047,7 @@ function StepDetails({ form, update, categories }: { form: FormData; update: (f:
                   <Select value={form.categoryFields?.scale || ''} onValueChange={(v) => updateCatField('scale', v)}>
                     <SelectTrigger className="mt-1.5"><SelectValue placeholder="Selecione" /></SelectTrigger>
                     <SelectContent>
-                      {['1:64', '1:43', '1:32', '1:24', '1:18', '1:12', 'Outra'].map(s => (
+                      {ESCALAS_MINIATURA.map(s => (
                         <SelectItem key={s} value={s}>{s}</SelectItem>
                       ))}
                     </SelectContent>

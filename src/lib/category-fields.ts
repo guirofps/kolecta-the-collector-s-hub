@@ -31,8 +31,11 @@ export interface CategoryField {
   subcategoria?: boolean;
 }
 
-// Escalas e afins que já eram lista fechada no wizard, agora centralizadas.
-const ESCALAS = ['1:64', '1:43', '1:32', '1:24', '1:18', '1:12', 'Outra'];
+import { MARCAS_MINIATURA, ESCALAS_MINIATURA } from './marcas';
+
+// Marca e escala vêm de lib/marcas: é a mesma lista que a normalização usa para
+// consertar o que entrou torto. Duas listas seriam duas verdades.
+const ESCALAS = [...ESCALAS_MINIATURA];
 const IDIOMAS = ['Português', 'Inglês', 'Japonês', 'Outro'];
 const SIM_NAO = ['Sim', 'Não'];
 
@@ -46,12 +49,7 @@ export const CATEGORY_FIELDS: Record<string, CategoryField[]> = {
       label: 'Fabricante da miniatura',
       required: true,
       subcategoria: true,
-      options: [
-        'Hot Wheels', 'Mini GT', 'Majorette', 'Matchbox', 'Tomica', 'Maisto',
-        'Bburago', 'Greenlight', 'Johnny Lightning', 'M2 Machines', 'Inno64',
-        'Pop Race', 'Tarmac Works', 'Kaido House', 'Solido', 'Auto World',
-        'Robert Design', 'MSZ', 'Time Micro', 'Outra',
-      ],
+      options: [...MARCAS_MINIATURA],
     },
     { key: 'line', label: 'Linha / Série' },
     { key: 'scale', label: 'Escala', required: true, options: ESCALAS },
