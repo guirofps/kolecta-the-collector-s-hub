@@ -125,14 +125,42 @@ function chave(texto: string): string {
     .trim();
 }
 
+/**
+ * Palavras que não identificam peça nenhuma.
+ *
+ * O NOME DAS MARCAS entra aqui, e isso é o ponto mais importante do arquivo.
+ * Sem elas, qualquer "Hot Wheels X" casava com qualquer "Hot Wheels Y" curto,
+ * porque as duas palavras da marca sozinhas já davam 67% de sobreposição. O
+ * estrago foi medido: 231 de 349 peças receberam o EAN de outra peça, e 45
+ * carros distintos apontaram todos para uma Barbie.
+ */
 const RUIDO = new Set([
-  'miniatura', 'miniaturas', 'carrinho', 'escala', 'de', 'da', 'do', 'e', 'a', 'o',
-  'com', 'em', 'para', 'novo', 'nova', 'lacrado', 'original', '1', '64', '43', '18',
+  // Genéricos de anúncio
+  'miniatura', 'miniaturas', 'carrinho', 'carro', 'escala', 'de', 'da', 'do',
+  'e', 'a', 'o', 'com', 'em', 'para', 'novo', 'nova', 'lacrado', 'lacrada',
+  'original', 'colecionavel', 'colecao', 'premium', 'serie', 'series',
+  '1', '64', '43', '32', '24', '18', '12',
+  // Marcas: são o que os dois lados SEMPRE têm em comum, e por isso não
+  // distinguem nada.
+  'hot', 'wheels', 'hotwheels', 'mini', 'gt', 'minigt', 'matchbox', 'mattel',
+  'tarmac', 'works', 'kaido', 'house', 'inno64', 'inno', 'pop', 'race',
+  'bburago', 'burago', 'majorette', 'tomica', 'maisto', 'greenlight',
+  'johnny', 'lightning', 'solido', 'auto', 'world', 'm2', 'machines',
+  'jada', 'toys', 'welly', 'schuco', 'spark', 'norev', 'ixo', 'models',
+  'minichamps', 'kyosho', 'autoart', 'funko', 'msz',
 ]);
 
 function palavras(texto: string): Set<string> {
   return new Set(chave(texto).split(' ').filter((t) => t.length >= 2 && !RUIDO.has(t)));
 }
+
+/**
+ * Quantas palavras identificadoras os dois nomes têm em comum, no mínimo, para
+ * o casamento valer.
+ *
+ * Uma palavra só não basta: "Porsche" aparece em dezenas de peças diferentes.
+ */
+const MINIMO_PALAVRAS_COMUNS = 2;
 
 /**
  * Número de coleção presente no nome, ex: "#902" ou o 00902 de "MGT00902".
@@ -180,23 +208,35 @@ export function casarNoDicionario(
   let melhor: Casamento | null = null;
 
   for (const e of dicionario) {
-    const dele = palavras(`${e.nome} ${e.marca}`);
+    // A marca do dicionário NÃO entra na comparação: ela é o que os dois lados
+    // sempre têm em comum, e por isso não distingue nada.
+    const dele = palavras(e.nome);
     if (!dele.size) continue;
     let comuns = 0;
     for (const p of meus) if (dele.has(p)) comuns++;
     const forca = comuns / Math.min(meus.size, dele.size);
 
     // Número de coleção batendo é sinal forte, mas ainda exige que o nome
-    // tenha alguma relação: numeração se repete entre marcas diferentes.
+    // tenha relação: numeração se repete entre marcas diferentes.
+    // O próprio número aparece nas duas listas de palavras, então ele sozinho
+    // já daria uma "palavra em comum". Exigir duas garante que pelo menos uma
+    // seja de verdade: sem isso, "Tomica Supra #902" casava com o BMW #902.
     const numDele = numeroDeColecao(`${e.nome} ${e.sku}`);
-    if (numero && numDele === numero && forca >= 0.3) {
+    if (numero && numDele === numero && comuns >= MINIMO_PALAVRAS_COMUNS) {
       if (!melhor || melhor.por === 'nome' || forca > melhor.forca) {
         melhor = { entrada: e, por: 'numero', forca };
       }
       continue;
     }
 
-    if (forca >= minimo && (!melhor || (melhor.por === 'nome' && forca > melhor.forca))) {
+    // Proporção E quantidade absoluta. Só a proporção deixava passar nome
+    // curto: duas palavras iguais num nome de três davam 67%, e bastava a
+    // marca para chegar lá.
+    if (
+      forca >= minimo
+      && comuns >= MINIMO_PALAVRAS_COMUNS
+      && (!melhor || (melhor.por === 'nome' && forca > melhor.forca))
+    ) {
       melhor = { entrada: e, por: 'nome', forca };
     }
   }

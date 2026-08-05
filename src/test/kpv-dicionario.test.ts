@@ -138,6 +138,36 @@ describe('casar anúncio nosso com a planilha', () => {
     expect(c.por).toBe('nome');
   });
 
+  it('a MARCA sozinha nunca casa duas peças diferentes', () => {
+    // O bug que contaminou 231 de 349 peças numa rodada real: "hot" e "wheels"
+    // não estavam no ruído, então "Hot Wheels BMW M4" casava com qualquer
+    // "HOT WHEELS <nome curto>". Quarenta e cinco carros distintos apontaram
+    // todos para uma Barbie, e receberam o EAN dela.
+    const barbie: EntradaDicionario[] = [
+      { nome: 'HOT WHEELS BARBIE EXTRA', sku: 'HWB01', ean: '0027084120134', marca: 'HOT WHEELS' },
+      { nome: 'MATTEL BRANCA DE NEVE', sku: 'MTL02', ean: '0074299057854', marca: 'MATTEL' },
+    ];
+    for (const t of [
+      'Hot Wheels - BMW M4 GT3',
+      'Hot Wheels TOYOTA SR5 - RLC',
+      'Hot Wheels Elite 64 Porsche 911 GT2 EVO 993',
+      'Hot Wheels Audi 90 Quattro',
+      'Hot Wheels Porsche 911 Carrera RS 2.7',
+    ]) {
+      expect(casarNoDicionario(t, barbie), t).toBeNull();
+    }
+  });
+
+  it('uma palavra em comum não basta', () => {
+    // "Porsche" sozinho aparece em dezenas de peças diferentes.
+    const d: EntradaDicionario[] = [
+      { nome: 'HOT WHEELS PORSCHE 917 LH', sku: 'X1', ean: '0027084120134', marca: 'HOT WHEELS' },
+    ];
+    expect(casarNoDicionario('Hot Wheels Porsche 356 Outlaw', d)).toBeNull();
+    // Duas em comum, aí sim.
+    expect(casarNoDicionario('Hot Wheels Porsche 917 azul', d)).not.toBeNull();
+  });
+
   it('NÃO casa quando a semelhança é fraca', () => {
     // Casar errado aqui é pior que não casar: o EAN errado leva ao produto
     // errado, e dessa vez com cara de certeza absoluta porque veio de código.

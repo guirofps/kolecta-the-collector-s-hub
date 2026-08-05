@@ -90,13 +90,31 @@ for (const item of alvo) {
       const gtin = String(at['Código universal de produto'] ?? at['GTIN'] ?? '').replace(/\D/g, '');
       // Compara sem os zeros à esquerda: o ML devolve GTIN-14 e o nosso é
       // EAN-13, então "00810152148402" e "0810152148402" são o mesmo código.
-      if (gtin && gtin.replace(/^0+/, '') === item.ean.replace(/^0+/, '')) {
-        escolhido = p;
-        via = 'ean';
-        break;
-      }
+      if (!gtin || gtin.replace(/^0+/, '') !== item.ean.replace(/^0+/, '')) continue;
+
+      // O GTIN bater prova que o EAN é daquele produto, NÃO que aquele EAN é
+      // da nossa peça. Se o dicionário casou errado o nome com a planilha, o
+      // código está certo e a peça é outra. Custou caro descobrir: numa
+      // rodada, 231 de 349 peças receberam o EAN de outra, e 45 carros
+      // distintos apontaram todos para uma Barbie.
+      //
+      // Então o candidato passa pelo MESMO porteiro do caminho por nome. O
+      // EAN acelera a busca; quem valida continua sendo a identidade.
+      const cand = identidadeDe({
+        title: p.name, brand: at['Marca'], line: at['Série do veículo'],
+        scale: at['Escala'], condition: CONDICAO_BASE,
+      });
+      if (!cand) { ultimaRecusa = 'produto do EAN sem identidade'; continue; }
+      const v = candidatoServe(item.identidade, cand);
+      if (!v.serve) { ultimaRecusa = `EAN levou a peça diferente: ${v.motivo}`; continue; }
+
+      escolhido = p;
+      via = 'ean';
+      break;
     }
-    if (!escolhido) ultimaRecusa = 'EAN sem produto correspondente na fonte';
+    if (!escolhido && !ultimaRecusa.startsWith('EAN')) {
+      ultimaRecusa = 'EAN sem produto correspondente na fonte';
+    }
   }
 
   // ── Caminho 2: nome, com o porteiro. ──
