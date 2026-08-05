@@ -56,6 +56,35 @@ export const CATEGORY_FIELDS: Record<string, CategoryField[]> = {
     { key: 'year', label: 'Ano' },
     { key: 'edition', label: 'Edição' },
   ],
+  // Tudo que é PARA miniatura mas não É miniatura: rodas de resina, expositor,
+  // decal, caixa protetora. Estava tudo caindo em "Miniaturas", o que sujava a
+  // vitrine e inviabiliza comparar preço (não existe referência de mercado de
+  // "miniatura" para uma roda avulsa).
+  acessorios: [
+    {
+      key: 'tipo',
+      label: 'Tipo de acessório',
+      required: true,
+      subcategoria: true,
+      options: [
+        'Rodas', 'Pneus', 'Expositor / Display', 'Caixa protetora',
+        'Decais / Adesivos', 'Peças de customização', 'Ferramentas', 'Outro',
+      ],
+    },
+    {
+      key: 'escalaCompativel',
+      label: 'Escala compatível',
+      required: true,
+      options: ['1:64', '1:43', '1:32', '1:24', '1:18', '1:12', 'Várias', 'Outra'],
+    },
+    {
+      key: 'material',
+      label: 'Material',
+      options: ['Resina', 'Impressão 3D', 'Metal', 'Acrílico', 'MDF', 'Madeira', 'Plástico', 'Vidro', 'Outro'],
+    },
+    { key: 'brand', label: 'Marca / Fabricante' },
+    { key: 'quantidade', label: 'Quantidade por unidade' },
+  ],
   'cards-colecionaveis': [
     {
       key: 'jogo',

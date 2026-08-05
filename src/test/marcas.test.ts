@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   normalizarMarca, normalizarEscala, MARCAS_MINIATURA,
+  marcaNoTexto, normalizarMarcaDoAnuncio,
 } from '@/lib/marcas';
 
 // Os casos abaixo saíram do catálogo de produção: são as grafias que de fato
@@ -127,6 +128,56 @@ describe('lista de marcas', () => {
       if (m === 'Outra') continue;
       expect(normalizarMarca(m).marca).toBe(m);
     }
+  });
+});
+
+describe('marcaNoTexto', () => {
+  it('acha a marca no meio de um título', () => {
+    expect(marcaNoTexto('Hot Wheels Premium - La Ferrari 1:64')).toBe('Hot Wheels');
+  });
+
+  it('fica com a que aparece primeiro', () => {
+    expect(marcaNoTexto('Mini GT Kaido House Datsun')).toBe('Mini GT');
+    expect(marcaNoTexto('Kaido House x Mini GT Datsun')).toBe('Kaido House');
+  });
+
+  it('texto sem marca conhecida volta nulo', () => {
+    expect(marcaNoTexto('Carrinho vermelho bonito')).toBeNull();
+    expect(marcaNoTexto('')).toBeNull();
+    expect(marcaNoTexto(null)).toBeNull();
+  });
+});
+
+describe('normalizarMarcaDoAnuncio — o campo com montadora, o título com o fabricante', () => {
+  // Casos reais que sobraram no catálogo depois da normalização.
+  const casos: [string, string, string][] = [
+    ['Ferrari', 'Hot Wheels Premium - La Ferrari 1:64', 'Hot Wheels'],
+    ['Chevrolet', 'Hot wheels Premium - Fast & Furious - Chevy Custom 1967', 'Hot Wheels'],
+    ['Alfa romeo', 'Hot Wheels Premium - Alfa Romeo GTV6 - CHASE - 1:64', 'Hot Wheels'],
+    ['Honda', 'Hot Wheels Premium - Honda Civic Dupla', 'Hot Wheels'],
+    ['Nissan', 'Hot Wheels Premium - Nissan Skyline GT-R (R32) Pandem', 'Hot Wheels'],
+    ['Bugatti', 'Hot Wheels Premium - Bugatti Bolide - 1:64', 'Hot Wheels'],
+    ['Mazda', 'Hot Wheels Premium - Fast & Furious - Mazda Rx-7 FD', 'Hot Wheels'],
+    ['Mercedes-benz', 'Hot Wheels Premium - Fast & Furious - Mercedes-benz 500', 'Hot Wheels'],
+  ];
+
+  for (const [marca, titulo, esperado] of casos) {
+    it(`campo "${marca}" + título vira ${esperado}`, () => {
+      expect(normalizarMarcaDoAnuncio(marca, titulo).marca).toBe(esperado);
+    });
+  }
+
+  it('o campo continua mandando quando ele já resolve', () => {
+    // Título citando outra marca não pode sobrepor um campo correto.
+    const r = normalizarMarcaDoAnuncio('Mini GT', 'Hot Wheels parecido com Mini GT');
+    expect(r.marca).toBe('Mini GT');
+    expect(r.origem).toBe('exata');
+  });
+
+  it('sem marca no campo nem no título, continua para revisão', () => {
+    const r = normalizarMarcaDoAnuncio('Ferrari', 'Carrinho Shell Ferrari Escala 1/41 Kit Original');
+    expect(r.marca).toBeNull();
+    expect(r.origem).toBe('montadora');
   });
 });
 

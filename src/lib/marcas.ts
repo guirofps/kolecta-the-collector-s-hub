@@ -25,6 +25,11 @@ export const MARCAS_MINIATURA = [
   'Mac Tools', 'Fast & Speed', 'CCA', "D'Agostini",
   // Premium 1:64 que o mercado brasileiro pede
   'AUTOart', 'Kyosho', 'Era Car', 'Stance Hunters', 'Motorhelix', 'GCD',
+  // Marcas menores e customizadores que apareceram no catálogo. Sem elas o
+  // vendedor era empurrado para "Outra", que apaga a informação.
+  'Storehouse Custom', 'SHOOM64', 'CKS', 'D Model', 'Cool Car', 'MoreArt',
+  // Coleções de banca (fascículo), que o mercado trata como marca própria.
+  'BR Classics', 'Carros Inesquecíveis',
   'Outra',
 ] as const;
 
@@ -86,6 +91,10 @@ const APELIDOS: Record<string, MarcaMiniatura> = {
   'ut models': 'UT Models',
   minichamps: 'Minichamps',
   jada: 'Jada Toys',
+  storehouse: 'Storehouse Custom',
+  storehousecustom: 'Storehouse Custom',
+  'more art': 'MoreArt',
+  'br classics escala miniaturas': 'BR Classics',
 };
 
 /** Marcas canônicas indexadas pela chave normalizada. */
@@ -160,6 +169,61 @@ export function normalizarMarca(bruto: string | null | undefined): MarcaNormaliz
   }
 
   return { marca: null, origem: 'desconhecida' };
+}
+
+/**
+ * Procura uma marca conhecida DENTRO de um texto livre (o título do anúncio).
+ *
+ * Devolve a que aparece mais cedo; empatando, a mais longa (para "Mini GT"
+ * ganhar de "Mini" caso um dia exista). Só serve como reserva: o campo próprio
+ * continua sendo a fonte preferida.
+ */
+export function marcaNoTexto(texto: string | null | undefined): MarcaMiniatura | null {
+  const k = chave(texto ?? '');
+  if (!k) return null;
+
+  let melhor: { marca: MarcaMiniatura; onde: number; tam: number } | null = null;
+  const considerar = (marca: MarcaMiniatura, agulha: string) => {
+    const onde = k.indexOf(agulha);
+    if (onde < 0) return;
+    if (
+      !melhor ||
+      onde < melhor.onde ||
+      (onde === melhor.onde && agulha.length > melhor.tam)
+    ) {
+      melhor = { marca, onde, tam: agulha.length };
+    }
+  };
+
+  for (const m of MARCAS_MINIATURA) {
+    if (m === 'Outra') continue;
+    considerar(m, chave(m));
+  }
+  for (const [apelido, m] of Object.entries(APELIDOS)) considerar(m, apelido);
+
+  return melhor ? melhor.marca : null;
+}
+
+/**
+ * Marca do anúncio olhando o campo E, como reserva, o título.
+ *
+ * Existe por um caso concreto e comum: o vendedor entende "marca" como a marca
+ * do CARRO e digita "Nissan", mas escreve o fabricante no título —
+ * `marca="Nissan"`, `título="Hot Wheels Premium - Nissan Skyline GT-R (R32)"`.
+ * O campo sozinho não tem conserto; com o título, tem.
+ */
+export function normalizarMarcaDoAnuncio(
+  brand: string | null | undefined,
+  title: string | null | undefined,
+): MarcaNormalizada {
+  const peloCampo = normalizarMarca(brand);
+  if (peloCampo.marca) return peloCampo;
+
+  // O campo não resolveu (montadora ou desconhecida). Tenta o título.
+  const doTitulo = marcaNoTexto(title);
+  if (doTitulo) return { marca: doTitulo, origem: 'extraida' };
+
+  return peloCampo;
 }
 
 // ─── Escala ──────────────────────────────────────────────────────────────────
