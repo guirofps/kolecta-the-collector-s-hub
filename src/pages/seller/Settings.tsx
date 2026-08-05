@@ -14,16 +14,22 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
-  User, ShieldCheck, Bell, Lock, KeyRound, Camera, Loader2, Trash2,
+  User, ShieldCheck, Bell, Lock, KeyRound, Camera, Loader2, Trash2, Truck,
+  AlertTriangle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+  marcadasNaTela, alternarTransportadora, semCoberturaNacional,
+} from '@/lib/transportadoras';
 import { useToast } from '@/hooks/use-toast';
 import {
   useSellerSelfProfile,
   useUpdateSellerProfile,
   useUpdateSellerPolicies,
   useUpdateNotificationPrefs,
+  useUpdateSellerShipping,
   useUploadImage,
 } from '@/hooks/use-api';
 
@@ -40,10 +46,11 @@ const notifTypes = [
 
 const states = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
 
-type Section = 'profile' | 'policies' | 'notifications' | 'security';
+type Section = 'profile' | 'shipping' | 'policies' | 'notifications' | 'security';
 
 const sections: { key: Section; label: string; icon: React.ElementType }[] = [
   { key: 'profile', label: 'Perfil da loja', icon: User },
+  { key: 'shipping', label: 'Envio', icon: Truck },
   { key: 'policies', label: 'Políticas', icon: ShieldCheck },
   { key: 'notifications', label: 'Notificações', icon: Bell },
   { key: 'security', label: 'Segurança & Conta', icon: Lock },
@@ -68,6 +75,7 @@ export default function SellerSettingsPage() {
   const updateProfile = useUpdateSellerProfile();
   const updatePolicies = useUpdateSellerPolicies();
   const updateNotifs = useUpdateNotificationPrefs();
+  const updateShipping = useUpdateSellerShipping();
   const uploadImage = useUploadImage();
 
   // ── Form states (inicializados quando o perfil carrega) ──────────────────
@@ -78,6 +86,9 @@ export default function SellerSettingsPage() {
     shipping: '', returns: '', payment: '', acceptOffers: false, maxDiscountPercent: 0,
   });
   const [notifPrefs, setNotifPrefs] = useState<Record<string, { email: boolean; push: boolean }>>({});
+  // Transportadoras marcadas. Vazio = "todas as que a Kolecta oferece", que é o
+  // estado de quem nunca abriu esta aba.
+  const [transportadoras, setTransportadoras] = useState<number[]>([]);
 
   useEffect(() => {
     if (!profile) return;
@@ -103,6 +114,7 @@ export default function SellerSettingsPage() {
       prefs[nt.key] = { email: p?.email ?? false, push: p?.push ?? false };
     }
     setNotifPrefs(prefs);
+    setTransportadoras(profile.shipping?.services ?? []);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile, user?.imageUrl, user?.hasImage]);
 
@@ -250,6 +262,100 @@ export default function SellerSettingsPage() {
     </Card>
   );
 
+  // ── Envio ────────────────────────────────────────────────────────────────
+  // Antes o vendedor recebia todas as transportadoras da Kolecta e se virava
+  // para despachar em qualquer uma. Aqui ele corta as que não usa, tipicamente
+  // porque a agência da outra fica na esquina da casa dele.
+  //
+  // Nada marcado = todas. É o estado de quem nunca mexeu, e a saída de
+  // emergência de quem se arrependeu.
+  const disponiveis = profile?.shipping?.disponiveis ?? [];
+  const marcadas = marcadasNaTela(transportadoras, disponiveis);
+  const semNacional = semCoberturaNacional(transportadoras, disponiveis);
+
+  const alternar = (id: number, marcar: boolean) =>
+    setTransportadoras(alternarTransportadora(transportadoras, disponiveis, id, marcar));
+
+  const renderShipping = () => (
+    <Card className="bg-gradient-card">
+      <CardHeader><CardTitle className="font-heading">Transportadoras</CardTitle></CardHeader>
+      <CardContent className="space-y-5">
+        <p className="text-sm text-muted-foreground">
+          Marque com quais você topa despachar. O comprador só vê essas no
+          checkout, e a etiqueta sai na que ele escolher. Você não paga o frete:
+          a Kolecta compra a etiqueta e desconta do repasse.
+        </p>
+
+        <div className="space-y-3">
+          {disponiveis.map((t) => (
+            <label
+              key={t.id}
+              className="flex items-start gap-3 rounded-md border border-border p-3 cursor-pointer hover:bg-muted/30"
+            >
+              <Checkbox
+                className="mt-0.5"
+                checked={marcadas.includes(t.id)}
+                onCheckedChange={(v) => alternar(t.id, v === true)}
+              />
+              <span className="text-sm leading-tight">
+                <span className="font-medium">{t.carrier} {t.service}</span>
+                {t.nacional && (
+                  <span className="ml-2 text-[11px] uppercase tracking-wider text-emerald-500">
+                    Todo o Brasil
+                  </span>
+                )}
+                {t.aviso && (
+                  <span className="block text-xs text-muted-foreground mt-0.5">{t.aviso}</span>
+                )}
+              </span>
+            </label>
+          ))}
+        </div>
+
+        {/* O erro que ninguém vê: sem uma transportadora nacional, quem mora
+            fora da região das regionais simplesmente não enxerga frete, não
+            fecha a compra e vai embora. Não aparece erro em tela nenhuma, e o
+            vendedor jura que a loja está no ar. */}
+        {semNacional && (
+          <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/5 p-3">
+            <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+            <p className="text-xs text-muted-foreground">
+              <strong className="block text-foreground">Sua loja ficaria invisível fora da região</strong>
+              Sem uma transportadora que atende o Brasil inteiro, quem mora longe
+              não vê frete nenhum e desiste da compra sem avisar ninguém. Marque
+              pelo menos uma opção com "Todo o Brasil".
+            </p>
+          </div>
+        )}
+
+        {transportadoras.length === 0 && (
+          <p className="text-xs text-muted-foreground">
+            Nada marcado: seus compradores veem todas as opções da Kolecta.
+          </p>
+        )}
+
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="kolecta"
+            disabled={updateShipping.isPending || semNacional}
+            onClick={() => updateShipping.mutate(transportadoras)}
+          >
+            {updateShipping.isPending ? 'Salvando...' : 'Salvar transportadoras'}
+          </Button>
+          {transportadoras.length > 0 && (
+            <Button
+              variant="ghost"
+              disabled={updateShipping.isPending}
+              onClick={() => { setTransportadoras([]); updateShipping.mutate([]); }}
+            >
+              Voltar a aceitar todas
+            </Button>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+
   const renderPolicies = () => (
     <Card className="bg-gradient-card">
       <CardHeader><CardTitle className="font-heading">Políticas da loja</CardTitle></CardHeader>
@@ -376,6 +482,7 @@ export default function SellerSettingsPage() {
 
   const sectionRenderers: Record<Section, () => React.ReactNode> = {
     profile: renderProfile,
+    shipping: renderShipping,
     policies: renderPolicies,
     notifications: renderNotifications,
     security: renderSecurity,

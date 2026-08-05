@@ -517,7 +517,12 @@ export default function SellerOrderDetailPage() {
 
 function ShippingLabelPanel({ order }: { order: Order }) {
   const retry = useRetryLabel(order.id);
-  const download = useDownloadLabel(order.id);
+  // Etiqueta e declaração de conteúdo na mesma folha, que é o que o vendedor
+  // precisa levar ao balcão. Os avulsos ficam abaixo para quem imprime a
+  // etiqueta em impressora térmica e a declaração em A4.
+  const download = useDownloadLabel(order.id, 'completo');
+  const baixarEtiqueta = useDownloadLabel(order.id, 'etiqueta');
+  const baixarDeclaracao = useDownloadLabel(order.id, 'declaracao');
   const status = order.shippingLabelStatus ?? null;
   const pronta = status === 'ready' && !!order.shippingLabelUrl;
   const falhou = status === 'failed';
@@ -532,7 +537,7 @@ function ShippingLabelPanel({ order }: { order: Order }) {
             <strong className="block text-foreground">Etiqueta enviada por e-mail</strong>
             {order.shippingServiceName || 'Serviço escolhido pelo comprador'}
             {order.trackingCode ? ` · ${order.trackingCode}` : ''}
-            <span className="block mt-1">O frete já foi pago pela Kolecta — é só imprimir, colar e postar.</span>
+            <span className="block mt-1">O frete já foi pago pela Kolecta: é só imprimir, colar e postar.</span>
           </div>
         </div>
         <Button
@@ -545,8 +550,38 @@ function ShippingLabelPanel({ order }: { order: Order }) {
           {download.isPending
             ? <Loader2 className="h-4 w-4 mr-2 animate-spin" />
             : <Tag className="h-4 w-4 mr-2" />}
-          Baixar etiqueta (PDF)
+          Baixar etiqueta + declaração (PDF)
         </Button>
+        {/* A declaração de conteúdo é o documento que os Correios cobram de quem
+            posta sem nota fiscal, que é o caso de todo envio da Kolecta. Ela
+            sempre veio pronta do Melhor Envio; o painel é que entregava só a
+            etiqueta, e o vendedor descobria a falta no balcão. */}
+        <p className="text-[11px] leading-snug text-muted-foreground">
+          Uma folha só, com a etiqueta e a declaração de conteúdo. Os Correios
+          pedem a declaração na postagem porque a venda não tem nota fiscal.
+        </p>
+        <div className="flex gap-2">
+          <Button
+            className="flex-1 text-xs"
+            variant="ghost"
+            size="sm"
+            disabled={baixarEtiqueta.isPending}
+            onClick={() => baixarEtiqueta.mutate()}
+          >
+            {baixarEtiqueta.isPending && <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />}
+            Só a etiqueta
+          </Button>
+          <Button
+            className="flex-1 text-xs"
+            variant="ghost"
+            size="sm"
+            disabled={baixarDeclaracao.isPending}
+            onClick={() => baixarDeclaracao.mutate()}
+          >
+            {baixarDeclaracao.isPending && <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />}
+            Só a declaração
+          </Button>
+        </div>
       </div>
     );
   }

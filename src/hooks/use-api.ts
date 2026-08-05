@@ -6,7 +6,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth as useClerkAuth } from '@clerk/clerk-react';
 import { api } from '@/lib/api';
-import type { OrderStatus, CreateRecipientPayload } from '@/lib/api';
+import type { OrderStatus, CreateRecipientPayload, LabelFileKind } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { hasLaunched } from '@/lib/launch';
 import { CATALOGO_STALE_MS, LIMITE_CATALOGO } from '@/lib/catalogo';
@@ -168,6 +168,37 @@ export function useUpdateSellerPolicies() {
     },
     onError: (err: Error) => {
       toast({ title: 'Erro ao salvar políticas', description: err.message, variant: 'destructive' });
+    },
+  });
+}
+
+/**
+ * Transportadoras que o vendedor topa usar.
+ *
+ * O backend recusa uma seleção sem cobertura nacional, e a mensagem dele explica
+ * por quê. Por isso o erro vai para o toast inteiro, sem texto genérico por
+ * cima: é a única chance de o vendedor entender que estava prestes a ficar
+ * invisível para outros estados.
+ */
+export function useUpdateSellerShipping() {
+  const queryClient = useQueryClient();
+  const { getToken } = useAuth();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (services: number[]) => {
+      const token = await getToken();
+      return api.sellerSelf.updateShipping(token || '', services);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['seller-self-profile'] });
+      toast({ title: 'Transportadoras salvas' });
+    },
+    onError: (err: Error) => {
+      toast({
+        title: 'Não foi possível salvar',
+        description: err.message,
+        variant: 'destructive',
+      });
     },
   });
 }
@@ -1314,32 +1345,55 @@ export function useInstallmentsSimulation() {
 }
 
 
-// ── useDownloadLabel (baixar o PDF da etiqueta) ─────────────────────────────
+// ── useDownloadLabel (baixar o PDF do envio) ────────────────────────────────
 // O arquivo vem do nosso backend, que busca no Melhor Envio na hora. O vendedor
 // não precisa de conta lá — e nem saberia que ela existe.
+//
+// O padrão é `completo`: etiqueta e declaração de conteúdo na mesma folha. A
+// declaração é exigida pelos Correios em envio sem nota fiscal, que é o caso de
+// todo envio daqui, e antes ela simplesmente não era entregue.
 
-export function useDownloadLabel(orderId: string) {
+const NOME_DO_ARQUIVO: Record<LabelFileKind, string> = {
+  completo: 'etiqueta-e-declaracao',
+  etiqueta: 'etiqueta',
+  declaracao: 'declaracao-de-conteudo',
+};
+
+export function useDownloadLabel(orderId: string, tipo: LabelFileKind = 'completo') {
   const { getToken } = useAuth();
   const { toast } = useToast();
 
   return useMutation({
     mutationFn: async () => {
       const token = await getToken();
-      const blob = await api.shipping.labelPdf(token || '', orderId);
+      const { blob, contem } = await api.shipping.labelPdf(token || '', orderId, tipo);
       // Download sem navegar: o link precisa do cabeçalho de autenticação, então
       // não dá para usar um <a href> direto.
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `etiqueta-${orderId.slice(0, 8)}.pdf`;
+      a.download = `${NOME_DO_ARQUIVO[contem] ?? 'etiqueta'}-${orderId.slice(0, 8)}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
+      return contem;
+    },
+    onSuccess: (contem) => {
+      // A declaração é emitida de forma assíncrona pelo Melhor Envio. Quando ela
+      // ainda não saiu, vem só a etiqueta — e o vendedor precisa saber ANTES de
+      // ir ao balcão, senão leva a recusa achando que está com tudo.
+      if (tipo === 'completo' && contem !== 'completo') {
+        toast({
+          title: 'Baixamos só a etiqueta',
+          description:
+            'A declaração de conteúdo ainda está sendo emitida. Tente de novo em alguns minutos: os Correios pedem ela na postagem.',
+        });
+      }
     },
     onError: (err: any) => {
       toast({
-        title: 'Não foi possível baixar a etiqueta',
+        title: 'Não foi possível baixar o arquivo',
         description: err?.message ?? 'Tente novamente em alguns instantes.',
         variant: 'destructive',
       });
@@ -1368,7 +1422,7 @@ export function useRetryLabel(orderId: string) {
       toast({
         title: 'Etiqueta emitida',
         description: res.jaEstavaPronta
-          ? 'A etiqueta já estava pronta — confira seu e-mail.'
+          ? 'A etiqueta já estava pronta, confira seu e-mail.'
           : 'Enviamos o PDF para o seu e-mail.',
       });
     },

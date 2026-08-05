@@ -764,6 +764,15 @@ export const api = {
         body: JSON.stringify({ prefs }),
         token,
       }).then(r => r.data),
+
+    // Transportadoras que o vendedor topa usar. Só RESTRINGE o que a Kolecta já
+    // oferece: a cotação cruza as duas listas. Lista vazia volta ao padrão.
+    updateShipping: (token: string, services: number[]) =>
+      request<{ data: SellerSelfProfile }>('/api/seller/shipping', {
+        method: 'PUT',
+        body: JSON.stringify({ services }),
+        token,
+      }).then(r => r.data),
   },
 
   // ── Sellers ────────────────────────────────────────────────────────────────
@@ -836,12 +845,25 @@ export const api = {
         body: JSON.stringify(body),
       }).then((r) => r.options),
 
-    // Baixa o PDF da etiqueta pela NOSSA autenticação. Não devolve link do
+    // Baixa o PDF do envio pela NOSSA autenticação. Não devolve link do
     // Melhor Envio: aquilo é página de painel e cai no login de uma conta que
     // não é do vendedor.
-    labelPdf: async (token: string, orderId: string) => {
+    //
+    // `completo` (padrão) traz etiqueta e declaração de conteúdo na mesma folha.
+    // A declaração é obrigatória para postar sem nota fiscal, que é o caso de
+    // todo envio daqui, e o vendedor não tem por que saber disso.
+    //
+    // O backend responde `X-Kolecta-Conteudo` com o que veio de verdade: a
+    // declaração é emitida de forma assíncrona pelo Melhor Envio e pode não
+    // estar pronta ainda. Sem esse retorno, o vendedor imprimiria achando que
+    // ela está junta.
+    labelPdf: async (
+      token: string,
+      orderId: string,
+      tipo: LabelFileKind = 'completo',
+    ): Promise<{ blob: Blob; contem: LabelFileKind }> => {
       const res = await fetch(
-        `${BASE_URL}/api/shipping/label/${orderId}/pdf`,
+        `${BASE_URL}/api/shipping/label/${orderId}/pdf?tipo=${tipo}`,
         { headers: { Authorization: `Bearer ${token}` } },
       );
       if (!res.ok) {
@@ -851,7 +873,11 @@ export const api = {
         } catch { /* resposta sem corpo JSON */ }
         throw new Error(msg);
       }
-      return res.blob();
+      const contem = res.headers.get('X-Kolecta-Conteudo');
+      return {
+        blob: await res.blob(),
+        contem: (contem as LabelFileKind) || tipo,
+      };
     },
 
     // Reemite a etiqueta de um pedido cuja emissão automática falhou (o caso
@@ -977,11 +1003,35 @@ export interface SellerSelfProfile {
     maxDiscountPercent: number | null;
   };
   notificationPrefs: Record<string, { email?: boolean; push?: boolean }>;
+  shipping: SellerShippingPrefs;
   account: {
     name: string | null;
     email: string | null;
     createdAt: string | null;
   };
+}
+
+/** Arquivo do envio que o vendedor pode baixar. */
+export type LabelFileKind = 'completo' | 'etiqueta' | 'declaracao';
+
+/**
+ * Preferências de envio do vendedor.
+ *
+ * `services` vazio significa "não escolheu": a cotação usa tudo que a Kolecta
+ * oferece. `disponiveis` vem do backend, e não de uma cópia aqui, porque a lista
+ * muda por variável de ambiente e uma cópia no front ficaria velha calada.
+ */
+export interface SellerShippingPrefs {
+  services: number[];
+  disponiveis: Array<{
+    id: number;
+    carrier: string;
+    service: string;
+    /** Atende o país inteiro sem limitação. Pelo menos um é obrigatório. */
+    nacional: boolean;
+    /** Limitação que o vendedor precisa saber antes de marcar. */
+    aviso: string | null;
+  }>;
 }
 
 export interface UpdateSellerProfileBody {
