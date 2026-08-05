@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { fonteRecomendada, candidatoServe, semelhancaModelo, converterDeDolar } from '@/lib/kpv-fonte';
+import {
+  fonteRecomendada, candidatoServe, semelhancaModelo, converterDeDolar, escalaPresumida,
+} from '@/lib/kpv-fonte';
 import { identidadeDe, CONDICAO_BASE } from '@/lib/kpv-identidade';
 
 const id = (title: string, brand: string, scale = '1:64') =>
@@ -65,9 +67,27 @@ describe('o porteiro — casos reais que o piloto errou', () => {
     expect(v.motivo).toMatch(/modelo/);
   });
 
-  it('RECUSA quando falta escala em um dos lados', () => {
-    const nosso = id('Hot Wheels Ferrari 365 GTB4', 'Hot Wheels', '');
-    const ml = id('Hot Wheels Ferrari 365 GTB4 Competizione', 'Hot Wheels', '1:64');
+  it('COMPLETA a escala quando a marca só faz 1:64', () => {
+    // Foi o maior motivo de recusa do piloto: o catálogo do ML frequentemente
+    // não traz o atributo Escala. Hot Wheels não fabrica 1:18, então assumir
+    // 1:64 não é chute.
+    expect(escalaPresumida('Hot Wheels')).toBe('1:64');
+    expect(escalaPresumida('Mini GT')).toBe('1:64');
+
+    const nosso = id('Hot Wheels Ferrari 365 GTB4 Competizione', 'Hot Wheels', '1:64');
+    const ml = id('Hot Wheels Ferrari 365 Gtb4 Competizione Jbc19', 'Hot Wheels', '');
+    expect(candidatoServe(nosso, ml).serve).toBe(true);
+  });
+
+  it('NÃO presume escala de marca que faz várias', () => {
+    // Bburago faz 1:18, 1:24 e 1:43. Presumir aqui erraria o preço em cinco
+    // vezes, que é exatamente o estrago que o porteiro existe para evitar.
+    expect(escalaPresumida('Bburago')).toBeNull();
+    expect(escalaPresumida('Maisto')).toBeNull();
+    expect(escalaPresumida('Greenlight')).toBeNull();
+
+    const nosso = id('Bburago Ferrari 296 GTB', 'Bburago', '1:43');
+    const ml = id('Bburago Ferrari 296 GTB Shell', 'Bburago', '');
     expect(candidatoServe(nosso, ml).motivo).toMatch(/escala/);
   });
 

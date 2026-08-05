@@ -16,7 +16,9 @@
 // GT e as referências próprias de Tarmac/Kaido/Inno64), como reforço. Código
 // duvidoso é pior que nenhum: casa peças diferentes com cara de certeza.
 
-import { normalizarMarca, normalizarEscala, grafiasDaMarca } from './marcas';
+import {
+  normalizarMarca, normalizarEscala, grafiasDaMarca, normalizarMarcaDoAnuncio,
+} from './marcas';
 
 /**
  * Variante. Nunca pode ser misturada: chase e Treasure Hunt são outra peça,
@@ -266,7 +268,11 @@ export function motivoNaoComparavel(a: AnuncioParaKPV): string | null {
   }
   if (ehLote(titulo)) return 'é lote ou pack, não peça única';
   if (ehFranquia(titulo)) return 'é veículo de franquia, tem mercado próprio';
-  if (!normalizarMarca(a.brand).marca) return 'marca fora da lista canônica';
+  // A marca pode vir do título quando o campo falha. Isso importa dos dois
+  // lados: o catálogo do Mercado Livre frequentemente NÃO preenche o atributo
+  // "Marca", e exigir o campo derrubava 11 de 45 candidatos no piloto, antes
+  // mesmo de olhar escala ou modelo.
+  if (!normalizarMarcaDoAnuncio(a.brand, titulo).marca) return 'marca fora da lista canônica';
   if (!extrairModelo(titulo, a.brand, a.line)) return 'não sobrou modelo depois de limpar o título';
   return null;
 }
@@ -276,7 +282,7 @@ export function identidadeDe(a: AnuncioParaKPV): IdentidadeKPV | null {
   if (motivoNaoComparavel(a)) return null;
 
   const titulo = (a.title ?? '').trim();
-  const marca = normalizarMarca(a.brand).marca as string;
+  const marca = normalizarMarcaDoAnuncio(a.brand, titulo).marca as string;
   const linha = (a.line ?? '').trim() || linhaNoTitulo(titulo);
   const modelo = extrairModelo(titulo, a.brand, linha);
   const variante = detectarVariante(titulo, a.description);

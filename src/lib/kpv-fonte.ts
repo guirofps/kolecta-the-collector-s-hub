@@ -43,6 +43,27 @@ export function fonteRecomendada(id: IdentidadeKPV): FonteKPV {
   return 'mercado-livre';
 }
 
+/**
+ * Marcas que, na prática, só fabricam 1:64.
+ *
+ * Não é atalho: é o que essas marcas de fato produzem. Hot Wheels e Matchbox
+ * não têm linha 1:18, e Mini GT e Kaido House nasceram 1:64. Deixar de fora
+ * quem tem várias escalas de verdade (Bburago faz 1:18 e 1:24, Maisto e
+ * Greenlight idem), porque ali presumir seria chute e escala errada muda o
+ * preço em cinco vezes.
+ */
+const SO_1_64 = [
+  'Hot Wheels', 'Matchbox', 'Mini GT', 'Kaido House', 'Inno64',
+  'Pop Race', 'Tarmac Works', 'Majorette', 'Tomica', 'Time Micro',
+  'Stance Hunters', 'Motorhelix', 'GCD', 'Era Car',
+];
+
+/** Escala que a marca permite assumir quando a fonte não declara. */
+export function escalaPresumida(marca: string | null | undefined): string | null {
+  const m = normalizarMarca(marca).marca;
+  return m && SO_1_64.includes(m) ? '1:64' : null;
+}
+
 export interface Veredito {
   serve: boolean;
   /** Por que recusou. Vira relatório, não só um booleano perdido. */
@@ -61,11 +82,17 @@ export function candidatoServe(nossa: IdentidadeKPV, candidato: IdentidadeKPV): 
   }
 
   // 2) Escala. "Bburago Ferrari 296 GTB 1:41" casou com um 1:24.
-  if (nossa.escala && candidato.escala && nossa.escala !== candidato.escala) {
-    return { serve: false, motivo: `escala diferente (${nossa.escala} vs ${candidato.escala})` };
+  //
+  //    A fonte externa muitas vezes não declara escala (foi o maior motivo de
+  //    recusa no piloto: 11 de 45). Quando a marca só fabrica numa escala, dá
+  //    para completar sem chutar — Hot Wheels e Matchbox não fazem 1:18.
+  const e1 = nossa.escala ?? escalaPresumida(nossa.marca);
+  const e2 = candidato.escala ?? escalaPresumida(candidato.marca);
+  if (!e1 || !e2) {
+    return { serve: false, motivo: 'escala não declarada e não presumível' };
   }
-  if (!nossa.escala || !candidato.escala) {
-    return { serve: false, motivo: 'escala não declarada em um dos lados' };
+  if (e1 !== e2) {
+    return { serve: false, motivo: `escala diferente (${e1} vs ${e2})` };
   }
 
   // 3) Marca. O ML registrou um Mini GT como "Multimatic".
