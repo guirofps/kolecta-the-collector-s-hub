@@ -227,6 +227,22 @@ export function normalizarMarcaDoAnuncio(
 }
 
 /**
+ * Todas as grafias conhecidas de uma marca: a canônica e os apelidos.
+ *
+ * Serve para LIMPAR texto. O KPV precisa tirar a marca do título antes de
+ * comparar o modelo, e tirar só a forma canônica não basta: "Hot Wheels Nissan
+ * Skyline" e "Hotwheels Nissan Skyline" viravam peças diferentes porque a
+ * segunda ficava com "hotwheels" grudado no nome do modelo.
+ */
+export function grafiasDaMarca(marca: MarcaMiniatura): string[] {
+  const apelidos = Object.entries(APELIDOS)
+    .filter(([, m]) => m === marca)
+    .map(([a]) => a);
+  // Mais longa primeiro: remover "hot wheels" antes de "hw" evita deixar sobra.
+  return [marca, ...apelidos].sort((a, b) => b.length - a.length);
+}
+
+/**
  * Marca pronta para gravar, aplicada na hora de montar o payload.
  *
  * Existe porque a lista fechada no formulário NÃO basta. Dois vazamentos reais,
