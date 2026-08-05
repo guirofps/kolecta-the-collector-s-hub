@@ -1,4 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import BotaoTema from '@/components/BotaoTema';
 import {
   Search, Heart, MessageSquare, X, Gavel, User,
   ShoppingCart, Home, LogOut, MapPin, AlertCircle,
@@ -378,6 +379,10 @@ export default function Header() {
               {searchOpen ? <X className="h-5 w-5" /> : <Search className="h-5 w-5" />}
             </Button>
             )}
+
+            {/* O header tem fundo escuro próprio nos dois temas, então o botão
+                herda o mesmo tratamento dos vizinhos em vez dos tokens. */}
+            <BotaoTema className="text-white/70 hover:text-primary" />
 
             <Link to="/conta/favoritos" className="hidden lg:block">
               <Button variant="ghost" size="icon" className="text-white/70 hover:text-primary">

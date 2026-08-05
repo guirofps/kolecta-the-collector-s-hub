@@ -66,6 +66,11 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        kpv: {
+          bom: "hsl(var(--kpv-bom))",
+          alto: "hsl(var(--kpv-alto))",
+          faixa: "hsl(var(--kpv-faixa))",
+        },
         kolecta: {
           gold: "hsl(var(--kolecta-gold))",
           red: "hsl(var(--kolecta-red))",

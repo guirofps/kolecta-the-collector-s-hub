@@ -30,6 +30,26 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,700;1,800&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
 
+    <!--
+      Tema antes da primeira pintura. Sem isto, quem escolheu o modo escuro vê
+      um lampejo branco a cada carregamento, porque o React só aplica a classe
+      depois de montar. É a mesma lógica de src/lib/tema.ts, propositalmente
+      duplicada aqui: precisa rodar antes do bundle existir.
+    -->
+    <script>
+      (function () {
+        try {
+          var escolha = localStorage.getItem('kolecta_tema');
+          var escuro = escolha === 'escuro'
+            || (escolha !== 'claro' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          if (escuro) {
+            document.documentElement.classList.add('dark');
+            document.documentElement.style.colorScheme = 'dark';
+          }
+        } catch (e) { /* storage bloqueado: fica no tema claro */ }
+      })();
+    </script>
+
     <!-- Meta Pixel Code -->
     <script>
       !function(f,b,e,v,n,t,s)

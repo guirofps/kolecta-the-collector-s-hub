@@ -26,13 +26,30 @@ export interface Coleta {
 }
 
 const limite = Number(process.argv[2]) || Infinity;
+const refazerTudo = process.argv.includes('--refazer');
 const fila = carregar<ItemDaFila[]>('fila.json');
-const alvo = fila.filter((f) => f.fonte === 'mercado-livre').slice(0, limite);
 
-console.log(`fila: ${fila.length} peças, ${alvo.length} para o Mercado Livre nesta rodada`);
+// INCREMENTAL por padrão. Peça que já rendeu preço não é consultada de novo:
+// são centenas de chamadas à API e horas de espera para chegar no mesmo lugar.
+// Quem NÃO rendeu é reconsultado, porque a busca melhorou desde a última vez.
+// `--refazer` força tudo, para quando a lógica de casamento mudar de verdade.
+let jaFeitas: Coleta[] = [];
+if (!refazerTudo) {
+  try { jaFeitas = carregar<Coleta[]>('coletas.json'); } catch { jaFeitas = []; }
+}
+const resolvidas = new Set(jaFeitas.filter((c) => c.amostras.length > 0).map((c) => c.chave));
+
+const alvo = fila
+  .filter((f) => f.fonte === 'mercado-livre' && !resolvidas.has(f.chave))
+  .slice(0, limite);
+
+console.log(`fila: ${fila.length} peças`);
+if (resolvidas.size) console.log(`já resolvidas antes: ${resolvidas.size} (puladas)`);
+console.log(`nesta rodada: ${alvo.length} para o Mercado Livre`);
 console.log(`(${fila.filter((f) => f.fonte === 'ebay').length} aguardam a credencial do eBay)\n`);
 
-const coletas: Coleta[] = [];
+// Começa com o que já estava resolvido, para o arquivo final ficar completo.
+const coletas: Coleta[] = jaFeitas.filter((c) => c.amostras.length > 0);
 const recusas: Record<string, number> = {};
 let feitas = 0;
 
@@ -102,8 +119,9 @@ for (const item of alvo) {
 }
 
 const comAmostra = coletas.filter((c) => c.amostras.length > 0);
-console.log(`\ncoletadas: ${coletas.length}`);
-console.log(`com preço: ${comAmostra.length} (${Math.round(comAmostra.length / coletas.length * 100)}%)`);
+console.log(`\nconsultadas nesta rodada: ${feitas}`);
+console.log(`total acumulado: ${coletas.length}`);
+console.log(`com preço: ${comAmostra.length} (${Math.round(comAmostra.length / Math.max(1, coletas.length) * 100)}%)`);
 console.log(`\nrecusas do porteiro:`);
 for (const [m, n] of Object.entries(recusas).sort((a, b) => b[1] - a[1])) {
   console.log(`  ${String(n).padStart(4)}  ${m}`);

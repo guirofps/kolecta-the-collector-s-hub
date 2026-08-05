@@ -52,6 +52,62 @@
     --kolecta-steel: 225 8% 45%;
     --kolecta-dark: 225 20% 8%;
     --kolecta-surface: 225 10% 95%;
+
+    /* ── KPV: referência de preço ──────────────────────────────────────
+       Semânticos próprios, separados do acento da marca. O ouro funciona
+       como PREENCHIMENTO mas some como texto sobre o fundo claro do site,
+       então a faixa da régua usa ouro e os rótulos usam estes aqui, que
+       têm contraste sobre branco. */
+    --kpv-bom: 160 72% 28%;    /* abaixo do mercado: oportunidade */
+    --kpv-alto: 0 72% 45%;     /* acima do mercado */
+    --kpv-faixa: 45 95% 48%;   /* miolo da régua, onde o mercado pratica */
+  }
+
+  /* ── Modo escuro ────────────────────────────────────────────────────
+     O nome do sistema sempre foi "Dark JDM Premium", mas o tema escuro só
+     existia em páginas soltas (landing dos fundadores, contagem regressiva)
+     com cor cravada na classe. Aqui ele vira tema de verdade, escolhido
+     pela pessoa.
+
+     Não é inversão automática: o ouro fica igual porque é a marca, o
+     vermelho CLAREIA (o mesmo tom que funciona sobre branco vira mancha
+     escura sobre carbono), e o texto secundário sobe de luminosidade para
+     continuar legível. */
+  .dark {
+    --background: 225 20% 8%;
+    --foreground: 0 0% 92%;
+
+    --card: 225 18% 11%;
+    --card-foreground: 0 0% 92%;
+
+    --popover: 225 18% 11%;
+    --popover-foreground: 0 0% 92%;
+
+    --primary: 48 100% 50%;
+    --primary-foreground: 225 20% 6%;
+
+    --secondary: 225 14% 16%;
+    --secondary-foreground: 0 0% 88%;
+
+    --muted: 225 14% 15%;
+    --muted-foreground: 225 9% 63%;
+
+    --accent: 0 78% 63%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 78% 63%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 225 12% 20%;
+    --input: 225 14% 16%;
+    --ring: 48 100% 50%;
+
+    --kolecta-surface: 225 16% 13%;
+
+    /* KPV: os semânticos clareiam para manter leitura sobre carbono. */
+    --kpv-bom: 158 68% 55%;
+    --kpv-alto: 0 78% 68%;
+    --kpv-faixa: 48 100% 50%;
   }
 }
 
