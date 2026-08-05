@@ -19,7 +19,7 @@
 //     interna; a vitrine da Kolecta não faz propaganda de marketplace alheio.
 
 import { useEffect, useState } from 'react';
-import { TrendingDown, TrendingUp, Minus, Info, Gauge, X } from 'lucide-react';
+import { TrendingDown, TrendingUp, Minus, Info, Gauge, X, ShieldCheck } from 'lucide-react';
 import { formatBRL } from '@/lib/mock-data';
 import { lerKpv, explicarConfianca } from '@/lib/kpv-anuncio';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -41,6 +41,14 @@ const ESTADOS = {
   abaixo: { cor: 'text-kpv-bom', agulha: 'bg-kpv-bom', Icone: TrendingDown },
   dentro: { cor: 'text-foreground', agulha: 'bg-foreground', Icone: Minus },
   acima: { cor: 'text-kpv-alto', agulha: 'bg-kpv-alto', Icone: TrendingUp },
+} as const;
+
+// Selo de confiança. Só a alta ganha cor forte; assim o verde significa algo
+// quando aparece, em vez de estar em todo card.
+const SELO = {
+  alta: { rotulo: 'Alta confiança', classe: 'bg-kpv-bom/15 text-kpv-bom' },
+  media: { rotulo: 'Confiança média', classe: 'bg-secondary text-muted-foreground' },
+  baixa: { rotulo: 'Indicativo', classe: 'bg-secondary text-muted-foreground' },
 } as const;
 
 /** Onde um valor cai na régua, de 0 a 100. */
@@ -119,7 +127,15 @@ export default function KpvCard({
           <Gauge className="h-3.5 w-3.5" aria-hidden="true" />
           Referência de mercado
         </span>
-        <Tooltip>
+        <div className="flex items-center gap-2">
+          {/* Selo de confiança: bate o olho e vê. Alta ganha destaque em
+              verde com escudo; média e indicativo ficam discretos, para o
+              verde não perder o valor de aparecer só quando merece. */}
+          <span className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${SELO[kpv.confianca].classe}`}>
+            {kpv.confianca === 'alta' && <ShieldCheck className="h-3 w-3" aria-hidden="true" />}
+            {SELO[kpv.confianca].rotulo}
+          </span>
+          <Tooltip>
           <TooltipTrigger aria-label="Como calculamos a referência">
             <Info className="h-3.5 w-3.5 text-muted-foreground" />
           </TooltipTrigger>
@@ -131,7 +147,8 @@ export default function KpvCard({
               <span className="mt-1 block text-muted-foreground">{kpv.ressalvas.join('. ')}.</span>
             )}
           </TooltipContent>
-        </Tooltip>
+          </Tooltip>
+        </div>
       </div>
 
       <div className="mt-3 flex items-baseline gap-2">
