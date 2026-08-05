@@ -22,6 +22,8 @@ export interface Coleta {
   fonte: string;
   /** Como a peça foi identificada na fonte, para auditar o casamento depois. */
   casadoCom?: string;
+  /** Como o produto foi encontrado: código verificado ou semelhança de nome. */
+  via?: 'ean' | 'nome';
   amostras: AmostraPreco[];
   recusa?: string;
 }
@@ -173,7 +175,7 @@ for (const item of alvo) {
   }
   await pausa();
 
-  coletas.push({ chave: item.chave, fonte: 'mercado-livre', casadoCom: escolhido.name, amostras });
+  coletas.push({ chave: item.chave, fonte: 'mercado-livre', casadoCom: escolhido.name, via, amostras });
 }
 
 // ── Conferência do lote ──
@@ -187,7 +189,11 @@ for (const c of novas) {
   const marca = item.identidade.marca;
   console.log(`  nosso: ${String(item.anuncios[0].title).slice(0, 62)}`);
   console.log(`  achou: ${String(c.casadoCom).slice(0, 62)}`);
-  console.log(`         ${c.amostras.length} preços · ${item.ean ? 'via EAN' : 'via nome'} · ${marca}\n`);
+  // Mostra COMO casou de verdade (código verificado ou nome), não se a peça
+  // tem EAN. A etiqueta antiga dizia "via EAN" só por haver EAN no dicionário,
+  // mesmo quando o código não bateu e o casamento caiu no nome.
+  const rotuloVia = c.via === 'ean' ? 'EAN verificado' : 'nome (frágil, confira)';
+  console.log(`         ${c.amostras.length} preços · ${rotuloVia} · ${marca}\n`);
 }
 
 // Assinatura de contaminação: peças diferentes apontando para o mesmo produto.

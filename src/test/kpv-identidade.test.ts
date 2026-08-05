@@ -44,6 +44,9 @@ describe('variante — o que nunca pode ser misturado', () => {
       'Mini GT Tokyo Auto Salon 2025 Skyline',
       'Kaido House Event Exclusive Datsun',
       'KAIDO HOUSE MINI GT SKYLINE R34 SALÃO DIECAST',
+      // Do lote 2: casou o exclusivo com o comum e daria preço 10x menor.
+      'Mini GT Nissan Skyline GT-R R32 Red Chrome IMX 2025 #1073',
+      'Hot Wheels Datsun 240Z IMX 2024',
     ]) {
       expect(detectarVariante(t), t).toBe('exclusivo-evento');
     }
