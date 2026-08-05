@@ -108,9 +108,18 @@ describe('texto para a interface', () => {
   });
 
   it('explica a confiança em vez de só rotular', () => {
-    expect(explicarConfianca('baixa', 3)).toMatch(/amostra pequena/);
-    expect(explicarConfianca('alta', 20)).toMatch(/mais de uma fonte/);
-    expect(explicarConfianca('media', 1)).toMatch(/1 anúncio\b/);
-    expect(explicarConfianca('media', 8)).toMatch(/8 anúncios/);
+    expect(explicarConfianca('baixa')).toMatch(/indicação/);
+    expect(explicarConfianca('media')).toMatch(/consistente/);
+    expect(explicarConfianca('alta')).toMatch(/mais de uma fonte/);
+  });
+
+  it('NÃO cita o tamanho da amostra na vitrine', () => {
+    // O número de vendedores é contagem de anúncio EXTERNO. Exibi-lo dentro da
+    // Kolecta dá a entender que são vendedores daqui, e quem entende o
+    // contrário percebe de onde o dado veio. Mesmo motivo pelo qual o nome das
+    // fontes não aparece.
+    for (const c of ['baixa', 'media', 'alta'] as const) {
+      expect(explicarConfianca(c), c).not.toMatch(/\d/);
+    }
   });
 });

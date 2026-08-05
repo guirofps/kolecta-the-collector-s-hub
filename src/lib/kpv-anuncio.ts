@@ -142,10 +142,17 @@ export function rotuloFonte(nome: string): string {
   return mapa[nome] ?? nome;
 }
 
-/** Frase que explica a confiança, para o usuário não ter que adivinhar. */
-export function explicarConfianca(c: Confianca, amostra: number): string {
-  const base = `${amostra} ${amostra === 1 ? 'anúncio' : 'anúncios'} de vendedores diferentes`;
-  if (c === 'alta') return `${base}, em mais de uma fonte`;
-  if (c === 'media') return `${base}, amostra moderada`;
-  return `${base}, amostra pequena: use como indicação, não como regra`;
+/**
+ * Frase que explica a confiança, SEM citar o tamanho da amostra.
+ *
+ * O número de vendedores é contagem de anúncio EXTERNO, e exibi-lo dentro da
+ * Kolecta dá a entender que são vendedores daqui. Quem entende o contrário
+ * percebe de onde o dado veio, o que é o mesmo motivo pelo qual o nome das
+ * fontes não aparece. O tamanho da amostra continua gravado no anúncio e
+ * continua definindo a confiança; ele só não vira texto na vitrine.
+ */
+export function explicarConfianca(c: Confianca): string {
+  if (c === 'alta') return 'levantamento amplo, confirmado em mais de uma fonte';
+  if (c === 'media') return 'levantamento consistente';
+  return 'levantamento inicial: use como indicação, não como regra';
 }
