@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  consolidar, avaliarAnuncio, estadoDaReferencia,
+  consolidar, avaliarAnuncio, estadoDaReferencia, ehAtacado,
   MINIMO_PARA_PUBLICAR, MESES_ATE_REVISAR, MESES_ATE_EXPIRAR,
   type AmostraPreco, type ReferenciaKPV, type ResultadoKPV,
 } from '@/lib/kpv-referencia';
@@ -55,6 +55,38 @@ describe('quando NÃO publicar', () => {
     ]);
     expect(r.publicavel).toBe(false);
     expect(r.amostra).toBe(1);
+  });
+});
+
+describe('atacado não é preço de mercado', () => {
+  it('preço marcado como atacado fica fora da conta', () => {
+    // Distribuidora mostra os dois na mesma página. O atacado é o custo de
+    // quem revende, e misturar derruba a referência sem deixar rastro.
+    const r = consolidar([
+      ...amostras([10000, 10500, 11000], 'loja'),
+      { precoEmCentavos: 3000, fonte: 'loja', vendedorId: 'distribuidora', tipo: 'atacado' },
+    ]);
+    expect(publicada(r).amostra).toBe(3);
+    expect(publicada(r).minEmCentavos).toBe(10000);
+  });
+
+  it('reconhece atacado no texto do anúncio', () => {
+    for (const t of [
+      'Hot Wheels Premium - preço de atacado',
+      'Mini GT no atacado a partir de 12 unidades',
+      'Caixa fechada display 72 peças',
+      'Wholesale price for resellers',
+      'Preço para lojista e revenda',
+    ]) {
+      expect(ehAtacado(t), t).toBe(true);
+    }
+  });
+
+  it('não confunde varejo com atacado', () => {
+    expect(ehAtacado('Hot Wheels Premium Ferrari 365 GTB4 1:64')).toBe(false);
+    expect(ehAtacado('Mini GT Nissan Skyline pronta entrega')).toBe(false);
+    expect(ehAtacado('')).toBe(false);
+    expect(ehAtacado(null)).toBe(false);
   });
 });
 

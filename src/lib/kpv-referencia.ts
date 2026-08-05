@@ -12,6 +12,22 @@ import type { Variante } from './kpv-identidade';
 
 export type FonteAmostra = 'mercado-livre' | 'ebay' | 'loja';
 
+/**
+ * Atacado não é preço de mercado.
+ *
+ * Distribuidora costuma exibir os dois na mesma página: varejo e um valor
+ * menor por quantidade. O atacado é o custo de quem revende, não o que o
+ * colecionador paga, e misturar os dois derruba a referência sem que ninguém
+ * perceba de onde veio a queda.
+ */
+const RE_ATACADO =
+  /\b(atacad[oa]|no\s*atacado|revend[ae]|distribuidor[ae]?s?|pre[çc]o\s*(?:de\s*)?(?:atacado|revenda|lojista)|wholesale|bulk\s*price|a\s*partir\s*de\s*\d+\s*(?:un|pe[çc]as|caixas)|lote\s*fechado|caixa\s*fechada|display\s*fechado)\b/i;
+
+/** O texto indica preço de atacado em vez de varejo? */
+export function ehAtacado(texto: string | null | undefined): boolean {
+  return RE_ATACADO.test(texto ?? '');
+}
+
 /** Um preço observado numa fonte externa, já convertido para reais. */
 export interface AmostraPreco {
   /** Em centavos, para não arrastar erro de ponto flutuante. */
@@ -26,6 +42,11 @@ export interface AmostraPreco {
   url?: string;
   /** Moeda original, quando houve conversão. Só para transparência. */
   moedaOriginal?: string;
+  /**
+   * Varejo ou atacado. Só varejo entra na referência: o preço de distribuidora
+   * é o custo de quem revende, não o que o colecionador paga.
+   */
+  tipo?: 'varejo' | 'atacado';
 }
 
 export type Confianca = 'baixa' | 'media' | 'alta';
@@ -130,7 +151,10 @@ export function consolidar(
   opcoes: OpcoesConsolidacao = {},
 ): ResultadoKPV {
   const validas = amostras.filter(
-    (a) => Number.isFinite(a.precoEmCentavos) && a.precoEmCentavos > 0,
+    (a) => Number.isFinite(a.precoEmCentavos)
+      && a.precoEmCentavos > 0
+      // Atacado fora: é o custo de quem revende, não o que o colecionador paga.
+      && a.tipo !== 'atacado',
   );
   if (!validas.length) return { publicavel: false, motivo: 'nenhum preço coletado', amostra: 0 };
 

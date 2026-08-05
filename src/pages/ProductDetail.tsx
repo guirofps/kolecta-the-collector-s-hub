@@ -25,6 +25,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Textarea } from '@/components/ui/textarea';
 import { conditionLabel, formatBRL } from '@/lib/mock-data';
 import { avisoPreVenda } from '@/lib/pre-venda';
+import KpvCard from '@/components/KpvCard';
 import { parseAttributes } from '@/lib/category-fields';
 import type { ProductCondition, ListingStatus, Product, ProductType } from '@/lib/mock-data';
 import { api } from '@/lib/api';
@@ -338,6 +339,15 @@ export default function ProductDetail() {
                       </div>
                     );
                   })()}
+
+                  {/* Referência de mercado (KPV). Fica logo abaixo do preço e
+                      acima do botão: é informação que muda a decisão, e o
+                      lugar dela é antes de comprar, não depois. Some sozinha
+                      quando o anúncio ainda não tem levantamento. */}
+                  <KpvCard
+                    attributes={parseAttributes(listing.attributes)}
+                    precoEmCentavos={listing.priceInCents}
+                  />
 
                   {!isAvailable && (
                     <div className="rounded-md bg-destructive/10 border border-destructive/30 p-3 text-xs text-destructive flex items-start gap-2">
