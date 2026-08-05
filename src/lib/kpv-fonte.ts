@@ -1,0 +1,158 @@
+// ─── KPV: de onde tirar o preço, e quando recusar o candidato ────────────────
+//
+// Duas decisões que o piloto contra o catálogo real provou serem obrigatórias.
+//
+// 1) QUAL FONTE. O Mercado Livre funciona muito bem para peça comum (um Hot
+//    Wheels Mainline devolveu 58 vendedores distintos e mediana estável), e
+//    falha para peça rara. O motivo não é técnico: vendedor de chase evita
+//    anunciar em marketplace grande por medo do golpe do "não gostei" — o
+//    comprador devolve a versão comum do mesmo carro, e a plataforma não sabe
+//    distinguir. Resultado: o chase não está no catálogo de lá. Buscar chase no
+//    ML devolve o REGULAR, com preço que é uma fração do real.
+//
+// 2) QUANDO RECUSAR. No piloto, pegar o primeiro resultado da busca casou um
+//    Super Treasure Hunt de R$ 1250 com o regular de R$ 127 (+880%), e um
+//    "Chevrolet Super 10" com um "Cheyenne Super 30". Sem porteiro, o KPV
+//    publica número inventado, que é pior do que não publicar nada.
+
+import type { IdentidadeKPV } from './kpv-identidade';
+import { normalizarMarca } from './marcas';
+
+export type FonteKPV = 'mercado-livre' | 'ebay';
+
+/**
+ * Marcas de tiragem pequena. Kaido House e Tarmac fazem séries de 350 a 500
+ * unidades; elas circulam em mercado internacional de colecionador, não no
+ * varejo brasileiro, e o ML mal tem amostra delas.
+ */
+const MARCAS_TIRAGEM_PEQUENA = [
+  'Kaido House', 'Tarmac Works', 'Inno64', 'Pop Race', 'Stance Hunters',
+  'Motorhelix', 'GCD', 'Era Car', 'MyModelCollect', 'BBR Models',
+  'Storehouse Custom', 'SHOOM64',
+];
+
+/**
+ * A fonte certa para esta peça.
+ *
+ * Variante diferente de regular manda direto para o eBay: é a peça que o
+ * vendedor brasileiro não anuncia em marketplace grande.
+ */
+export function fonteRecomendada(id: IdentidadeKPV): FonteKPV {
+  if (id.variante !== 'regular') return 'ebay';
+  if (MARCAS_TIRAGEM_PEQUENA.includes(id.marca)) return 'ebay';
+  return 'mercado-livre';
+}
+
+export interface Veredito {
+  serve: boolean;
+  /** Por que recusou. Vira relatório, não só um booleano perdido. */
+  motivo?: string;
+}
+
+/**
+ * O candidato da fonte externa é a MESMA peça que o nosso anúncio?
+ *
+ * Recusa por padrão. Cada regra aqui saiu de um erro real do piloto.
+ */
+export function candidatoServe(nossa: IdentidadeKPV, candidato: IdentidadeKPV): Veredito {
+  // 1) Variante. O erro mais caro: STH casado com o regular, 10x de diferença.
+  if (nossa.variante !== candidato.variante) {
+    return { serve: false, motivo: `variante diferente (nosso ${nossa.variante}, candidato ${candidato.variante})` };
+  }
+
+  // 2) Escala. "Bburago Ferrari 296 GTB 1:41" casou com um 1:24.
+  if (nossa.escala && candidato.escala && nossa.escala !== candidato.escala) {
+    return { serve: false, motivo: `escala diferente (${nossa.escala} vs ${candidato.escala})` };
+  }
+  if (!nossa.escala || !candidato.escala) {
+    return { serve: false, motivo: 'escala não declarada em um dos lados' };
+  }
+
+  // 3) Marca. O ML registrou um Mini GT como "Multimatic".
+  if (normalizarMarca(nossa.marca).marca !== normalizarMarca(candidato.marca).marca) {
+    return { serve: false, motivo: `marca diferente (${nossa.marca} vs ${candidato.marca})` };
+  }
+
+  // 4) Modelo. "Kaido House DGK Trueno" casou com "Honda NSX Kaido Works".
+  //    Exige sobreposição real de palavras, não semelhança vaga.
+  const sim = semelhancaModelo(nossa.modelo, candidato.modelo);
+  if (sim < 0.5) {
+    return { serve: false, motivo: `modelo pouco parecido (${(sim * 100).toFixed(0)}% de sobreposição)` };
+  }
+
+  return { serve: true };
+}
+
+/**
+ * Sobreposição entre dois nomes de modelo, de 0 a 1.
+ *
+ * Jaccard sobre as palavras com 2+ letras, ignorando cor: "Verde" e "Branco"
+ * aparecem no nome do produto do ML e não mudam a identidade da peça, mas
+ * derrubariam a semelhança de um par que é o mesmo carro.
+ */
+export function semelhancaModelo(a: string, b: string): number {
+  const CORES = /^(preto|preta|branco|branca|vermelho|vermelha|azul|verde|amarelo|amarela|cinza|prata|dourado|dourada|laranja|roxo|rosa|marrom|bege|black|white|red|blue|green|yellow|grey|gray|silver|gold|orange|purple|pink|brown)$/i;
+  const tokens = (s: string) => new Set(
+    s.toLowerCase().split(/[^a-z0-9]+/).filter((t) => t.length >= 2 && !CORES.test(t)),
+  );
+  const A = tokens(a), B = tokens(b);
+  if (!A.size || !B.size) return 0;
+  let comuns = 0;
+  for (const t of A) if (B.has(t)) comuns++;
+  // Divide pelo MENOR conjunto: o nome do ML costuma ser mais longo (traz cor,
+  // código e loja), e Jaccard puro punia o par certo por isso.
+  return comuns / Math.min(A.size, B.size);
+}
+
+// ─── Preço em dólar → real ───────────────────────────────────────────────────
+
+export interface CustoImportacao {
+  /** Cotação do dólar no dia da coleta. */
+  cambio: number;
+  /** Frete internacional em USD, quando a fonte informa. */
+  freteUsd?: number;
+  /**
+   * Imposto de importação, em fração (0.6 = 60%). NÃO tem valor padrão de
+   * propósito: a regra brasileira muda, e chutar aqui viraria número errado
+   * dentro de uma referência que se apresenta como confiável. Quem chama
+   * informa a alíquota vigente.
+   */
+  importacao: number;
+  /** ICMS estadual, em fração (0.17 = 17%). Também varia por estado. */
+  icms: number;
+}
+
+export interface PrecoConvertido {
+  /** Só a conversão cambial, sem imposto. O valor da peça no mercado global. */
+  valorDaPecaEmReais: number;
+  /** O que custa TER a peça no Brasil: peça + frete + impostos. */
+  custoDesembarcadoEmReais: number;
+}
+
+/**
+ * Converte preço de fonte internacional.
+ *
+ * Devolve os DOIS números de propósito. Eles respondem perguntas diferentes:
+ *
+ *  - `valorDaPeca` responde "quanto essa peça vale no mundo".
+ *  - `custoDesembarcado` responde "quanto custa para um brasileiro trazer uma".
+ *
+ * O segundo é o que serve de teto para o preço na Kolecta: se importar sai por
+ * R$ 800, ninguém paga muito mais que isso aqui. Usar o primeiro como
+ * referência subestimaria o mercado brasileiro, e foi por isso que o Guilherme
+ * insistiu em considerar a taxa.
+ */
+export function converterDeDolar(precoUsd: number, custo: CustoImportacao): PrecoConvertido {
+  const peca = Math.max(0, precoUsd) * custo.cambio;
+  const frete = Math.max(0, custo.freteUsd ?? 0) * custo.cambio;
+  // Imposto de importação incide sobre peça + frete; o ICMS incide por dentro
+  // sobre o total já com o II, que é como a Receita calcula.
+  const comII = (peca + frete) * (1 + custo.importacao);
+  const comICMS = comII / (1 - custo.icms);
+  return {
+    valorDaPecaEmReais: arredondar(peca),
+    custoDesembarcadoEmReais: arredondar(comICMS),
+  };
+}
+
+const arredondar = (v: number) => Math.round(v * 100) / 100;
