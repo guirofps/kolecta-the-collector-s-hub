@@ -163,6 +163,10 @@ export default function CheckoutPage() {
   const [selectedShipping, setSelectedShipping] = useState<Record<string, string>>({});
   // Opções de frete reais por vendedor (sellerSlug → opções), vindas da cotação.
   const [shippingOptions, setShippingOptions] = useState<Record<string, ShippingOption[]>>({});
+  // Quem aceita entrega em mãos, por vendedor. A opção era oferecida para TODO
+  // mundo, inclusive vendedor de outro estado, que depois tinha que explicar ao
+  // comprador que não dava. Vem junto da cotação, sem requisição extra.
+  const [pickupPorVendedor, setPickupPorVendedor] = useState<Record<string, boolean>>({});
 
   // ── Validation ────────────────────────────────────────────────────────
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -206,10 +210,11 @@ export default function CheckoutPage() {
       const results = await Promise.all(
         groups.map(async (g) => {
           try {
-            const opts = await api.shipping.quote({
+            const resp = await api.shipping.quote({
               to_cep: digits,
               listing_id: g.items[0]?.product.id,
             });
+            const opts = resp.options;
             const mapped: ShippingOption[] = opts.map((o) => ({
               id: `${g.sellerSlug}-${o.raw?.id ?? o.service}`,
               label: o.carrier ? `${o.carrier} ${o.service}` : o.service,
@@ -217,23 +222,26 @@ export default function CheckoutPage() {
               days: `${o.delivery_time_days} dias úteis`,
               serviceId: typeof o.raw?.id === 'number' ? o.raw.id : undefined,
             }));
-            return { slug: g.sellerSlug, options: mapped };
+            return { slug: g.sellerSlug, options: mapped, pickup: resp.pickup !== false };
           } catch {
-            return { slug: g.sellerSlug, options: [] as ShippingOption[] };
+            return { slug: g.sellerSlug, options: [] as ShippingOption[], pickup: true };
           }
         }),
       );
 
       const optionsBySlug: Record<string, ShippingOption[]> = {};
+      const pickupBySlug: Record<string, boolean> = {};
       const newSelected: Record<string, string> = {};
       let anyEmpty = false;
-      for (const { slug, options } of results) {
+      for (const { slug, options, pickup } of results) {
         optionsBySlug[slug] = options;
+        pickupBySlug[slug] = pickup;
         if (options.length === 0) { anyEmpty = true; continue; }
         const cheapest = options.reduce((prev, curr) => (curr.price < prev.price ? curr : prev));
         newSelected[slug] = cheapest.id;
       }
       setShippingOptions(optionsBySlug);
+      setPickupPorVendedor(pickupBySlug);
       setSelectedShipping(prev => ({ ...prev, ...newSelected }));
       // Se nenhum vendedor retornou opções, sinaliza o erro visual de frete.
       if (anyEmpty && Object.values(optionsBySlug).every(o => o.length === 0)) {
@@ -310,10 +318,15 @@ export default function CheckoutPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [savedAddresses, groups, enderecoPreSelecionado]);
 
-  // Opções de frete do vendedor + retirada pessoal (sempre disponível).
+  // Opções de frete do vendedor, mais a retirada em mãos quando ELE aceita.
+  // Antes a retirada entrava sempre, e o comprador escolhia buscar em mãos numa
+  // loja do outro lado do país.
+  //
+  // Enquanto a cotação não voltou o vendedor ainda não está no mapa, e aí a
+  // retirada aparece: é o comportamento de antes e evita a opção piscar na tela.
   const optionsFor = (slug: string): ShippingOption[] => [
     ...(shippingOptions[slug] ?? []),
-    PICKUP_OPTION,
+    ...(pickupPorVendedor[slug] === false ? [] : [PICKUP_OPTION]),
   ];
 
   // Shipping totals

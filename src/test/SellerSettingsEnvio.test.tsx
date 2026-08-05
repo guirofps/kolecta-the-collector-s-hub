@@ -45,7 +45,7 @@ const perfil = (services: number[]) => ({
   website: '', categories: [], isVerified: false,
   policies: { shipping: null, returns: null, payment: null, acceptOffers: false, maxDiscountPercent: null },
   notificationPrefs: {},
-  shipping: { services, disponiveis },
+  shipping: { services, disponiveis, acceptsPickup: (globalThis as any).__retirada ?? true },
   account: { name: 'GT RACE', email: 'gt@race.com', createdAt: null },
 });
 
@@ -66,7 +66,8 @@ vi.mock('@/hooks/use-api', async () => {
 
 import SellerSettingsPage from '@/pages/seller/Settings';
 
-async function abrirAbaEnvio(services: number[]) {
+async function abrirAbaEnvio(services: number[], aceitaRetirada = true) {
+  (globalThis as any).__retirada = aceitaRetirada;
   (globalThis as any).__perfil = perfil(services);
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
@@ -122,7 +123,9 @@ describe('Configurações do vendedor, aba Envio', () => {
     fireEvent.click(caixaDe('JeT Standard'));
     fireEvent.click(screen.getByText('Salvar transportadoras'));
 
-    await waitFor(() => expect(updateShipping).toHaveBeenCalledWith([1, 2, 17]));
+    await waitFor(() =>
+      expect(updateShipping).toHaveBeenCalledWith({ services: [1, 2, 17], acceptsPickup: true }),
+    );
   });
 
   it('avisa e bloqueia o salvar quando a seleção não cobre o Brasil', async () => {
@@ -148,7 +151,30 @@ describe('Configurações do vendedor, aba Envio', () => {
     fireEvent.click(screen.getByText('Salvar transportadoras'));
     // Ordem não importa: quem grava ordena (ver serializarServicos no backend).
     await waitFor(() => expect(updateShipping).toHaveBeenCalled());
-    expect([...updateShipping.mock.calls[0][0]].sort()).toEqual([1, 17, 33]);
+    expect([...updateShipping.mock.calls[0][0].services].sort()).toEqual([1, 17, 33]);
+  });
+
+  it('mostra a retirada em mãos ligada por padrão', async () => {
+    await abrirAbaEnvio([]);
+    const t = screen.getByText('Aceito entregar em mãos')
+      .closest('div')!.parentElement!.querySelector('button[role="switch"]')!;
+    expect(t.getAttribute('data-state')).toBe('checked');
+  });
+
+  it('vendedor que desligou a retirada vê o toggle desligado', async () => {
+    await abrirAbaEnvio([], false);
+    expect(screen.getByText(/todo pedido seu vai por transportadora/)).toBeTruthy();
+  });
+
+  it('salva a retirada desligada junto das transportadoras', async () => {
+    // O comprador via "Retirada pessoal" mesmo de vendedor do outro lado do
+    // país, e o vendedor é que tinha de explicar que não dava.
+    await abrirAbaEnvio([], false);
+
+    fireEvent.click(screen.getByText('Salvar transportadoras'));
+
+    await waitFor(() => expect(updateShipping).toHaveBeenCalled());
+    expect(updateShipping.mock.calls[0][0].acceptsPickup).toBe(false);
   });
 
   it('"voltar a aceitar todas" manda lista vazia', async () => {
@@ -156,6 +182,8 @@ describe('Configurações do vendedor, aba Envio', () => {
 
     fireEvent.click(screen.getByText('Voltar a aceitar todas'));
 
-    await waitFor(() => expect(updateShipping).toHaveBeenCalledWith([]));
+    await waitFor(() =>
+      expect(updateShipping).toHaveBeenCalledWith({ services: [], acceptsPickup: true }),
+    );
   });
 });

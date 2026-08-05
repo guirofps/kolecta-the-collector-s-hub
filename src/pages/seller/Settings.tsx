@@ -89,6 +89,7 @@ export default function SellerSettingsPage() {
   // Transportadoras marcadas. Vazio = "todas as que a Kolecta oferece", que é o
   // estado de quem nunca abriu esta aba.
   const [transportadoras, setTransportadoras] = useState<number[]>([]);
+  const [aceitaRetirada, setAceitaRetirada] = useState(true);
 
   useEffect(() => {
     if (!profile) return;
@@ -115,6 +116,7 @@ export default function SellerSettingsPage() {
     }
     setNotifPrefs(prefs);
     setTransportadoras(profile.shipping?.services ?? []);
+    setAceitaRetirada(profile.shipping?.acceptsPickup !== false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile, user?.imageUrl, user?.hasImage]);
 
@@ -334,11 +336,34 @@ export default function SellerSettingsPage() {
           </p>
         )}
 
+        <Separator className="line-tech" />
+
+        {/* A retirada em mãos aparecia para TODO comprador, de todo vendedor.
+            Quem vende de outro estado recebia pedido de retirada e tinha que
+            explicar que não dava. */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <Label>Aceito entregar em mãos</Label>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                O comprador vê "Retirada pessoal" como opção, sem frete, e
+                combina com você onde buscar.
+              </p>
+            </div>
+            <Switch checked={aceitaRetirada} onCheckedChange={setAceitaRetirada} />
+          </div>
+          {!aceitaRetirada && (
+            <p className="text-xs text-muted-foreground">
+              Desligado: todo pedido seu vai por transportadora.
+            </p>
+          )}
+        </div>
+
         <div className="flex flex-wrap gap-2">
           <Button
             variant="kolecta"
             disabled={updateShipping.isPending || semNacional}
-            onClick={() => updateShipping.mutate(transportadoras)}
+            onClick={() => updateShipping.mutate({ services: transportadoras, acceptsPickup: aceitaRetirada })}
           >
             {updateShipping.isPending ? 'Salvando...' : 'Salvar transportadoras'}
           </Button>
@@ -346,7 +371,7 @@ export default function SellerSettingsPage() {
             <Button
               variant="ghost"
               disabled={updateShipping.isPending}
-              onClick={() => { setTransportadoras([]); updateShipping.mutate([]); }}
+              onClick={() => { setTransportadoras([]); updateShipping.mutate({ services: [], acceptsPickup: aceitaRetirada }); }}
             >
               Voltar a aceitar todas
             </Button>
