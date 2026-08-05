@@ -139,7 +139,31 @@ export interface AnuncioEbay {
   url: string;
 }
 
-/** Busca anúncios NOVOS no eBay US. Já devolve preço em dólar por vendedor. */
+/**
+ * Busca por EAN (gtin) no eBay. É o caminho EXATO: o eBay tem índice próprio de
+ * GTIN, então devolve o produto certo mesmo quando o nome do nosso anúncio está
+ * torto ou em português. Recupera peça que a busca por nome não acha.
+ */
+export async function buscarEbayGtin(ean: string, limite = 50): Promise<AnuncioEbay[]> {
+  const url = `https://api.ebay.com/buy/browse/v1/item_summary/search`
+    + `?gtin=${encodeURIComponent(ean)}&limit=${limite}&filter=conditions:{NEW}`;
+  const r = await fetch(url, {
+    headers: { Authorization: `Bearer ${await tokenEbay()}`, 'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US' },
+  });
+  if (r.status !== 200) return [];
+  const j: any = await r.json();
+  return (j.itemSummaries ?? [])
+    .filter((it: any) => it.price?.currency === 'USD' && Number(it.price?.value) > 0)
+    .map((it: any) => ({
+      titulo: String(it.title ?? ''),
+      precoUsd: Number(it.price.value),
+      condicao: String(it.condition ?? ''),
+      vendedor: String(it.seller?.username ?? it.itemId ?? ''),
+      url: String(it.itemWebUrl ?? ''),
+    }));
+}
+
+/** Busca anúncios NOVOS no eBay US por texto. Já devolve preço em dólar por vendedor. */
 export async function buscarEbay(termo: string, limite = 50): Promise<AnuncioEbay[]> {
   const url = `https://api.ebay.com/buy/browse/v1/item_summary/search`
     + `?q=${encodeURIComponent(termo)}&limit=${limite}&filter=conditions:{NEW}`;

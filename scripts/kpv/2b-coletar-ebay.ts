@@ -13,7 +13,7 @@
 // pela metade.
 
 import { writeFileSync } from 'node:fs';
-import { carregar, salvar, buscarEbay, cotacaoDolar, pausa, brl, PASTA_DADOS } from './comum';
+import { carregar, salvar, buscarEbay, buscarEbayGtin, cotacaoDolar, pausa, brl, PASTA_DADOS } from './comum';
 import { identidadeDe, CONDICAO_BASE } from '../../src/lib/kpv-identidade';
 import { candidatoServe, converterDeDolar } from '../../src/lib/kpv-fonte';
 import type { AmostraPreco } from '../../src/lib/kpv-referencia';
@@ -61,9 +61,18 @@ for (const item of alvo) {
   }
   if (feitas % 25 === 0) salvar('coletas.json', coletas);
 
-  const termo = `${item.identidade.marca} ${item.identidade.modelo}`.slice(0, 90);
-  const anuncios = await buscarEbay(termo, 50);
+  // EAN primeiro: é o caminho exato, recupera peça que a busca por nome não
+  // acha (nome torto ou em português). Só cai no nome se a peça não tem EAN ou
+  // se o EAN não devolveu nada no eBay.
+  let anuncios = item.ean ? await buscarEbayGtin(item.ean, 50) : [];
+  let viaEan = anuncios.length > 0;
   await pausa(400);
+  if (!anuncios.length) {
+    const termo = `${item.identidade.marca} ${item.identidade.modelo}`.slice(0, 90);
+    anuncios = await buscarEbay(termo, 50);
+    viaEan = false;
+    await pausa(400);
+  }
 
   // Menor preço por vendedor entre os que passam pelo porteiro.
   const porVendedor = new Map<string, { usd: number; url: string }>();
@@ -101,7 +110,7 @@ for (const item of alvo) {
     });
   }
   comPreco++;
-  coletas.push({ chave: item.chave, fonte: 'ebay', casadoCom: `eBay: ${anuncios[0]?.titulo.slice(0, 40)}`, via: 'nome', amostras });
+  coletas.push({ chave: item.chave, fonte: 'ebay', casadoCom: `eBay: ${anuncios[0]?.titulo.slice(0, 40)}`, via: viaEan ? 'ean' : 'nome', amostras });
 }
 
 salvar('coletas.json', coletas);
