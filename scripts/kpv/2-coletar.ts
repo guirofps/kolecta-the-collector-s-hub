@@ -197,8 +197,15 @@ for (const c of novas) {
 }
 
 // Assinatura de contaminação: peças diferentes apontando para o mesmo produto.
+// Só o Mercado Livre: lá o `casadoCom` é um PRODUTO de catálogo, então duas
+// peças no mesmo produto é contaminação de verdade. No eBay o rótulo é o
+// título do primeiro anúncio, que naturalmente se repete entre peças
+// parecidas (três Kaido Silverado diferentes começam igual), sem que os
+// preços sejam os mesmos. Aplicar a regra ao eBay gritava falso positivo.
 const uso = new Map<string, number>();
-for (const c of coletas) if (c.casadoCom) uso.set(c.casadoCom, (uso.get(c.casadoCom) ?? 0) + 1);
+for (const c of coletas) {
+  if (c.casadoCom && c.fonte === 'mercado-livre') uso.set(c.casadoCom, (uso.get(c.casadoCom) ?? 0) + 1);
+}
 const suspeitos = [...uso.entries()].filter(([, n]) => n > 1);
 if (suspeitos.length) {
   console.log(`ALERTA: ${suspeitos.length} produto(s) usados por mais de uma peça nossa:`);

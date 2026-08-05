@@ -47,7 +47,7 @@ const RE_CHASE = /\bchase\b/i;
  * Tokyo Auto Salon; as outras siglas seguem a mesma lógica de feira.
  */
 const RE_EXCLUSIVO =
-  /\b(tas\s*\d{0,4}\s*exclusive|tokyo\s*auto\s*salon|event\s*exclusive|exclusivo\s*(?:de\s*)?evento|store\s*exclusive|convention\s*exclusive|sdcc|mijo\s*exclusive|sal(?:ã|a)o\s*diecast|imx\s*\d{2,4}|indy\s*mini\s*expo|red\s*chrome|zamac|gold\s*chrome)\b/i;
+  /\b(tas\s*\d{0,4}\s*exclusive|tokyo\s*auto\s*salon|event\s*exclusive|exclusivo\s*(?:de\s*)?evento|store\s*exclusive|convention\s*exclusive|sdcc|mijo\s*exclusive|sal(?:ã|a)o\s*diecast|imx\s*\d{2,4}|indy\s*mini\s*expo|red\s*chrome|zamac|gold\s*chrome|\bsema\s*\d{2,4}|tmcs\s*\d{2,4}|weekend\s*of\s*wheels)\b/i;
 
 /**
  * Lote, pack, kit: não é peça única, então não entra em comparação de preço.
