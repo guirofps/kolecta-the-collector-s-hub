@@ -22,7 +22,9 @@ import { categoryArt } from '@/lib/category-art';
 import { parsePriceToCents } from '@/lib/currency';
 import { loadDraft, saveDraft, clearDraft } from '@/lib/listing-draft';
 import { CONDITIONS } from '@/lib/conditions';
-import { MARCAS_MINIATURA, ESCALAS_MINIATURA } from '@/lib/marcas';
+import {
+  MARCAS_MINIATURA, ESCALAS_MINIATURA, marcaParaSalvar, escalaParaSalvar,
+} from '@/lib/marcas';
 import {
   TAG_PRE_VENDA,
   dadosPreVenda,
@@ -336,9 +338,11 @@ export default function CreateListing() {
       title: tituloComPreVenda(form.title, ehPreVenda),
       description: form.description || undefined,
       categoryId: form.category || undefined,
-      brand: cf.brand || form.brand || undefined,
+      // Normaliza na saída: ver marcaParaSalvar. O seletor sozinho não segurou
+      // ("Hotwheels " entrou por outro caminho depois que ele subiu).
+      brand: marcaParaSalvar(cf.brand || form.brand, form.title),
       line: cf.line || form.line || undefined,
-      scale: cf.scale || form.scale || undefined,
+      scale: escalaParaSalvar(cf.scale || form.scale),
       year: cf.year || form.year || undefined,
       edition: cf.edition || form.edition || undefined,
       sku: form.sku.trim() || undefined,

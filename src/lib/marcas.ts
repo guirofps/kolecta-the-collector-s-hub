@@ -226,6 +226,34 @@ export function normalizarMarcaDoAnuncio(
   return peloCampo;
 }
 
+/**
+ * Marca pronta para gravar, aplicada na hora de montar o payload.
+ *
+ * Existe porque a lista fechada no formulário NÃO basta. Dois vazamentos reais,
+ * vistos no banco depois que o seletor subiu:
+ *
+ *  - Na edição, o anúncio antigo chega com "Mini Gt". O seletor não acha opção
+ *    equivalente e mostra vazio, mas o valor no formulário continua "Mini Gt" e
+ *    volta ao banco intacto se o vendedor não encostar no campo.
+ *  - "Hotwheels " (com espaço no fim) entrou por um caminho que não passa pelo
+ *    seletor.
+ *
+ * Normalizar aqui, onde todo caminho de escrita converge, resolve os dois de
+ * uma vez, e o próximo caminho novo já nasce protegido.
+ *
+ * O que não dá para decidir é preservado aparado, nunca descartado: marca
+ * pequena de verdade fora da lista é informação, e apagá-la seria pior do que
+ * a grafia torta.
+ */
+export function marcaParaSalvar(
+  bruto: string | null | undefined,
+  titulo?: string | null,
+): string | undefined {
+  const texto = (bruto ?? '').trim();
+  const { marca } = normalizarMarcaDoAnuncio(texto, titulo);
+  return marca ?? (texto || undefined);
+}
+
 // ─── Escala ──────────────────────────────────────────────────────────────────
 
 export const ESCALAS_MINIATURA = [
@@ -236,6 +264,12 @@ export const ESCALAS_MINIATURA = [
  * Normaliza a escala. Aceita "1/64" e "1-64", que aparecem no banco, e devolve
  * sempre o formato com dois pontos.
  */
+/** Escala pronta para gravar. Mesma ideia de `marcaParaSalvar`. */
+export function escalaParaSalvar(bruto: string | null | undefined): string | undefined {
+  const texto = (bruto ?? '').trim();
+  return normalizarEscala(texto) ?? (texto || undefined);
+}
+
 export function normalizarEscala(bruto: string | null | undefined): string | null {
   const texto = (bruto ?? '').trim();
   if (!texto) return null;

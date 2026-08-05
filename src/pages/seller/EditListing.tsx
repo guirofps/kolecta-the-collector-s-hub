@@ -23,6 +23,7 @@ import CategoryFieldsEditor from '@/components/CategoryFieldsEditor';
 import {
   fieldsForCategory, parseAttributes, formatFieldValue, isFieldApplicable,
 } from '@/lib/category-fields';
+import { marcaParaSalvar, escalaParaSalvar } from '@/lib/marcas';
 
 const MAX_PHOTOS = 8;
 
@@ -265,9 +266,13 @@ export default function EditListing() {
       title: form.title.trim(),
       description: form.description || undefined,
       categoryId: form.category || undefined,
-      brand: texto('brand') ?? (form.brand || undefined),
+      // Normaliza na saída: ver marcaParaSalvar. O anúncio antigo chega com a
+      // grafia torta, o seletor mostra vazio porque não acha opção equivalente,
+      // e sem isto a grafia voltava intacta ao banco quando o vendedor salvava
+      // sem encostar no campo.
+      brand: marcaParaSalvar(texto('brand') ?? form.brand, form.title),
       line: texto('line') ?? (form.line || undefined),
-      scale: texto('scale') ?? (form.scale || undefined),
+      scale: escalaParaSalvar(texto('scale') ?? form.scale),
       year: texto('year') ?? (form.year || undefined),
       edition: texto('edition') ?? (form.edition || undefined),
       attributes: hasAttributes ? JSON.stringify(cf) : undefined,

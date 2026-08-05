@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   normalizarMarca, normalizarEscala, MARCAS_MINIATURA,
-  marcaNoTexto, normalizarMarcaDoAnuncio,
+  marcaNoTexto, normalizarMarcaDoAnuncio, marcaParaSalvar, escalaParaSalvar,
 } from '@/lib/marcas';
 
 // Os casos abaixo saíram do catálogo de produção: são as grafias que de fato
@@ -178,6 +178,50 @@ describe('normalizarMarcaDoAnuncio — o campo com montadora, o título com o fa
     const r = normalizarMarcaDoAnuncio('Ferrari', 'Carrinho Shell Ferrari Escala 1/41 Kit Original');
     expect(r.marca).toBeNull();
     expect(r.origem).toBe('montadora');
+  });
+});
+
+describe('marcaParaSalvar — a trava na hora de gravar', () => {
+  it('conserta as duas grafias que vazaram DEPOIS do seletor subir', () => {
+    // Casos reais: "Mini Gt" sobreviveu a uma edição, "Hotwheels " entrou por
+    // um caminho de criação que não passa pelo seletor.
+    expect(marcaParaSalvar('Mini Gt')).toBe('Mini GT');
+    expect(marcaParaSalvar('Hotwheels ')).toBe('Hot Wheels');
+  });
+
+  it('usa o título quando o campo tem a montadora do carro', () => {
+    expect(marcaParaSalvar('Nissan', 'Hot Wheels Premium - Skyline GT-R')).toBe('Hot Wheels');
+  });
+
+  it('marca fora da lista é PRESERVADA, só aparada', () => {
+    // Apagar marca pequena de verdade seria pior do que a grafia torta.
+    expect(marcaParaSalvar('  Fabricante Novo  ')).toBe('Fabricante Novo');
+  });
+
+  it('vazio vira undefined, para o payload não mandar string vazia', () => {
+    expect(marcaParaSalvar('')).toBeUndefined();
+    expect(marcaParaSalvar('   ')).toBeUndefined();
+    expect(marcaParaSalvar(null)).toBeUndefined();
+  });
+
+  it('montadora sozinha, sem título que ajude, é preservada para revisão', () => {
+    expect(marcaParaSalvar('FERRARI')).toBe('FERRARI');
+  });
+});
+
+describe('escalaParaSalvar', () => {
+  it('padroniza a barra e o espaço', () => {
+    expect(escalaParaSalvar('1/64')).toBe('1:64');
+    expect(escalaParaSalvar(' 1:18 ')).toBe('1:18');
+  });
+
+  it('escala fora do padrão é preservada aparada', () => {
+    expect(escalaParaSalvar(' 1:41 ')).toBe('1:41');
+  });
+
+  it('vazio vira undefined', () => {
+    expect(escalaParaSalvar('')).toBeUndefined();
+    expect(escalaParaSalvar(null)).toBeUndefined();
   });
 });
 
