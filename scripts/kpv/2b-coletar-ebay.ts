@@ -21,16 +21,21 @@ import type { ItemDaFila } from './1-preparar';
 import type { Coleta } from './2-coletar';
 
 const limite = Number(process.argv[2]) || Infinity;
+// `--todas` varre o eBay em TODA peça comparável, não só as especiais. O eBay é
+// o maior mercado de miniatura do mundo, então serve de segunda fonte para o
+// que o ML já tem (leva à confiança alta) e de cobertura para o que ele não
+// achou. Sem a flag, roda só as roteadas (chase/exclusivo), como antes.
+const todas = process.argv.includes('--todas');
 const fila = carregar<ItemDaFila[]>('fila.json');
 
 let jaFeitas: Coleta[] = [];
 try { jaFeitas = carregar<Coleta[]>('coletas.json'); } catch { jaFeitas = []; }
-// Só reconsulta peça eBay que ainda não rendeu; ML fica intacto no arquivo.
+// Não reconsulta peça que já rendeu preço no eBay.
 const resolvidasEbay = new Set(
   jaFeitas.filter((c) => c.fonte === 'ebay' && c.amostras.length > 0).map((c) => c.chave),
 );
 const alvo = fila
-  .filter((f) => f.fonte === 'ebay' && !resolvidasEbay.has(f.chave))
+  .filter((f) => (todas || f.fonte === 'ebay') && !resolvidasEbay.has(f.chave))
   .slice(0, limite);
 
 // Imposto de importação (Remessa Conforme, 2026): até US$50 são 20%, acima
