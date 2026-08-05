@@ -17,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { mockCategories, formatBRL } from '@/lib/mock-data';
 import { trackEvent } from '@/lib/analytics';
-import { COMMISSION_RATE, COMMISSION_LABEL } from '@/lib/fees';
+import { commissionLabel } from '@/lib/fees';
 import { categoryArt } from '@/lib/category-art';
 import { parsePriceToCents } from '@/lib/currency';
 import { loadDraft, saveDraft, clearDraft } from '@/lib/listing-draft';
@@ -41,7 +41,7 @@ import { freteFaltando, AVISO_EMBALAGEM } from '@/lib/frete';
 import { definirCapa, removerFoto } from '@/lib/fotos-anuncio';
 import { fieldsForCategory, formatFieldValue, isFieldApplicable } from '@/lib/category-fields';
 import ProductDescription from '@/components/ProductDescription';
-import { useCreateListing, useUploadImage, useCategories, useAddresses } from '@/hooks/use-api';
+import { useCreateListing, useUploadImage, useCategories, useAddresses, useCommissionRate } from '@/hooks/use-api';
 import { useToast } from '@/hooks/use-toast';
 import type { CreateListingPayload } from '@/lib/api';
 
@@ -226,6 +226,9 @@ export default function CreateListing() {
   // Endereço de origem do frete: o vendedor precisa ter um endereço cadastrado
   // na plataforma (o mesmo de "Minha Conta → Endereços"), usado como origem.
   const { query: addressQuery } = useAddresses();
+  // A taxa DESTE vendedor, vinda do backend. Fundador ativo paga menos, e a
+  // previsão de repasse aqui precisa bater com o que ele vai receber.
+  const taxaComissao = useCommissionRate();
   const hasAddress = (addressQuery.data ?? []).length > 0;
   const addressBlocking = !addressQuery.isLoading && !hasAddress;
 
@@ -1499,13 +1502,13 @@ function StepPricing({ form, update }: { form: FormData; update: (f: keyof FormD
                   <span>{formatBRL(Number(form.price))}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Comissão Kolecta ({COMMISSION_LABEL})</span>
-                  <span className="text-accent">-{formatBRL(Number(form.price) * COMMISSION_RATE)}</span>
+                  <span>Comissão Kolecta ({commissionLabel(taxaComissao)})</span>
+                  <span className="text-accent">-{formatBRL(Number(form.price) * taxaComissao)}</span>
                 </div>
                 <div className="line-tech my-2" />
                 <div className="flex justify-between font-medium text-foreground">
                   <span>Você recebe</span>
-                  <span className="text-primary">{formatBRL(Number(form.price) * (1 - COMMISSION_RATE))}</span>
+                  <span className="text-primary">{formatBRL(Number(form.price) * (1 - taxaComissao))}</span>
                 </div>
               </div>
             </div>
@@ -1647,7 +1650,7 @@ function StepPricing({ form, update }: { form: FormData; update: (f: keyof FormD
                   <span>{formatBRL(Number(form.startingBid))}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Comissão Kolecta ({COMMISSION_LABEL})</span>
+                  <span>Comissão Kolecta ({commissionLabel(taxaComissao)})</span>
                   <span>Sobre o valor final</span>
                 </div>
                 <div className="flex justify-between">

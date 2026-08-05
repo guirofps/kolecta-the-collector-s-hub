@@ -1704,6 +1704,14 @@ export interface FounderStatus {
   listingsRequired: number;
   remaining: number;
   benefitEndsAt: string | null;
+  /**
+   * Comissão que ESTE vendedor paga, em percentual (9 para fundador ativo, 11
+   * na taxa cheia). Vem de `resolveCommissionPercent`, a mesma função que
+   * fecha o pedido e o leilão — não reimplemente a regra no front.
+   */
+  commissionPercent: number;
+  /** Taxa cheia da plataforma, para mostrar o "de/por" do fundador. */
+  baseCommissionPercent: number;
   credits: {
     total: number;
     used: number;

@@ -8,7 +8,8 @@ import {
   CreditCard, Truck, CheckCircle2, Clock, AlertTriangle,
   FileText, Search, Scale, ChevronRight,
 } from 'lucide-react';
-import { COMMISSION_RATE, COMMISSION_LABEL, OPERATIONAL_FEE, sellerNet } from '@/lib/fees';
+import { COMMISSION_RATE, COMMISSION_LABEL, OPERATIONAL_FEE, sellerNet, commissionLabel } from '@/lib/fees';
+import { useCommissionRate } from '@/hooks/use-api';
 
 /* ── Fee Constants ──
    Taxa única: a mesma para Venda Direta e Modo Lance. Ver src/lib/fees.ts. */
@@ -62,9 +63,16 @@ const faqItems = [
 function FeeCalculator() {
   const [value, setValue] = useState(500);
 
-  const commissionAmount = value * COMMISSION_RATE;
+  // A taxa de QUEM ESTÁ OLHANDO. Fundador ativo paga 9%, e esta é a página em
+  // que ele viria conferir — mostrar 11% aqui é desmentir o próprio benefício.
+  // Visitante deslogado cai na taxa cheia, que é a dele mesmo.
+  const taxa = useCommissionRate();
+  const rotulo = commissionLabel(taxa);
+  const ehFundador = taxa < COMMISSION_RATE;
+
+  const commissionAmount = value * taxa;
   const totalFees = commissionAmount + OPERATIONAL_FEE;
-  const sellerReceives = sellerNet(value);
+  const sellerReceives = sellerNet(value, taxa);
 
   return (
     <div className="rounded-lg border border-border bg-gradient-card p-6 md:p-8">
@@ -80,8 +88,18 @@ function FeeCalculator() {
           <div className="flex items-center gap-3 rounded-md border border-primary/20 bg-primary/5 px-4 py-3">
             <ShieldCheck className="h-4 w-4 shrink-0 text-primary" />
             <p className="text-xs text-muted-foreground">
-              Taxa única de <strong className="text-foreground">{COMMISSION_LABEL}</strong>, igual para
-              Venda Direta e Modo Lance.
+              {ehFundador ? (
+                <>
+                  Sua taxa de Membro Fundador:{' '}
+                  <strong className="text-foreground">{rotulo}</strong> no lugar de{' '}
+                  <s>{COMMISSION_LABEL}</s>, igual para Venda Direta e Modo Lance.
+                </>
+              ) : (
+                <>
+                  Taxa única de <strong className="text-foreground">{COMMISSION_LABEL}</strong>, igual
+                  para Venda Direta e Modo Lance.
+                </>
+              )}
             </p>
           </div>
 
@@ -126,7 +144,7 @@ function FeeCalculator() {
         <div className="space-y-4">
           <div className="space-y-3">
             <div className="flex items-center justify-between py-3 px-4 rounded-md bg-card border border-border">
-              <span className="text-sm text-muted-foreground">Comissão ({COMMISSION_LABEL})</span>
+              <span className="text-sm text-muted-foreground">Comissão ({rotulo})</span>
               <span className="font-heading font-bold text-foreground">R$ {commissionAmount.toFixed(2)}</span>
             </div>
             <div className="flex items-center justify-between py-3 px-4 rounded-md bg-card border border-border">

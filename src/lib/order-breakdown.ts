@@ -9,7 +9,20 @@
 // dá. Rotular de errado um desconto de 60% do pedido é pior do que dizer
 // "descontos" e deixar o vendedor perguntar.
 
-import { COMMISSION_RATE } from './fees';
+import { COMMISSION_RATE, FOUNDER_COMMISSION_RATE } from './fees';
+
+/**
+ * Taxas que um pedido pode ter sido fechado com.
+ *
+ * Precisa ser uma LISTA, e não a taxa da plataforma: o pedido guarda o valor em
+ * centavos, não o percentual, então a única forma de rotular é reconhecer a
+ * conta. Com 11% cravado, todo pedido de Membro Fundador (9%) falhava as duas
+ * hipóteses e caía no `null` — o fundador via um bolo de "descontos" sem
+ * explicação, justamente quem tem a melhor taxa da plataforma.
+ *
+ * Ordem importa: a taxa base primeiro, porque é a maioria dos pedidos.
+ */
+const TAXAS_CONHECIDAS = [COMMISSION_RATE, FOUNDER_COMMISSION_RATE];
 
 export interface EntradaExtrato {
   /** Total pago pelo comprador, item mais frete. */
@@ -83,18 +96,22 @@ function separarDescontos(
 ): Extrato['detalhe'] {
   if (item <= 0 || descontos <= 0) return null;
 
+  /** A conta bate com alguma taxa que a plataforma pratica? */
+  const reconhecida = (taxa: number) =>
+    TAXAS_CONHECIDAS.some((conhecida) => Math.abs(taxa - conhecida) <= TOLERANCIA);
+
   // Hipótese 1: descontos = comissão + etiqueta.
   if (frete > 0 && descontos >= frete) {
     const comissao = descontos - frete;
     const taxa = comissao / item;
-    if (Math.abs(taxa - COMMISSION_RATE) <= TOLERANCIA) {
+    if (reconhecida(taxa)) {
       return { comissaoInCents: comissao, etiquetaInCents: frete, taxaSobreItem: taxa };
     }
   }
 
   // Hipótese 2: descontos são só a comissão.
   const taxaDireta = descontos / item;
-  if (Math.abs(taxaDireta - COMMISSION_RATE) <= TOLERANCIA) {
+  if (reconhecida(taxaDireta)) {
     return { comissaoInCents: descontos, etiquetaInCents: 0, taxaSobreItem: taxaDireta };
   }
 

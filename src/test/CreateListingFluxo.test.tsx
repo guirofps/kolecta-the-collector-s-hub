@@ -29,6 +29,9 @@ vi.mock('@/hooks/use-api', () => ({
   }),
   useCategories: () => ({ data: CATEGORIAS }),
   useAddresses: () => ({ query: { data: [{ id: 'end_1' }], isLoading: false } }),
+  // Taxa da conta que está anunciando. Aqui vale a cheia; o caso do fundador
+  // (9%) tem cobertura própria em `taxa-fundador.test.ts`.
+  useCommissionRate: () => 0.11,
 }));
 
 vi.mock('@/components/layout/SellerLayout', () => ({

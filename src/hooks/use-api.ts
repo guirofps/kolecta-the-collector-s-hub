@@ -12,6 +12,7 @@ import { hasLaunched } from '@/lib/launch';
 import { CATALOGO_STALE_MS, LIMITE_CATALOGO } from '@/lib/catalogo';
 import { lerCatalogo, guardarCatalogo } from '@/lib/catalogo-cache';
 import { CLERK_ENABLED } from '@/lib/clerk';
+import { COMMISSION_RATE } from '@/lib/fees';
 
 /**
  * Token do Clerk, sem derrubar a tela quando o Clerk não está montado.
@@ -91,6 +92,25 @@ export function useMyFounder() {
 export function useIsFounderActive(): boolean {
   const { data } = useMyFounder();
   return hasLaunched() && data?.founderStatus === 'active';
+}
+
+/**
+ * A comissão que o usuário logado paga de verdade, como fração (0.09 ou 0.11).
+ *
+ * Quem decide é o backend, em `resolveCommissionPercent` — o mesmo cálculo que
+ * fecha o pedido e o leilão. Antes disso o front tinha 11% cravado em
+ * `fees.ts`, então o fundador via 11% no wizard de anúncio enquanto era cobrado
+ * 9%: a conta de "quanto vou receber" saía errada justamente para quem tem a
+ * melhor taxa.
+ *
+ * Cai na taxa base enquanto a requisição não voltou, ou se ela falhar. É o
+ * valor que vale para a maioria, e errar para MENOS na promessa de repasse é
+ * melhor do que prometer 9% para quem paga 11%.
+ */
+export function useCommissionRate(): number {
+  const { data } = useMyFounder();
+  const pct = data?.commissionPercent;
+  return typeof pct === 'number' && pct > 0 ? pct / 100 : COMMISSION_RATE;
 }
 
 /** Consome 1 crédito de destaque do fundador em um anúncio. */
