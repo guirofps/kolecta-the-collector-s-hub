@@ -18,10 +18,12 @@
 //  3. Nenhum nome de fonte aparece. A procedência fica gravada para auditoria
 //     interna; a vitrine da Kolecta não faz propaganda de marketplace alheio.
 
-import { TrendingDown, TrendingUp, Minus, Info, Gauge } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { TrendingDown, TrendingUp, Minus, Info, Gauge, X } from 'lucide-react';
 import { formatBRL } from '@/lib/mock-data';
 import { lerKpv, explicarConfianca } from '@/lib/kpv-anuncio';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { AVISOS, marcarVisto, proximoAviso } from '@/lib/novidades';
 
 interface KpvCardProps {
   /** `attributes` do anúncio, já parseado. */
@@ -51,6 +53,25 @@ export default function KpvCard({
   attributes, precoEmCentavos, modo = 'comprador', className,
 }: KpvCardProps) {
   const kpv = lerKpv(attributes, precoEmCentavos);
+
+  // Primeira vez que a pessoa vê uma referência: destaca o card e explica o que
+  // é. Os hooks ficam ANTES do return condicional (regra dos hooks), e só
+  // armam quando há card de verdade. O tema tem prioridade, então este aviso
+  // espera o botão de tema ser dispensado.
+  const [novo, setNovo] = useState(false);
+  useEffect(() => {
+    if (!kpv) return;
+    const t = setTimeout(() => {
+      if (proximoAviso([AVISOS.tema, AVISOS.kpv]) === AVISOS.kpv) setNovo(true);
+    }, 700);
+    return () => clearTimeout(t);
+  }, [kpv]);
+
+  const dispensarNovo = () => {
+    marcarVisto(AVISOS.kpv);
+    setNovo(false);
+  };
+
   // Sem referência confiável não mostra nada. Caixa vazia dizendo "sem dados"
   // só ocupa tela e sugere que faltou alguma coisa.
   if (!kpv) return null;
@@ -67,7 +88,32 @@ export default function KpvCard({
   const dir = posicao(kpv.p75EmCentavos, min, max);
 
   return (
-    <div className={`rounded-lg border border-border bg-card p-4 ${className ?? ''}`}>
+    <div
+      className={`rounded-lg border bg-card p-4 transition-shadow ${
+        novo ? 'border-primary/50 shadow-[0_0_0_3px_hsl(var(--primary)/0.15)]' : 'border-border'
+      } ${className ?? ''}`}
+    >
+      {/* Apresentação da novidade, uma vez por pessoa. Fica DENTRO do card, em
+          cima, para o olho ir direto ao que é novo em vez de a um balão solto. */}
+      {novo && (
+        <div className="mb-3 flex items-start gap-2 rounded-md bg-primary/10 p-2.5">
+          <span className="rounded bg-primary px-1.5 py-0.5 font-heading text-[10px] font-bold uppercase tracking-widest text-primary-foreground">
+            Novidade
+          </span>
+          <p className="flex-1 text-xs leading-relaxed text-foreground">
+            A Kolecta agora mostra o preço de mercado de cada peça, com base num
+            levantamento nosso. Compare antes de fechar negócio.
+          </p>
+          <button
+            onClick={dispensarNovo}
+            aria-label="Entendi"
+            className="text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
+
       <div className="flex items-center justify-between gap-2">
         <span className="flex items-center gap-1.5 font-heading text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
           <Gauge className="h-3.5 w-3.5" aria-hidden="true" />

@@ -1,5 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import BotaoTema from '@/components/BotaoTema';
+import CoachMark, { AVISOS } from '@/components/CoachMark';
 import {
   Search, Heart, MessageSquare, X, Gavel, User,
   ShoppingCart, Home, LogOut, MapPin, AlertCircle,
@@ -381,8 +382,16 @@ export default function Header() {
             )}
 
             {/* O header tem fundo escuro próprio nos dois temas, então o botão
-                herda o mesmo tratamento dos vizinhos em vez dos tokens. */}
-            <BotaoTema className="text-white/70 hover:text-primary" />
+                herda o mesmo tratamento dos vizinhos em vez dos tokens.
+                O coach mark apresenta o modo escuro uma vez por pessoa. */}
+            <CoachMark
+              aviso={AVISOS.tema}
+              candidatas={[AVISOS.tema, AVISOS.kpv]}
+              titulo="Agora tem modo escuro"
+              texto="Prefere o site mais escuro? Toque aqui pra alternar entre claro e escuro quando quiser."
+            >
+              <BotaoTema className="text-white/70 hover:text-primary" />
+            </CoachMark>
 
             <Link to="/conta/favoritos" className="hidden lg:block">
               <Button variant="ghost" size="icon" className="text-white/70 hover:text-primary">
