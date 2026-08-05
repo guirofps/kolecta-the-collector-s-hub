@@ -23,6 +23,16 @@ import { parsePriceToCents } from '@/lib/currency';
 import { loadDraft, saveDraft, clearDraft } from '@/lib/listing-draft';
 import { CONDITIONS } from '@/lib/conditions';
 import { MARCAS_MINIATURA, ESCALAS_MINIATURA } from '@/lib/marcas';
+import {
+  PERCENTUAIS_ENTRADA,
+  PERCENTUAL_ENTRADA_PADRAO,
+  TAG_PRE_VENDA,
+  calcularEntrada,
+  dadosPreVenda,
+  limiteTitulo,
+  tituloComPreVenda,
+  type PercentualEntrada,
+} from '@/lib/pre-venda';
 import { MIN_PHOTOS, MAX_PHOTOS } from '@/lib/photos';
 import { freteFaltando, AVISO_EMBALAGEM } from '@/lib/frete';
 import { definirCapa, removerFoto } from '@/lib/fotos-anuncio';
@@ -80,6 +90,10 @@ interface FormData {
   duration: string;
   reservePrice: string;
   antiSniper: boolean;
+  /** Peça que ainda não chegou: cobra só um sinal e ganha tag no título. */
+  preVenda: boolean;
+  /** Fatia do preço cobrada agora. Só os valores de PERCENTUAIS_ENTRADA. */
+  preVendaPercentual: PercentualEntrada;
   // Envio (frete): peso em gramas, dimensões em cm.
   weightGrams: string;
   widthCm: string;
@@ -119,6 +133,8 @@ const initialForm: FormData = {
   duration: '336',
   reservePrice: '',
   antiSniper: true,
+  preVenda: false,
+  preVendaPercentual: PERCENTUAL_ENTRADA_PADRAO,
   weightGrams: '',
   widthCm: '',
   heightCm: '',
@@ -297,11 +313,23 @@ export default function CreateListing() {
     // com coluna própria (brand/line/scale/year/edition) vão para o topo; o mapa
     // completo (jogo, raridade, personagem, número, grading…) vai em `attributes`
     // (coluna JSON no backend).
-    const cf = form.categoryFields ?? {};
+    // Pré-venda só existe em venda direta: leilão já tem o próprio fluxo de
+    // pagamento (pré-autorização no lance) e não comporta sinal.
+    const ehPreVenda = !isAuction && form.preVenda;
+
+    const cf: Record<string, any> = {
+      ...(form.categoryFields ?? {}),
+      ...(ehPreVenda
+        ? dadosPreVenda(toCents(form.price) ?? 0, form.preVendaPercentual)
+        : {}),
+    };
     const hasAttributes = Object.keys(cf).length > 0;
 
     const payload: CreateListingPayload = {
-      title: form.title,
+      // A tag entra aqui, na publicação, e não no campo que o vendedor digita:
+      // assim ligar e desligar a pré-venda no wizard nunca deixa "[PRÉ-VENDA]"
+      // grudado no texto nem duplica a tag de quem já escreveu à mão.
+      title: tituloComPreVenda(form.title, ehPreVenda),
       description: form.description || undefined,
       categoryId: form.category || undefined,
       brand: cf.brand || form.brand || undefined,
@@ -795,7 +823,9 @@ function StepDetails({ form, update, categories }: { form: FormData; update: (f:
             placeholder="Ex: Mini GT Honda NSX Type R Prata 1:64"
             value={form.title}
             onChange={(e) => update('title', e.target.value)}
-            maxLength={80}
+            // Encolhe quando a pré-venda está ligada: a tag é somada só na
+            // publicação, então sem descontar aqui o título sai do limite.
+            maxLength={limiteTitulo(80, form.preVenda)}
             className="mt-1.5"
           />
           <div className="flex items-center justify-between mt-1">
@@ -1424,6 +1454,7 @@ function StepPricing({ form, update }: { form: FormData; update: (f: keyof FormD
       </p>
 
       {form.type === 'direct' ? (
+        <>
         <div className="max-w-xs">
           <Label htmlFor="price">Preço (R$) *</Label>
           <Input
@@ -1454,6 +1485,84 @@ function StepPricing({ form, update }: { form: FormData; update: (f: keyof FormD
             </div>
           )}
         </div>
+
+        {/* ─── Pré-venda ─────────────────────────────────────
+            Peça encomendada que ainda não chegou. O vendedor cobra um sinal
+            agora em vez do valor cheio. O percentual é seletor com teto de
+            50%: campo aberto viraria "entrada de 95%", que é pré-venda no
+            nome e risco cheio para quem compra. */}
+        <div className="rounded-md border border-border bg-card p-4 max-w-xl">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <Label htmlFor="pre-venda" className="text-sm font-medium">
+                É uma pré-venda
+              </Label>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Para peça encomendada que ainda não chegou. O título recebe a
+                tag <span className="text-foreground">{TAG_PRE_VENDA}</span> sozinho.
+              </p>
+            </div>
+            <Switch
+              id="pre-venda"
+              checked={form.preVenda}
+              onCheckedChange={(v) => update('preVenda', v)}
+            />
+          </div>
+
+          {form.preVenda && (
+            <div className="mt-4 space-y-3">
+              <div>
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                  Entrada cobrada agora
+                </Label>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {PERCENTUAIS_ENTRADA.map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => update('preVendaPercentual', p)}
+                      className={
+                        form.preVendaPercentual === p
+                          ? 'rounded-md bg-primary/15 px-4 py-2 text-sm font-medium text-primary'
+                          : 'rounded-md px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary/60 hover:text-foreground'
+                      }
+                    >
+                      {p}%
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {form.price ? (
+                <div className="rounded-md bg-kolecta-dark/40 p-3 text-xs">
+                  {(() => {
+                    const { entradaEmCentavos, restanteEmCentavos } = calcularEntrada(
+                      Math.round(Number(form.price) * 100),
+                      form.preVendaPercentual,
+                    );
+                    return (
+                      <div className="space-y-1 text-muted-foreground">
+                        <div className="flex justify-between font-medium text-foreground">
+                          <span>Comprador paga agora</span>
+                          <span className="text-primary">{formatBRL(entradaEmCentavos / 100)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Fica para quando a peça chegar</span>
+                          <span>{formatBRL(restanteEmCentavos / 100)}</span>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Preencha o preço acima para ver quanto fica a entrada.
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+        </>
       ) : (
         <div className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1630,8 +1739,35 @@ function StepReview({ form, categories }: { form: FormData; categories: Category
             )}
           </div>
 
-          {/* Title */}
-          <h3 className="font-heading text-xl font-bold">{form.title || 'Sem título'}</h3>
+          {/* Title — com a tag de pré-venda já aplicada, que é como vai ao ar.
+              Mostrar o título cru aqui esconderia justamente a parte que o
+              vendedor não digitou. */}
+          <h3 className="font-heading text-xl font-bold">
+            {tituloComPreVenda(form.title, form.type === 'direct' && form.preVenda) || 'Sem título'}
+          </h3>
+
+          {form.type === 'direct' && form.preVenda && form.price && (
+            <div className="rounded-md border border-border bg-kolecta-dark/40 p-3 text-xs">
+              <div className="flex justify-between font-medium text-foreground">
+                <span>Entrada ({form.preVendaPercentual}%)</span>
+                <span className="text-primary">
+                  {formatBRL(
+                    calcularEntrada(Math.round(Number(form.price) * 100), form.preVendaPercentual)
+                      .entradaEmCentavos / 100,
+                  )}
+                </span>
+              </div>
+              <div className="mt-1 flex justify-between text-muted-foreground">
+                <span>Restante na chegada</span>
+                <span>
+                  {formatBRL(
+                    calcularEntrada(Math.round(Number(form.price) * 100), form.preVendaPercentual)
+                      .restanteEmCentavos / 100,
+                  )}
+                </span>
+              </div>
+            </div>
+          )}
 
           {/* Category */}
           <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
