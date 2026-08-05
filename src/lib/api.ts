@@ -300,10 +300,12 @@ export const api = {
         token,
       }).then(r => r.data),
 
-    addComment: (token: string, id: string, body: string) =>
+    // `listingId` é a menção a um anúncio da plataforma. Par da regra que
+    // bloqueia link externo: tira o caminho de fora e abre o de dentro.
+    addComment: (token: string, id: string, body: string, listingId?: string) =>
       request<{ data: CommunityComment }>(`/api/community/posts/${id}/comments`, {
         method: 'POST',
-        body: JSON.stringify({ body }),
+        body: JSON.stringify({ body, listingId }),
         token,
       }).then(r => r.data),
 
@@ -1535,6 +1537,15 @@ export interface CommunityComment {
   body: string;
   createdAt: string;
   author: { id: string; name: string | null };
+  /** Anúncio mencionado. `null` quando o comentário é só texto. */
+  listing: {
+    id: string;
+    title: string;
+    priceInCents: number | null;
+    images: string | null;
+    type: string | null;
+    status: string | null;
+  } | null;
 }
 
 export interface CommunityFeed {

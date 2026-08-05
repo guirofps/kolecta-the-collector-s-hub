@@ -38,6 +38,7 @@ import {
   ImagePlus,
   X,
   Send,
+  Tag,
 } from 'lucide-react';
 import {
   useCommunityFeed,
@@ -113,9 +114,21 @@ function CommentsSection({ postId }: { postId: string }) {
   const addComment = useAddCommunityComment(postId);
   const [text, setText] = useState('');
 
+  // Menção a anúncio. O par da regra que bloqueia link externo: em vez de mandar
+  // o colega para fora, o vendedor mostra a peça dele aqui dentro.
+  //
+  // Só os PRÓPRIOS anúncios entram no seletor. Uma busca no catálogo inteiro
+  // seria outra tela, e o pedido era ele poder mostrar o que é dele.
+  const { data: meusAnuncios = [] } = useMyListings();
+  const [mencionado, setMencionado] = useState<string>('');
+  const disponiveis = (meusAnuncios || []).filter((l) => l.status === 'active');
+
   const submit = () => {
     if (!text.trim()) return;
-    addComment.mutate(text.trim(), { onSuccess: () => setText('') });
+    addComment.mutate(
+      { body: text.trim(), listingId: mencionado || undefined },
+      { onSuccess: () => { setText(''); setMencionado(''); } },
+    );
   };
 
   return (
@@ -138,6 +151,24 @@ function CommentsSection({ postId }: { postId: string }) {
         </p>
       )}
 
+      {/* Só aparece para quem TEM anúncio no ar: para quem não tem, seria um
+          campo morto ocupando espaço no comentário. */}
+      {isSignedIn && disponiveis.length > 0 && (
+        <div className="flex items-center gap-2">
+          <Tag className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          <select
+            value={mencionado}
+            onChange={(e) => setMencionado(e.target.value)}
+            className="flex-1 min-w-0 h-8 rounded-md border border-border bg-background px-2 text-xs"
+          >
+            <option value="">Mencionar um anúncio meu (opcional)</option>
+            {disponiveis.map((l) => (
+              <option key={l.id} value={l.id}>{l.title}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
       {isLoading ? (
         <Skeleton className="h-10 w-full" />
       ) : comments.length === 0 ? (
@@ -148,6 +179,7 @@ function CommentsSection({ postId }: { postId: string }) {
             <span className="font-medium">{c.author?.name ?? 'Usuário'}</span>{' '}
             <span className="text-[10px] text-muted-foreground">· {timeAgo(c.createdAt)}</span>
             <p className="text-muted-foreground">{c.body}</p>
+            {c.listing && <CardDoAnuncio listing={c.listing} />}
           </div>
         ))
       )}
@@ -549,5 +581,51 @@ export default function CommunityPage() {
         </div>
       </div>
     </Layout>
+  );
+}
+
+
+/**
+ * Card do anúncio mencionado num comentário.
+ *
+ * Card e não link cru de propósito: o objetivo é o colega ver a peça e o preço
+ * sem sair da conversa. Link puro não faz ninguém clicar.
+ *
+ * Anúncio que saiu do ar depois do comentário não vira card: mostrar preço de
+ * algo que já não se compra frustra quem clica, e o texto do comentário
+ * continua valendo sem ele.
+ */
+function CardDoAnuncio({ listing }: { listing: NonNullable<CommunityComment['listing']> }) {
+  if (listing.status !== 'active') return null;
+
+  let capa: string | null = null;
+  try {
+    const fotos = JSON.parse(listing.images || '[]');
+    capa = Array.isArray(fotos) && fotos[0] ? String(fotos[0]) : null;
+  } catch {
+    capa = null;
+  }
+
+  return (
+    <Link
+      to={`/produto/${listing.id}`}
+      className="mt-1.5 flex items-center gap-2 rounded-md border border-border p-2 hover:bg-muted/30 transition-colors max-w-sm"
+    >
+      {capa ? (
+        <img src={capa} alt="" className="h-10 w-10 rounded object-cover shrink-0" />
+      ) : (
+        <div className="h-10 w-10 rounded bg-muted shrink-0" />
+      )}
+      <span className="min-w-0 flex-1">
+        <span className="block text-xs font-medium truncate text-foreground">{listing.title}</span>
+        <span className="block text-xs text-muted-foreground">
+          {listing.type === 'auction'
+            ? 'Modo Lance'
+            : listing.priceInCents
+              ? formatBRL(listing.priceInCents / 100)
+              : 'ver preço'}
+        </span>
+      </span>
+    </Link>
   );
 }

@@ -2089,9 +2089,9 @@ export function useAddCommunityComment(postId: string) {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (body: string) => {
+    mutationFn: async (v: { body: string; listingId?: string }) => {
       const token = await getToken();
-      return api.community.addComment(token || '', postId, body);
+      return api.community.addComment(token || '', postId, v.body, v.listingId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['community-comments', postId] });
