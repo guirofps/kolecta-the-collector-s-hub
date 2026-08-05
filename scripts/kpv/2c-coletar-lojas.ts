@@ -38,18 +38,12 @@ try { jaFeitas = carregar<Coleta[]>('coletas.json'); } catch { jaFeitas = []; }
 const comLoja = new Set(
   jaFeitas.filter((c) => c.fonte === 'loja' && c.amostras.length > 0).map((c) => c.chave),
 );
-// Estas lojas são especializadas em 1:64 premium e importado. Buscar Hot
-// Wheels mainline nelas é gastar requisição à toa: elas mal estocam. Miramos
-// as marcas que de fato vendem, que é onde ML e eBay são mais fracos e onde
-// uma segunda fonte doméstica vale mais.
-const MARCAS_DE_LOJA = new Set([
-  'Mini GT', 'Kaido House', 'Tarmac Works', 'Inno64', 'Pop Race', 'BBR Models',
-  'MSZ', 'Minichamps', 'Time Micro', 'Stance Hunters', 'Motorhelix', 'GCD',
-  'Era Car', 'MyModelCollect', 'Bburago',
-]);
-const alvo = fila
-  .filter((f) => !comLoja.has(f.chave) && MARCAS_DE_LOJA.has(f.identidade.marca))
-  .slice(0, limite);
+// Roda em TODAS as peças comparáveis. As lojas só têm algumas centenas de
+// SKUs, então a maioria das buscas volta vazia, e tudo bem: o que casa vira
+// cobertura nova ou segunda fonte (que é o que leva à confiança alta). Antes
+// eu restringia a marcas premium e perdia o Hot Wheels que a Counting Minis
+// de fato estoca.
+const alvo = fila.filter((f) => !comLoja.has(f.chave)).slice(0, limite);
 
 console.log(`fila total: ${fila.length}   |   nesta rodada: ${alvo.length}`);
 console.log(`lojas: ${LOJAS.map((l) => l.nome).join(', ')}\n`);
