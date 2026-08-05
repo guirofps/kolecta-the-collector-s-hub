@@ -41,6 +41,18 @@ describe('termoBuscaExterna', () => {
     const t = termoBuscaExterna('Hot Wheels', 'a b c d e f g h i j k l');
     expect(t.split(' ').length).toBeLessThanOrEqual(8);
   });
+
+  it('inclui a linha específica quando o vendedor pôs o carro nela', () => {
+    // Modelo quase vazio, carro no campo linha: a busca precisa da linha.
+    const t = termoBuscaExterna('Minichamps', 'Mexico 1991', 'McLaren MP4/6 Senna');
+    expect(t).toContain('mclaren');
+    expect(t).toContain('senna');
+  });
+
+  it('ignora linha genérica que atrapalha a busca', () => {
+    const t = termoBuscaExterna('Hot Wheels', 'Ford F-250', 'Temática');
+    expect(t).not.toMatch(/tematica/);
+  });
 });
 
 describe('ehConjunto', () => {
@@ -80,5 +92,30 @@ describe('candidatoServe: conjunto vs peça única', () => {
     const nossa = id({ modelo: 'ford f 100 custom 1970' });
     const cand = id({ modelo: 'ford f 100 custom 1970' });
     expect(candidatoServe(nossa, cand).serve).toBe(true);
+  });
+});
+
+/**
+ * O carro no campo errado: vendedor pôs "McLaren MP4/6 Senna" na LINHA e deixou
+ * o modelo como "Mexico 1991". Sem olhar a linha, o modelo não casa com o
+ * anúncio certo do eBay. Enriquecer por linha, com max, resolve sem regressão.
+ */
+describe('candidatoServe: linha completa o modelo (carro no campo errado)', () => {
+  const nossa: IdentidadeKPV = {
+    marca: 'Minichamps', modelo: 'mexico 1991', variante: 'regular',
+    escala: 'SO_1_18', linha: 'McLaren Honda MP4/6 Ayrton Senna',
+  };
+  const idMini = (over: Partial<IdentidadeKPV>): IdentidadeKPV => ({
+    marca: 'Minichamps', modelo: '', variante: 'regular', escala: 'SO_1_18', linha: null, ...over,
+  });
+
+  it('casa o modelo fraco com o candidato via linha', () => {
+    const cand = idMini({ modelo: 'mclaren mp4 6 senna 1991' });
+    expect(candidatoServe(nossa, cand).serve).toBe(true);
+  });
+
+  it('não inventa match: candidato de outro carro segue recusado', () => {
+    const cand = idMini({ modelo: 'ferrari f50 1995' });
+    expect(candidatoServe(nossa, cand).serve).toBe(false);
   });
 });

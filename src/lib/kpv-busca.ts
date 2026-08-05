@@ -62,14 +62,27 @@ const RUIDO: RegExp[] = [
 const RE_ESCALA = /\b1\s*[:/\-]\s*\d{2,3}\b/g;
 
 /**
+ * Linha genérica que NÃO identifica a peça e, na busca, só atrapalha ("Ford
+ * F-250 temática" acha menos que "Ford F-250"). Quando a linha é assim, fica de
+ * fora do termo. Linha específica ("RLC", "Red Line Club", o nome do carro que
+ * o vendedor jogou no campo errado) entra, porque é justamente o que faltava.
+ */
+const RE_LINHA_GENERICA =
+  /^(mainline|b[áa]sic[oa]|tem[áa]tic[oa]|cole(?:ç|c)(?:ã|a)o|s[ée]rie|series|premium|regular|padr[ãa]o)$/i;
+
+/**
  * Monta o termo de busca para a fonte externa.
  *
  * Recebe a marca canônica e o modelo, e devolve um termo curto, em inglês onde
  * o mercado global usa inglês, sem ruído. Mantém no máximo ~8 palavras: busca
  * muito longa casa com nada.
  */
-export function termoBuscaExterna(marca: string, modelo: string): string {
-  let t = ` ${marca} ${modelo} `.toLowerCase();
+export function termoBuscaExterna(marca: string, modelo: string, linha?: string | null): string {
+  // A linha entra quando é específica: muitos vendedores põem o carro no campo
+  // "linha" e deixam o modelo quase vazio ("Mexico 1991"), então sem ela a
+  // busca externa procura pela coisa errada.
+  const linhaUtil = linha && !RE_LINHA_GENERICA.test(linha.trim()) ? linha : '';
+  let t = ` ${marca} ${modelo} ${linhaUtil} `.toLowerCase();
 
   for (const [re, en] of TRADUCAO) t = t.replace(re, ` ${en} `);
   t = t.replace(RE_ESCALA, ' ');

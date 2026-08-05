@@ -113,7 +113,17 @@ export function candidatoServe(nossa: IdentidadeKPV, candidato: IdentidadeKPV): 
   }
 
   // 5) Modelo. "Kaido House DGK Trueno" casou com "Honda NSX Kaido Works".
-  const sim = semelhancaModelo(nossa.modelo, candidato.modelo);
+  //
+  //    Quando o vendedor jogou o carro no campo "linha" ("McLaren MP4/6 Senna")
+  //    e deixou o modelo quase vazio ("Mexico 1991"), a comparação só do modelo
+  //    não bate. Então consideramos também modelo+linha, e ficamos com o melhor.
+  //    É seguro contra regressão: semelhancaModelo divide pelo MENOR conjunto e
+  //    aqui pegamos o max, então um par que já passava nunca passa a reprovar.
+  const modeloMaisLinha = nossa.linha ? `${nossa.modelo} ${nossa.linha}` : nossa.modelo;
+  const sim = Math.max(
+    semelhancaModelo(nossa.modelo, candidato.modelo),
+    semelhancaModelo(modeloMaisLinha, candidato.modelo),
+  );
   if (sim < 0.5) {
     return { serve: false, motivo: `modelo pouco parecido (${(sim * 100).toFixed(0)}% de sobreposição)` };
   }
@@ -122,7 +132,10 @@ export function candidatoServe(nossa: IdentidadeKPV, candidato: IdentidadeKPV): 
   //    casou com "McLaren Solus" porque a palavra "mclaren" sozinha já dava
   //    50% num nome de duas palavras. Nome curto precisa de duas palavras em
   //    comum para ser a mesma peça; com uma só, é a montadora batendo.
-  const comuns = palavrasComuns(nossa.modelo, candidato.modelo);
+  const comuns = Math.max(
+    palavrasComuns(nossa.modelo, candidato.modelo),
+    palavrasComuns(modeloMaisLinha, candidato.modelo),
+  );
   if (comuns < 2 && contarPalavras(nossa.modelo) >= 2 && contarPalavras(candidato.modelo) >= 2) {
     return { serve: false, motivo: `só ${comuns} palavra em comum no modelo` };
   }
