@@ -176,6 +176,32 @@ for (const item of alvo) {
   coletas.push({ chave: item.chave, fonte: 'mercado-livre', casadoCom: escolhido.name, amostras });
 }
 
+// ── Conferência do lote ──
+// Trabalhar por lote só funciona se der para OLHAR o que casou. Sem isto, o
+// erro só aparece no fim de uma rodada inteira, que foi como se descobriu que
+// 231 de 349 peças tinham recebido o produto de outra.
+const novas = coletas.filter((c) => alvo.some((a) => a.chave === c.chave) && c.casadoCom);
+console.log(`\n${'─'.repeat(72)}\nCONFIRA OS CASAMENTOS DESTE LOTE (${novas.length})\n`);
+for (const c of novas) {
+  const item = fila.find((f) => f.chave === c.chave)!;
+  const marca = item.identidade.marca;
+  console.log(`  nosso: ${String(item.anuncios[0].title).slice(0, 62)}`);
+  console.log(`  achou: ${String(c.casadoCom).slice(0, 62)}`);
+  console.log(`         ${c.amostras.length} preços · ${item.ean ? 'via EAN' : 'via nome'} · ${marca}\n`);
+}
+
+// Assinatura de contaminação: peças diferentes apontando para o mesmo produto.
+const uso = new Map<string, number>();
+for (const c of coletas) if (c.casadoCom) uso.set(c.casadoCom, (uso.get(c.casadoCom) ?? 0) + 1);
+const suspeitos = [...uso.entries()].filter(([, n]) => n > 1);
+if (suspeitos.length) {
+  console.log(`ALERTA: ${suspeitos.length} produto(s) usados por mais de uma peça nossa:`);
+  for (const [prod, n] of suspeitos.slice(0, 5)) console.log(`  ${n}x  ${prod.slice(0, 58)}`);
+  console.log('  Isso quase sempre é casamento errado. Verifique antes de publicar.\n');
+} else {
+  console.log('Nenhum produto compartilhado entre peças: sem sinal de contaminação.\n');
+}
+
 const comAmostra = coletas.filter((c) => c.amostras.length > 0);
 console.log(`\nconsultadas nesta rodada: ${feitas}`);
 console.log(`total acumulado: ${coletas.length}`);
