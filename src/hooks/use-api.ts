@@ -1429,6 +1429,44 @@ export function useColocarEmLeilao() {
   });
 }
 
+/**
+ * Preenche campos vazios de vários anúncios de uma vez.
+ *
+ * O aviso conta o que MUDOU, não o que foi mandado: anúncio que já tinha o
+ * campo preenchido não é tocado, e dizer "50 atualizados" quando só 12 mudaram
+ * faria o vendedor achar que apagou o que estava certo.
+ */
+export function useCompletarEmLote() {
+  const { getToken } = useAuth();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (v: {
+      ids: string[];
+      valores: Record<string, string>;
+      sobrescrever?: boolean;
+    }) => {
+      const token = await getToken();
+      return api.listings.completarEmLote(token || '', v);
+    },
+    onSuccess: (r) => {
+      queryClient.invalidateQueries({ queryKey: ['my-listings'] });
+      queryClient.invalidateQueries({ queryKey: ['listings'] });
+      toast({
+        title: r.alterados > 0 ? `${r.alterados} anúncio(s) preenchido(s)` : 'Nada a preencher',
+        description:
+          r.alterados < r.encontrados
+            ? `${r.encontrados - r.alterados} já tinham esses campos e ficaram como estavam.`
+            : undefined,
+      });
+    },
+    onError: (err: Error) => {
+      toast({ title: 'Não foi possível preencher', description: err.message, variant: 'destructive' });
+    },
+  });
+}
+
 // ── Moderação da comunidade (admin) ────────────────────────────────────────
 // A coluna `status` existia em posts E comentários desde sempre, mas só post
 // tinha endpoint. Descoberto com spam de concorrente em 3 dos 9 comentários.
@@ -1750,6 +1788,31 @@ export function useAdminFinancial() {
     staleTime: 15_000,
     refetchInterval: 30_000,
     refetchOnWindowFocus: true,
+  });
+}
+
+export function useAdminOrders(status?: string, limit = 50, offset = 0) {
+  const { getToken } = useAuth();
+  return useQuery({
+    queryKey: ['admin', 'orders', status ?? 'all', limit, offset],
+    queryFn: async () => {
+      const token = await getToken();
+      return api.admin.getOrders(token || '', { status, limit, offset });
+    },
+    staleTime: 15_000,
+    refetchInterval: 30_000,
+  });
+}
+
+export function useAdminOrder(id: string | undefined) {
+  const { getToken } = useAuth();
+  return useQuery({
+    queryKey: ['admin', 'order', id],
+    queryFn: async () => {
+      const token = await getToken();
+      return api.admin.getOrder(token || '', id as string);
+    },
+    enabled: !!id,
   });
 }
 

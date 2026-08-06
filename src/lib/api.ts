@@ -211,6 +211,25 @@ export const api = {
         method: 'POST', body: JSON.stringify(body), token,
       }).then(r => r.data),
 
+    /**
+     * Preenche campos vazios de vários anúncios de uma vez.
+     *
+     * Nasceu da importação do Bling: o ERP entrega o suficiente para publicar,
+     * mas linha, ano e edição ficam vazios, e são eles que alimentam a busca e
+     * os filtros da vitrine.
+     *
+     * Valor vazio significa "não mexe", nunca "apaga".
+     */
+    completarEmLote: (
+      token: string,
+      body: { ids: string[]; valores: Record<string, string>; sobrescrever?: boolean },
+    ) =>
+      request<{ data: ResultadoCompletar }>('/api/listings/completar', {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+        token,
+      }).then(r => r.data),
+
     togglePause: (token: string, id: string) =>
       request<{ data: Listing }>(`/api/listings/${id}/toggle-pause`, {
         method: 'PATCH',
@@ -430,6 +449,19 @@ export const api = {
 
     getFinancial: (token: string) =>
       request<{ data: AdminFinancial }>('/api/admin/financial', { token }).then(r => r.data),
+
+    getOrders: (token: string, params: { status?: string; limit?: number; offset?: number } = {}) => {
+      const q = new URLSearchParams();
+      if (params.status) q.set('status', params.status);
+      if (params.limit != null) q.set('limit', String(params.limit));
+      if (params.offset != null) q.set('offset', String(params.offset));
+      return request<{ data: AdminOrderListItem[]; total: number; limit: number; offset: number }>(
+        `/api/admin/orders?${q.toString()}`, { token },
+      );
+    },
+
+    getOrder: (token: string, id: string) =>
+      request<{ data: AdminOrderDetail }>(`/api/admin/orders/${id}`, { token }).then(r => r.data),
 
     getAuctionsMonitor: (token: string) =>
       request<{ data: AdminAuctionItem[] }>('/api/admin/auctions', { token }).then(r => r.data),
@@ -1100,6 +1132,15 @@ export interface ItemComunidade {
   /** Só em comentário: o post onde ele está. */
   postId: string | null;
   createdAt: string | number | null;
+}
+
+export interface ResultadoCompletar {
+  /** Quantos ids foram mandados. */
+  pedidos: number;
+  /** Quantos eram mesmo do vendedor. Menor que `pedidos` = id de outra pessoa. */
+  encontrados: number;
+  /** Quantos mudaram de fato. Anúncio já completo não conta. */
+  alterados: number;
 }
 
 export interface ColocarEmLeilaoBody {
@@ -1965,6 +2006,50 @@ export interface AdminSellerDetailed {
   recipientStatus: string | null;
   createdAt: string;
   previousOrders: number;
+}
+
+export interface AdminOrderListItem {
+  id: string;
+  orderId: string;
+  date: string;
+  buyer: string;
+  seller: string;
+  product: string | null;
+  listingId: string | null;
+  gross: number;
+  commission: number;
+  net: number | null;
+  status: string;
+  paymentInstrument: string | null;
+  trackingCode: string | null;
+  shippingLabelStatus: string | null;
+  isSale: boolean;
+}
+
+/** Detalhe do pedido para o admin. Espelha `orders` + partes resolvidas. */
+export interface AdminOrderDetail {
+  id: string;
+  status: string;
+  totalInCents: number;
+  shippingInCents: number | null;
+  platformFeeInCents: number | null;
+  sellerNetInCents: number | null;
+  commissionInCents: number;
+  freteInCents: number;
+  paymentInstrument: string | null;
+  installments: number | null;
+  trackingCode: string | null;
+  shippingLabelStatus: string | null;
+  shippingLabelUrl: string | null;
+  shippingServiceName: string | null;
+  createdAt: string;
+  buyer: { id: string; name: string | null; email: string | null } | null;
+  seller: { id: string; name: string | null; email: string | null } | null;
+  listing: { id: string; title: string; image: string | null; type: string } | null;
+  address: {
+    recipientName: string; street: string; number: string; complement: string | null;
+    neighborhood: string | null; city: string; state: string; zip: string;
+  } | null;
 }
 
 export interface AdminUser {

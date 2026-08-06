@@ -61,6 +61,7 @@ import SellerMediaPage from "./pages/seller/Media";
 import BulkImportPage from "./pages/seller/BulkImport";
 import IntegrationsPage from "./pages/seller/Integrations";
 import BlingImportPage from "./pages/seller/BlingImport";
+import CompletarAnunciosPage from "./pages/seller/CompletarAnuncios";
 import AdminOverview from "./pages/admin/Overview";
 import AdminListings from "./pages/admin/Listings";
 import AdminCommunity from "./pages/admin/Community";
@@ -76,6 +77,8 @@ import AdminFinancial from "./pages/admin/Financial";
 import AdminCommissionsAndFees from "./pages/admin/CommissionsAndFees";
 import AdminSettings from "./pages/admin/Settings";
 import AdminMedia from "./pages/admin/Media";
+import AdminOrders from "./pages/admin/Orders";
+import AdminOrderDetail from "./pages/admin/OrderDetail";
 import CartPage from "./pages/Cart";
 import CheckoutPage from "./pages/Checkout";
 import OrderConfirmationPage from "./pages/OrderConfirmation";
@@ -181,6 +184,7 @@ const App = () => (
             <Route path="/painel/modo-lance" element={<ProtectedRoute><AuctionManagerPage /></ProtectedRoute>} />
             <Route path="/painel/integracoes" element={<ProtectedRoute><IntegrationsPage /></ProtectedRoute>} />
             <Route path="/painel/anuncios/importar-bling" element={<ProtectedRoute><BlingImportPage /></ProtectedRoute>} />
+            <Route path="/painel/anuncios/completar" element={<ProtectedRoute><CompletarAnunciosPage /></ProtectedRoute>} />
             <Route path="/painel/financeiro" element={<ProtectedRoute><SellerFinancialPage /></ProtectedRoute>} />
             {/* Stripe Connect aposentado (migração p/ Pagar.me): redireciona ao recebedor. */}
             <Route path="/painel/stripe-onboarding" element={<Navigate to="/painel/recebedor" replace />} />
@@ -202,6 +206,8 @@ const App = () => (
             <Route path="/admin/disputas" element={<ProtectedRoute role="admin"><AdminDisputes /></ProtectedRoute>} />
             <Route path="/admin/comissoes-e-taxas" element={<ProtectedRoute role="admin"><AdminCommissionsAndFees /></ProtectedRoute>} />
             <Route path="/admin/financeiro" element={<ProtectedRoute role="admin"><AdminFinancial /></ProtectedRoute>} />
+            <Route path="/admin/pedidos" element={<ProtectedRoute role="admin"><AdminOrders /></ProtectedRoute>} />
+            <Route path="/admin/pedidos/:id" element={<ProtectedRoute role="admin"><AdminOrderDetail /></ProtectedRoute>} />
             <Route path="/admin/midia" element={<ProtectedRoute role="admin"><AdminMedia /></ProtectedRoute>} />
             <Route path="/admin/analytics" element={<ProtectedRoute role="admin"><AdminAnalytics /></ProtectedRoute>} />
             <Route path="/admin/relatorios" element={<ProtectedRoute role="admin"><AdminReports /></ProtectedRoute>} />
