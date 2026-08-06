@@ -1143,6 +1143,14 @@ export interface BlingImportBody {
   /** Slug da categoria Kolecta. O Bling não tem esse conceito. */
   categoria: string;
   condicao: string;
+  /**
+   * Campos que a categoria exige e o ERP não guarda, valendo para o lote.
+   *
+   * Escala é o caso que travava tudo: sem ela, nenhum produto de miniaturas
+   * passava na conferência. Preenche o que falta, não sobrescreve o que veio do
+   * produto.
+   */
+  atributos?: Record<string, string>;
 }
 
 export interface BlingItemConferido {

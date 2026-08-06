@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -43,6 +44,11 @@ export default function BlingImportPage() {
   const [marcados, setMarcados] = useState<number[]>([]);
   const [categoria, setCategoria] = useState('');
   const [condicao, setCondicao] = useState('');
+  // Campos obrigatórios da categoria que o Bling não guarda (escala, jogo,
+  // personagem). O lojista preenche uma vez e vale para o lote.
+  const [atributos, setAtributos] = useState<Record<string, string>>({});
+
+  const camposDoLote = (CATEGORY_FIELDS[categoria] ?? []).filter((f) => f.required);
 
   const conferir = useBlingConferir();
   const importar = useBlingImportar();
@@ -53,8 +59,13 @@ export default function BlingImportPage() {
   // A conferência vale só para o lote que foi conferido. Mudou a seleção ou as
   // escolhas, o resultado velho engana: some com ele.
   const chaveAtual = useMemo(
-    () => [...marcados].sort((a, b) => a - b).join(',') + '|' + categoria + '|' + condicao,
-    [marcados, categoria, condicao],
+    () =>
+      [...marcados].sort((a, b) => a - b).join(',') +
+      '|' + categoria + '|' + condicao +
+      // Os atributos entram na chave: mudar a escala muda o resultado da
+      // conferência, e mostrar o resultado antigo enganaria.
+      '|' + JSON.stringify(atributos),
+    [marcados, categoria, condicao, atributos],
   );
   const [chaveConferida, setChaveConferida] = useState('');
   const conferencia = chaveConferida === chaveAtual ? conferir.data : undefined;
@@ -65,7 +76,12 @@ export default function BlingImportPage() {
     );
 
   const executar = (acao: 'conferir' | 'importar') => {
-    const body = { ids: marcados, categoria, condicao };
+    // Só manda o que foi preenchido: chave com string vazia sobrescreveria
+    // nada, mas polui e confunde na leitura do log.
+    const preenchidos = Object.fromEntries(
+      Object.entries(atributos).filter(([, v]) => String(v).trim()),
+    );
+    const body = { ids: marcados, categoria, condicao, atributos: preenchidos };
     if (acao === 'conferir') {
       conferir.mutate(body, { onSuccess: () => setChaveConferida(chaveAtual) });
     } else {
@@ -156,6 +172,50 @@ export default function BlingImportPage() {
                 </Select>
               </div>
             </div>
+
+            {/* Campos que a categoria exige e o ERP não guarda. Escala é o caso
+                que travava tudo: sem ela, NENHUM produto de miniaturas passava
+                (medido nas duas primeiras lojas conectadas, 10 de 10 recusados).
+                Vale como preenchimento: o que o produto já traz do Bling, como
+                a marca, continua ganhando. */}
+            {camposDoLote.length > 0 && (
+              <div className="space-y-3 border-t border-border pt-4">
+                <p className="text-xs text-muted-foreground">
+                  O Bling não tem estes campos e a categoria exige. Preenchem o
+                  que faltar; o que já veio do produto continua valendo.
+                </p>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {camposDoLote.map((campo) => (
+                    <div key={campo.key} className="space-y-1.5">
+                      <Label>{campo.label}</Label>
+                      {campo.options?.length ? (
+                        <Select
+                          value={atributos[campo.key] ?? ''}
+                          onValueChange={(v) =>
+                            setAtributos((a) => ({ ...a, [campo.key]: v }))
+                          }
+                        >
+                          <SelectTrigger><SelectValue placeholder="Escolha" /></SelectTrigger>
+                          <SelectContent>
+                            {campo.options.map((o) => (
+                              <SelectItem key={o} value={o}>{o}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Input
+                          value={atributos[campo.key] ?? ''}
+                          onChange={(e) =>
+                            setAtributos((a) => ({ ...a, [campo.key]: e.target.value }))
+                          }
+                          placeholder="opcional"
+                        />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
