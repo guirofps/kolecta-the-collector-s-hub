@@ -60,9 +60,15 @@ const transferStatusConfig: Record<Transfer['status'], { label: string; cls: str
 
 /** Deriva a linha de repasse a partir de um pedido de venda. */
 function orderToTransfer(o: Order): Transfer {
-  const gross = o.totalInCents / 100;
+  // "Venda" para o vendedor é o preço do ITEM: o frete o comprador paga à parte,
+  // e o platform_fee carrega esse frete junto (a Kolecta emite a etiqueta). Sem
+  // separar, a comissão aparecia inflada (14-17% onde ele paga 9%). Mesma regra
+  // da aba Comissões e do backend (common/comissao.ts).
+  const frete = (o.shippingInCents ?? 0) / 100;
+  const gross = Math.max(0, o.totalInCents / 100 - frete);
   const hasFee = o.platformFeeInCents != null && o.sellerNetInCents != null;
-  const commission = hasFee ? o.platformFeeInCents! / 100 : null;
+  const platformFee = (o.platformFeeInCents ?? 0) / 100;
+  const commission = hasFee ? (platformFee > frete ? platformFee - frete : platformFee) : null;
   const net = hasFee ? o.sellerNetInCents! / 100 : null;
   // "Liberado" = release EFETIVO (pedido vira 'completed' quando o cron move o
   // saldo de retido → disponível). A confirmação do comprador NÃO libera na hora:
@@ -137,14 +143,21 @@ export default function SellerFinancialPage() {
       saleOrders
         .filter((o) => o.platformFeeInCents != null)
         .map((o) => {
-          const saleValue = o.totalInCents / 100;
-          const charged = o.platformFeeInCents! / 100;
+          // O `platform_fee` carrega o FRETE junto (a Kolecta emite a etiqueta e
+          // cobra de volta), então mostrá-lo cru inflava o percentual: o vendedor
+          // via 14-17% onde paga 9%. A comissão de verdade é o que sobra quando o
+          // frete sai, e ela incide sobre o ITEM, não sobre o total com frete.
+          // Mesma regra do backend (common/comissao.ts).
+          const frete = (o.shippingInCents ?? 0) / 100;
+          const itemValue = Math.max(0, o.totalInCents / 100 - frete);
+          const platformFee = o.platformFeeInCents! / 100;
+          const charged = platformFee > frete ? platformFee - frete : platformFee;
           return {
             id: o.id,
             date: o.createdAt,
             order: `#${o.id.slice(0, 8)}`,
-            saleValue,
-            percent: saleValue > 0 ? Math.round((charged / saleValue) * 100) : 0,
+            saleValue: itemValue,
+            percent: itemValue > 0 ? Math.round((charged / itemValue) * 100) : 0,
             charged,
           };
         }),
