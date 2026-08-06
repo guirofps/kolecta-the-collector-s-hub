@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Reorder } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
-import { PlusCircle, Search, MoreHorizontal, Eye, Pencil, Pause, Play, Trash2, Loader2, Sparkles, Rocket, Copy, Package, SearchX, Upload, Gavel, GripVertical, Check, ArrowUpDown } from 'lucide-react';
+import { PlusCircle, Search, MoreHorizontal, Eye, Pencil, Pause, Play, Trash2, Loader2, Sparkles, Rocket, Copy, Package, SearchX, Upload, Gavel, GripVertical, Check, ArrowUpDown, ListChecks } from 'lucide-react';
 import SellerLayout from '@/components/layout/SellerLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -168,6 +168,12 @@ export default function SellerListings() {
                 Organizar vitrine
               </Button>
             )}
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/painel/anuncios/completar">
+                <ListChecks className="h-4 w-4" />
+                Completar em massa
+              </Link>
+            </Button>
             <Button variant="outline" size="sm" asChild>
               <Link to="/painel/importar">
                 <Upload className="h-4 w-4" />

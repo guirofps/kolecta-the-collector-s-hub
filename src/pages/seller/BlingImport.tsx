@@ -11,7 +11,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  ArrowLeft, CheckCircle2, AlertTriangle, Loader2, PackageSearch, Plug,
+  ArrowLeft, CheckCircle2, AlertTriangle, Loader2, PackageSearch, Plug, ListChecks,
 } from 'lucide-react';
 import SellerLayout from '@/components/layout/SellerLayout';
 import { Button } from '@/components/ui/button';
@@ -414,6 +414,18 @@ function Resultado({ r }: { r: { criados: Array<{ titulo: string; aviso?: string
             </Button>
           </div>
         )}
+        {/* O ERP não guarda linha, ano nem edição, e são eles que fazem o
+            anúncio aparecer na busca e nos filtros. Quem acabou de importar é
+            exatamente quem precisa preencher, então o caminho fica aqui. */}
+        {r.criados.length > 0 && (
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/painel/anuncios/completar">
+              <ListChecks className="h-4 w-4" />
+              Completar linha, ano e edição em massa
+            </Link>
+          </Button>
+        )}
+
         {r.recusados.map((x, i) => (
           <p key={i} className="flex items-start gap-2 text-muted-foreground text-xs">
             <AlertTriangle className="h-3.5 w-3.5 text-destructive shrink-0 mt-0.5" />
