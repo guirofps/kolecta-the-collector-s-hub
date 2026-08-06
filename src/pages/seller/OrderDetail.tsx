@@ -519,9 +519,9 @@ export default function SellerOrderDetailPage() {
 
 function ShippingLabelPanel({ order }: { order: Order }) {
   const retry = useRetryLabel(order.id);
-  // Etiqueta e declaração de conteúdo na mesma folha, que é o que o vendedor
-  // precisa levar ao balcão. Os avulsos ficam abaixo para quem imprime a
-  // etiqueta em impressora térmica e a declaração em A4.
+  // Etiqueta e declaração de conteúdo no mesmo PDF, uma página cada — é o que o
+  // vendedor precisa levar ao balcão. Os avulsos ficam abaixo para quem imprime
+  // a etiqueta em impressora térmica e a declaração em A4.
   const download = useDownloadLabel(order.id, 'completo');
   const baixarEtiqueta = useDownloadLabel(order.id, 'etiqueta');
   const baixarDeclaracao = useDownloadLabel(order.id, 'declaracao');
@@ -559,8 +559,8 @@ function ShippingLabelPanel({ order }: { order: Order }) {
             sempre veio pronta do Melhor Envio; o painel é que entregava só a
             etiqueta, e o vendedor descobria a falta no balcão. */}
         <p className="text-[11px] leading-snug text-muted-foreground">
-          Uma folha só, com a etiqueta e a declaração de conteúdo. Os Correios
-          pedem a declaração na postagem porque a venda não tem nota fiscal.
+          Duas páginas: a etiqueta e a declaração de conteúdo. Os Correios pedem
+          a declaração na postagem porque a venda não tem nota fiscal.
         </p>
         <div className="flex gap-2">
           <Button

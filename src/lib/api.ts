@@ -971,9 +971,9 @@ export const api = {
     // Melhor Envio: aquilo é página de painel e cai no login de uma conta que
     // não é do vendedor.
     //
-    // `completo` (padrão) traz etiqueta e declaração de conteúdo na mesma folha.
-    // A declaração é obrigatória para postar sem nota fiscal, que é o caso de
-    // todo envio daqui, e o vendedor não tem por que saber disso.
+    // `completo` (padrão) traz etiqueta e declaração de conteúdo, uma página
+    // cada. A declaração é obrigatória para postar sem nota fiscal, que é o caso
+    // de todo envio daqui, e o vendedor não tem por que saber disso.
     //
     // O backend responde `X-Kolecta-Conteudo` com o que veio de verdade: a
     // declaração é emitida de forma assíncrona pelo Melhor Envio e pode não
@@ -1419,6 +1419,14 @@ export interface Order {
   // Financeiro (preenchido em GET /api/orders/:id)
   sellerNetInCents?: number | null;
   platformFeeInCents?: number | null;
+  /**
+   * MDR da Pagar.me descontado do vendedor (`charge_processing_fee` no split).
+   * Vale 0 em pedido anterior à conta nova, quando as taxas ainda não estavam
+   * configuradas — nesses casos é "não registrado", não "não houve".
+   */
+  gatewayFeeInCents?: number | null;
+  /** 'pix' | 'credit_card'; null quando o pedido não passou pelo gateway. */
+  paymentInstrument?: string | null;
   deliveredAt?: string | null;
   buyerConfirmedAt?: string | null;
   listing?: {

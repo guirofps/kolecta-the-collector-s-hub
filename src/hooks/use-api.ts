@@ -1521,9 +1521,9 @@ export function useModerarComunidade() {
 // O arquivo vem do nosso backend, que busca no Melhor Envio na hora. O vendedor
 // não precisa de conta lá — e nem saberia que ela existe.
 //
-// O padrão é `completo`: etiqueta e declaração de conteúdo na mesma folha. A
-// declaração é exigida pelos Correios em envio sem nota fiscal, que é o caso de
-// todo envio daqui, e antes ela simplesmente não era entregue.
+// O padrão é `completo`: um PDF de duas páginas, etiqueta e declaração de
+// conteúdo. A declaração é exigida pelos Correios em envio sem nota fiscal, que
+// é o caso de todo envio daqui, e antes ela simplesmente não era entregue.
 
 const NOME_DO_ARQUIVO: Record<LabelFileKind, string> = {
   completo: 'etiqueta-e-declaracao',
