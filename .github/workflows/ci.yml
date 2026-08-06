@@ -1,0 +1,63 @@
+# CI + CD do frontend.
+#
+# Espelha o workflow do backend. O gate e `build` + `test`; `build` ja roda
+# `tsc --noEmit` antes do vite (script `typecheck`), entao erro de tipo derruba
+# a rodada em vez de virar tela branca em producao.
+#
+# Lint FICA DE FORA de proposito: sao 118 problemas acumulados hoje. CI que vive
+# vermelho ensina todo mundo a ignorar o sinal. Quando a divida for paga, e so
+# acrescentar um passo `npm run lint`.
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: build + testes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      # `.env` e `.env.production` sao versionados aqui e so tem chave publica
+      # (prefixo VITE_, que vai para o bundle de qualquer jeito). Nada de
+      # segredo entra no runner.
+      - run: npm run build
+
+      - run: npm test
+
+  deploy:
+    name: deploy na Vercel
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispara o deploy
+        env:
+          HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$HOOK" ]; then
+            echo "::warning::VERCEL_DEPLOY_HOOK_URL nao configurado — deploy nao disparado."
+            echo "Passo a passo: .github/workflows/README.md"
+            exit 0
+          fi
+          codigo=$(curl -sS -X POST -o resposta.txt -w '%{http_code}' "$HOOK")
+          echo "Vercel respondeu HTTP $codigo"
+          cat resposta.txt
+          case "$codigo" in
+            2*) echo "Deploy disparado." ;;
+            *) echo "::error::Vercel recusou o disparo (HTTP $codigo)."; exit 1 ;;
+          esac
