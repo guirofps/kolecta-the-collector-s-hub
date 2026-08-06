@@ -31,8 +31,14 @@ import { CATEGORY_FIELDS } from '@/lib/category-fields';
 import { CONDITIONS } from '@/lib/conditions';
 import { formatBRL } from '@/lib/currency';
 
-/** Teto por lote, igual ao do backend: cada produto custa uma ida ao Bling. */
-const MAX_LOTE = 30;
+/**
+ * Teto por lote, igual ao do backend.
+ *
+ * Não é só a ida ao Bling: importar baixa cada foto da S3 deles e sobe para o
+ * nosso R2. Medido com produto real de 5 fotos, dá 3,2s por produto, então 15
+ * cabe numa requisição e 30 estouraria o tempo do Render.
+ */
+const MAX_LOTE = 15;
 
 export default function BlingImportPage() {
   const { data: status, isLoading: carregandoStatus } = useBlingStatus();
