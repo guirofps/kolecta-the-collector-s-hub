@@ -6,7 +6,7 @@ import ProductCard from '@/components/ProductCard';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useListings, useCategories } from '@/hooks/use-api';
-import { type ProductCondition, type ProductType } from '@/lib/mock-data';
+import { type ProductCondition, type ProductType, type Product } from '@/lib/mock-data';
 import { trackEvent } from '@/lib/analytics';
 import { onlyPublic } from '@/lib/listing-visibility';
 import { LIMITE_CATALOGO } from '@/lib/catalogo';
@@ -105,7 +105,7 @@ export default function SearchPage() {
       details: {},
       featured: false,
       tags: [],
-      status: l.status,
+      status: l.status as Product['status'],
       createdAt: l.createdAt,
       // Leilão: sem isto o card mostra "R$ 0,00" (ver Index.tsx).
       auctionId: l.auctionId ?? undefined,

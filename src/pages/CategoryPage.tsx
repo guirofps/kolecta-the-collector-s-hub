@@ -216,7 +216,7 @@ export default function CategoryPage() {
     details: {},
     featured: false,
     tags: [],
-    status: l.status,
+    status: l.status as Product['status'],
     createdAt: l.createdAt,
     // Leilão: sem isto o card mostra "R$ 0,00" (ver Index.tsx).
     auctionId: l.auctionId ?? undefined,

@@ -207,7 +207,9 @@ export default function CreateListing() {
   useEffect(() => {
     const hasContent = form.type !== null || form.title.trim() !== '' || form.photos.length > 0;
     if (!hasContent) return;
-    saveDraft({ form, step, origin: draft?.origin, sourceTitle: draft?.sourceTitle });
+    // FormData é uma interface, que não ganha index signature implícita; o cast
+    // satisfaz o Record<string, unknown> do rascunho (a forma já é compatível).
+    saveDraft({ form: form as unknown as Record<string, unknown>, step, origin: draft?.origin, sourceTitle: draft?.sourceTitle });
   }, [form, step, draft]);
 
   const discardDraft = () => {

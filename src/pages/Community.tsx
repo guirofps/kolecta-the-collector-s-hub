@@ -57,6 +57,7 @@ import {
 import type {
   CommunityPost,
   CommunityPostType,
+  CommunityComment,
   CreatePostPayload,
 } from '@/lib/api';
 

@@ -24,7 +24,7 @@ vi.mock('@/hooks/use-api', () => ({
     // O envio de varias fotos usa mutateAsync (promessa por arquivo), para que
     // a falha de uma nao seja engolida pelo observer compartilhado.
     mutateAsync: (f: File) =>
-      new Promise((res) => uploadMutate(f, { onSuccess: res })) ,
+      new Promise((res) => uploadMutate(f, { onSuccess: res, onSettled: () => {} })) ,
     isPending: false,
   }),
   useCategories: () => ({ data: CATEGORIAS }),

@@ -168,7 +168,9 @@ export default function FavoritesPage() {
               if (!listing) return null;
               const available = listing.status === 'aprovado';
               const isAuction = listing.type === 'auction';
-              const images = parseImages(listing.images);
+              // A API entrega images como JSON stringificado; o tipo diz string[].
+              // parseImages espera a string crua, então tratamos como tal.
+              const images = parseImages(listing.images as unknown as string);
 
               return (
                 <Card key={fav.id} className="relative overflow-hidden bg-gradient-card border-border group">

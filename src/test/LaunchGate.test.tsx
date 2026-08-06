@@ -6,7 +6,7 @@ import type { LaunchGateState } from "@/hooks/use-launch-gate";
 
 // ── Mock do hook para controlar o estado do gate por teste ──────────────────
 
-const mockState = vi.fn<[], LaunchGateState>();
+const mockState = vi.fn<() => LaunchGateState>();
 
 vi.mock("@/hooks/use-launch-gate", () => ({
   useLaunchGate: () => mockState(),

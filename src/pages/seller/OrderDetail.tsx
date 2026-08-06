@@ -61,10 +61,12 @@ const statusConfig: Record<LocalStatus, { label: string; cls: string }> = {
 // aparecia como pago e liberava etiqueta/envio (risco de despachar sem receber).
 const apiToLocalStatus: Record<ApiOrderStatus, LocalStatus> = {
   pending: 'aguardando_pagamento',
+  pending_payment: 'aguardando_pagamento',
   paid: 'pagamento_confirmado',
   processing: 'em_separacao',
   shipped: 'enviado',
   delivered: 'entregue',
+  completed: 'entregue',
   cancelled: 'cancelado',
   disputed: 'entregue',
 };

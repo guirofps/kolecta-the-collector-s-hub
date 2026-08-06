@@ -63,10 +63,12 @@ interface SellerOrder {
 // Mapeia o status do backend para o status de exibição do painel do vendedor.
 const statusMap: Record<OrderStatus, SellerOrderStatus> = {
   pending: 'aguardando_pagamento',
+  pending_payment: 'aguardando_pagamento',
   paid: 'pagamento_confirmado',
   processing: 'em_separacao',
   shipped: 'enviado',
   delivered: 'entregue',
+  completed: 'entregue',
   cancelled: 'cancelado',
   disputed: 'cancelado',
 };
