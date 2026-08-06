@@ -3,7 +3,7 @@ import AdminLayout from '@/components/layout/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatBRL } from '@/lib/currency';
-import { useAdminListings, useCategories } from '@/hooks/use-api';
+import { useAdminListings, useCategories, useAdminTraffic } from '@/hooks/use-api';
 import { Clock, TrendingUp, Package, Store, CheckCircle2, AlertTriangle } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -30,6 +30,14 @@ const tooltipStyle = {
     fontSize: 12,
   },
 };
+
+/** Segundos → "Xm Ys" ou "Ys". Tempo médio de sessão legível. */
+function fmtTempo(segundos: number): string {
+  if (!segundos || segundos < 1) return '0s';
+  const m = Math.floor(segundos / 60);
+  const s = Math.round(segundos % 60);
+  return m > 0 ? `${m}m ${s}s` : `${s}s`;
+}
 
 /**
  * Teto de uma consulta. O painel deriva tudo da listagem completa, então
@@ -94,6 +102,8 @@ export default function AdminAnalytics() {
   const { data, isLoading } = useAdminListings(undefined, LIMITE);
   const listings = useMemo(() => data ?? [], [data]);
   const { data: categorias } = useCategories();
+  // Funil de tráfego próprio (visitantes, carrinho, checkout, compra).
+  const { data: traffic } = useAdminTraffic(janela);
 
   const nomeCategoria = (id: string) =>
     categorias?.find((c) => c.id === id)?.name ?? id;
@@ -355,41 +365,99 @@ export default function AdminAnalytics() {
           </Card>
         </div>
 
-        {/* ─── O que ainda não é coletado ─────────────────── */}
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          <Card className="bg-card border-border">
-            <CardHeader className="pb-2">
-              <CardTitle className="font-heading text-sm font-semibold uppercase tracking-wider">
-                Visitantes
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <AguardandoEventos label="A coleta de tráfego já está ligada e o número aparece no painel da Vercel. Trazer para cá precisa de registro de eventos próprio." />
-            </CardContent>
-          </Card>
-
-          <Card className="bg-card border-border">
-            <CardHeader className="pb-2">
-              <CardTitle className="font-heading text-sm font-semibold uppercase tracking-wider">
-                Funil de compra
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <AguardandoEventos label="Quem viu, quem colocou no carrinho e quem comprou. Precisa gravar cada evento no backend." />
-            </CardContent>
-          </Card>
-
-          <Card className="bg-card border-border">
-            <CardHeader className="pb-2">
-              <CardTitle className="font-heading text-sm font-semibold uppercase tracking-wider">
-                Agora na plataforma
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <AguardandoEventos label="Quantas pessoas estão navegando neste momento. É o item mais caro: exige sinal periódico de cada visitante." />
-            </CardContent>
-          </Card>
+        {/* ─── Tráfego e conversão (funil próprio) ─────────── */}
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="font-heading text-sm font-bold uppercase tracking-wider text-muted-foreground">
+            Tráfego e conversão · últimos {janela} dias
+          </h2>
+          {traffic && !traffic.coletando && (
+            <span className="text-xs text-muted-foreground">
+              <span className="mr-1.5 inline-block h-2 w-2 rounded-full bg-green-400 align-middle" />
+              {traffic.onlineAgora} online agora
+            </span>
+          )}
         </div>
+
+        {traffic?.coletando ? (
+          <Card className="bg-card border-border">
+            <CardContent className="py-10">
+              <AguardandoEventos label="Coleta ligada agora. Os números do funil aparecem conforme as pessoas navegam — volte em alguns minutos." />
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+            {/* Visitantes */}
+            <Card className="bg-card border-border">
+              <CardHeader className="pb-2">
+                <CardTitle className="font-heading text-sm font-semibold uppercase tracking-wider">Visitantes</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="font-heading text-3xl font-extrabold">{traffic?.visitantes ?? '—'}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {traffic?.pageViews ?? 0} páginas vistas · {traffic ? fmtTempo(traffic.tempoMedioSegundos) : '—'} por sessão
+                </p>
+                <div className="mt-3 h-24">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={traffic?.dau ?? []}>
+                      <XAxis dataKey="label" hide />
+                      <Tooltip {...tooltipStyle} />
+                      <Area type="monotone" dataKey="sessoes" name="visitantes" stroke="hsl(45, 90%, 55%)" fill="hsl(45, 90%, 55%)" fillOpacity={0.15} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Funil de compra */}
+            <Card className="bg-card border-border">
+              <CardHeader className="pb-2">
+                <CardTitle className="font-heading text-sm font-semibold uppercase tracking-wider">Funil de compra</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2.5">
+                {(traffic?.funil ?? []).map((f, i) => (
+                  <div key={f.etapa}>
+                    <div className="mb-1 flex items-baseline justify-between text-xs">
+                      <span className="text-muted-foreground">{f.etapa}</span>
+                      <span className="font-medium">
+                        {f.sessoes}
+                        {i > 0 && <span className="ml-1 text-muted-foreground">({f.daAnterior}%)</span>}
+                      </span>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded bg-secondary">
+                      <div className="h-full bg-primary" style={{ width: `${Math.max(2, f.doTopo)}%` }} />
+                    </div>
+                  </div>
+                ))}
+                <p className="pt-1 text-xs text-muted-foreground">
+                  Abandono de carrinho: <span className="font-medium text-accent">{traffic?.taxaAbandonoCarrinho ?? 0}%</span>
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Agora e engajamento */}
+            <Card className="bg-card border-border">
+              <CardHeader className="pb-2">
+                <CardTitle className="font-heading text-sm font-semibold uppercase tracking-wider">Agora e engajamento</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div>
+                  <p className="font-heading text-3xl font-extrabold text-green-400">{traffic?.onlineAgora ?? 0}</p>
+                  <p className="text-xs text-muted-foreground">navegando agora (últimos 5 min)</p>
+                </div>
+                <div className="grid grid-cols-2 gap-3 pt-1">
+                  <div>
+                    <p className="font-heading text-lg font-bold">{traffic ? fmtTempo(traffic.tempoMedioSegundos) : '—'}</p>
+                    <p className="text-[11px] text-muted-foreground">tempo médio na sessão</p>
+                  </div>
+                  <div>
+                    <p className="font-heading text-lg font-bold">{traffic?.taxaRejeicao ?? 0}%</p>
+                    <p className="text-[11px] text-muted-foreground">taxa de rejeição</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         {m.saturado && (
           <p className="mt-6 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-xs text-muted-foreground">

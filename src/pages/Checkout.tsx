@@ -3,6 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { Shield, MapPin, Truck, CreditCard, QrCode, ChevronRight, Loader2, AlertTriangle, Copy } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
 import { useCart, CartItem } from '@/contexts/CartContext';
+import { trackEvent } from '@/lib/analytics';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -132,6 +133,14 @@ interface CheckoutSession {
 export default function CheckoutPage() {
   const { items, totalPrice } = useCart();
   const groups = groupBySeller(items);
+
+  // Funil de tráfego: etapa "iniciou checkout" (só uma vez, ao abrir a tela com
+  // itens). Ver lib/analytics.
+  useEffect(() => {
+    if (items.length > 0) trackEvent('checkout_start', { itens: items.length, total: totalPrice });
+    // Uma vez por montagem: itens no carrinho não mudam o "iniciou".
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const createCheckout = useCreateCheckout();
   const { query: addressQuery } = useAddresses();
   const savedAddresses = addressQuery.data ?? [];

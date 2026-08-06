@@ -8,6 +8,7 @@ import { MemoryRouter } from 'react-router-dom';
 vi.mock('@/hooks/use-api', () => ({
   useAdminListings: vi.fn(),
   useCategories: vi.fn(),
+  useAdminTraffic: vi.fn(),
 }));
 
 vi.mock('@/components/layout/AdminLayout', () => ({
@@ -27,8 +28,22 @@ vi.mock('recharts', () => {
   };
 });
 
-import { useAdminListings, useCategories } from '@/hooks/use-api';
+import { useAdminListings, useCategories, useAdminTraffic } from '@/hooks/use-api';
 import AdminAnalytics from '@/pages/admin/Analytics';
+
+const TRAFEGO = {
+  periodoDias: 30, visitantes: 40, pageViews: 120, onlineAgora: 3,
+  tempoMedioSegundos: 95, taxaRejeicao: 42, taxaAbandonoCarrinho: 60, abandonaramCarrinho: 6,
+  funil: [
+    { etapa: 'Visitantes', sessoes: 40, doTopo: 100, daAnterior: 100 },
+    { etapa: 'Viram um produto', sessoes: 25, doTopo: 62.5, daAnterior: 62.5 },
+    { etapa: 'Adicionaram ao carrinho', sessoes: 10, doTopo: 25, daAnterior: 40 },
+    { etapa: 'Iniciaram checkout', sessoes: 6, doTopo: 15, daAnterior: 60 },
+    { etapa: 'Compraram', sessoes: 4, doTopo: 10, daAnterior: 66.7 },
+  ],
+  dau: [{ dia: '2026-08-05', label: '5/Ago', sessoes: 40 }],
+  coletando: false,
+};
 
 let seq = 0;
 const item = (over: Record<string, unknown> = {}) => ({
@@ -53,6 +68,7 @@ const CATEGORIAS = [
 function renderPainel(listings: unknown[], isLoading = false) {
   (useAdminListings as ReturnType<typeof vi.fn>).mockReturnValue({ data: listings, isLoading });
   (useCategories as ReturnType<typeof vi.fn>).mockReturnValue({ data: CATEGORIAS });
+  (useAdminTraffic as ReturnType<typeof vi.fn>).mockReturnValue({ data: TRAFEGO });
   return render(
     React.createElement(MemoryRouter, null, React.createElement(AdminAnalytics)),
   );
@@ -113,11 +129,15 @@ describe('AdminAnalytics', () => {
     expect(screen.getByText('7 dias')).toBeInTheDocument();
   });
 
-  it('deixa visível o que ainda não é coletado, em vez de fingir', () => {
+  it('mostra o funil de tráfego com as etapas e o abandono', () => {
     renderPainel([item()]);
-    expect(screen.getByText('Visitantes')).toBeInTheDocument();
+    // "Visitantes" aparece no título do card E como primeira etapa do funil.
+    expect(screen.getAllByText('Visitantes').length).toBeGreaterThan(0);
     expect(screen.getByText('Funil de compra')).toBeInTheDocument();
-    expect(screen.getByText('Agora na plataforma')).toBeInTheDocument();
+    expect(screen.getByText('Agora e engajamento')).toBeInTheDocument();
+    // As etapas do funil e o abandono de carrinho aparecem de verdade.
+    expect(screen.getByText('Adicionaram ao carrinho')).toBeInTheDocument();
+    expect(screen.getByText(/Abandono de carrinho:/)).toBeInTheDocument();
   });
 
   it('avisa quando a consulta bate o teto e os números viram um piso', () => {

@@ -2,7 +2,7 @@ import AdminLayout from '@/components/layout/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatBRL } from '@/lib/currency';
-import { useAdminReports } from '@/hooks/use-api';
+import { useAdminReports, useAdminTraffic } from '@/hooks/use-api';
 import { Clock } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -24,6 +24,7 @@ function ComingSoon({ label }: { label: string }) {
 
 export default function AdminReports() {
   const { data, isLoading } = useAdminReports();
+  const { data: traffic } = useAdminTraffic(30);
   const gmvByMonth = data?.gmvByMonth ?? [];
   const auctionMetrics = data?.auctionMetrics ?? [];
   const topCategories = data?.topCategories ?? [];
@@ -84,10 +85,24 @@ export default function AdminReports() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           <Card className="bg-card border-border">
             <CardHeader className="pb-2">
-              <CardTitle className="font-heading text-sm font-semibold uppercase tracking-wider">Usuários Ativos Diários (DAU)</CardTitle>
+              <CardTitle className="font-heading text-sm font-semibold uppercase tracking-wider">Visitantes por dia (sessões)</CardTitle>
             </CardHeader>
             <CardContent>
-              <ComingSoon label="Em breve — requer analytics de sessão (rastreamento de acessos), que ainda não é coletado." />
+              {!traffic || traffic.coletando ? (
+                <ComingSoon label="Coleta de tráfego ligada agora. As sessões por dia aparecem conforme as pessoas navegam." />
+              ) : (
+                <div className="h-[220px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={traffic.dau}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(225, 12%, 18%)" vertical={false} />
+                      <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'hsl(220, 9%, 60%)' }} />
+                      <YAxis tick={{ fontSize: 11, fill: 'hsl(220, 9%, 60%)' }} allowDecimals={false} />
+                      <Tooltip contentStyle={{ background: 'hsl(225, 18%, 12%)', border: '1px solid hsl(225, 12%, 18%)', borderRadius: 8, fontSize: 12 }} />
+                      <Bar dataKey="sessoes" name="sessões" fill="hsl(45, 90%, 55%)" radius={[3, 3, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
             </CardContent>
           </Card>
 

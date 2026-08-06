@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { Product } from '@/lib/mock-data';
+import { trackEvent } from '@/lib/analytics';
 
 // F19: o carrinho vivia só em memória e esvaziava a cada refresh. Persistimos
 // em localStorage para o carrinho sobreviver ao recarregar a página.
@@ -59,6 +60,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const MAX_QTY = 1;
 
   const addItem = useCallback((product: Product, quantity = 1) => {
+    // Funil de tráfego: a etapa "adicionou ao carrinho" (ver lib/analytics).
+    trackEvent('add_to_cart', { id: product.id, price: product.price });
     setItems(prev => {
       const existing = prev.find(i => i.product.id === product.id);
       if (existing) {

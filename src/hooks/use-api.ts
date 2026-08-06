@@ -1816,6 +1816,20 @@ export function useAdminOrder(id: string | undefined) {
   });
 }
 
+export function useAdminTraffic(days = 7) {
+  const { getToken } = useAuth();
+  return useQuery({
+    queryKey: ['admin', 'traffic', days],
+    queryFn: async () => {
+      const token = await getToken();
+      return api.admin.getTraffic(token || '', days);
+    },
+    staleTime: 30_000,
+    // "Online agora" precisa respirar: atualiza sozinho de tempos em tempos.
+    refetchInterval: 60_000,
+  });
+}
+
 export function useAdminAuctionsMonitor() {
   const { getToken } = useAuth();
   return useQuery({
@@ -2049,6 +2063,53 @@ export function useBlingImportar() {
     },
     onError: (err: Error) => {
       toast({ title: 'Falha ao importar', description: err.message, variant: 'destructive' });
+    },
+  });
+}
+
+/**
+ * Puxa o saldo do Bling agora.
+ *
+ * O toast conta o que MUDOU, não quantos foram olhados: "42 anúncios
+ * conferidos" não diz nada ao lojista, e "2 saíram do ar por falta de estoque"
+ * diz exatamente o que ele precisa saber.
+ */
+export function useBlingSincronizarEstoque() {
+  const { getToken } = useAuth();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async () => {
+      const token = await getToken();
+      return api.bling.sincronizarEstoque(token || '');
+    },
+    onSuccess: (r) => {
+      queryClient.invalidateQueries({ queryKey: ['my-listings'] });
+      queryClient.invalidateQueries({ queryKey: ['listings'] });
+      queryClient.invalidateQueries({ queryKey: ['bling'] });
+
+      const partes = [
+        r.pausados > 0 ? `${r.pausados} saiu(saíram) do ar sem estoque` : null,
+        r.reativados > 0 ? `${r.reativados} voltou(voltaram) ao ar` : null,
+      ].filter(Boolean);
+
+      toast({
+        title:
+          r.atualizados > 0
+            ? `${r.atualizados} anúncio(s) atualizado(s)`
+            : 'Estoque já estava em dia',
+        description: partes.length
+          ? partes.join('. ') + '.'
+          : `${r.anuncios} anúncio(s) conferido(s) com o seu Bling.`,
+      });
+    },
+    onError: (err: Error) => {
+      toast({
+        title: 'Não foi possível sincronizar o estoque',
+        description: err.message,
+        variant: 'destructive',
+      });
     },
   });
 }

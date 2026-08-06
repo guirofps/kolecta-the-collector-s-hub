@@ -463,6 +463,9 @@ export const api = {
     getOrder: (token: string, id: string) =>
       request<{ data: AdminOrderDetail }>(`/api/admin/orders/${id}`, { token }).then(r => r.data),
 
+    getTraffic: (token: string, days = 7) =>
+      request<{ data: AdminTraffic }>(`/api/admin/analytics/traffic?days=${days}`, { token }).then(r => r.data),
+
     getAuctionsMonitor: (token: string) =>
       request<{ data: AdminAuctionItem[] }>('/api/admin/auctions', { token }).then(r => r.data),
 
@@ -843,6 +846,16 @@ export const api = {
       request<{ data: BlingResultadoImport }>('/api/bling/importar', {
         method: 'POST', body: JSON.stringify(body), token,
       }).then(r => r.data),
+
+    /**
+     * Puxa o saldo do ERP agora, sem esperar a rodada automática de 30 em 30
+     * minutos. É o que o lojista clica depois de mexer no estoque e querer ver
+     * a vitrine acertada na hora.
+     */
+    sincronizarEstoque: (token: string) =>
+      request<{ data: BlingResultadoEstoque }>('/api/bling/estoque/sincronizar', {
+        method: 'POST', token,
+      }).then(r => r.data),
   },
 
   // ── Seller (self, autenticado) ───────────────────────────────────────────────
@@ -1212,6 +1225,24 @@ export interface BlingResultadoImport {
   /** `aviso` vem preenchido quando o anúncio entrou com uma foto só. */
   criados: Array<{ blingProductId: number; titulo: string; aviso?: string }>;
   recusados: Array<{ blingProductId: number; titulo: string; motivos: string[] }>;
+}
+
+/** Resultado de uma sincronização de estoque com o Bling. */
+export interface BlingResultadoEstoque {
+  /** Anúncios ligados a um produto do Bling. */
+  anuncios: number;
+  /** Quantos desses o Bling devolveu saldo. */
+  consultados: number;
+  atualizados: number;
+  /** Zeraram no ERP e saíram do ar. */
+  pausados: number;
+  /** Voltaram a ter peça e subiram de novo. */
+  reativados: number;
+  mudancas: Array<{
+    titulo: string;
+    estoque: number;
+    motivo: 'saldo' | 'zerou' | 'voltou';
+  }>;
 }
 
 /** Arquivo do envio que o vendedor pode baixar. */
@@ -2052,6 +2083,20 @@ export interface AdminOrderDetail {
   } | null;
 }
 
+export interface AdminTraffic {
+  periodoDias: number;
+  visitantes: number;
+  pageViews: number;
+  onlineAgora: number;
+  tempoMedioSegundos: number;
+  taxaRejeicao: number;
+  taxaAbandonoCarrinho: number;
+  abandonaramCarrinho: number;
+  funil: { etapa: string; sessoes: number; doTopo: number; daAnterior: number }[];
+  dau: { dia: string; label: string; sessoes: number }[];
+  coletando: boolean;
+}
+
 export interface AdminUser {
   id: string;
   email: string;
@@ -2077,6 +2122,14 @@ export interface AdminSellerProfile {
 export interface BlingStatus {
   connected: boolean;
   expired?: boolean;
+  /**
+   * Quantos anúncios seguem o estoque deste Bling.
+   *
+   * Responde a pergunta que o lojista faz olhando a tela: "conectado, tá, mas
+   * está fazendo alguma coisa?". Zero conectado é "ainda não importei nada",
+   * bem diferente de integração quebrada.
+   */
+  anunciosVinculados?: number;
 }
 
 // ── Disputes (comprador) ──────────────────────────────────────────────────────
