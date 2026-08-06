@@ -27,6 +27,8 @@ import {
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { formatBRL } from '@/lib/currency';
+import { montarExtrato } from '@/lib/order-breakdown';
+import { commissionLabel } from '@/lib/fees';
 import { useWallet, useWithdrawals, useWalletDeposit, useSellerOrders, useRecipient } from '@/hooks/use-api';
 import { isValidCpf } from '@/lib/cpf';
 import type { Order } from '@/lib/api';
@@ -35,11 +37,22 @@ import type { Order } from '@/lib/api';
 
 interface Transfer {
   id: string; date: string; order: string; gross: number; commission: number | null; net: number | null;
+  /** MDR da Pagar.me. `null` quando o pedido não tem a taxa registrada. */
+  gatewayFee: number | null;
   status: 'transferido' | 'em_liberacao' | 'em_processamento' | 'aguardando_entrega';
 }
 
 interface Commission {
-  id: string; date: string; order: string; saleValue: number; percent: number; charged: number;
+  id: string; date: string; order: string;
+  /** Valor do item, sem frete — a base sobre a qual a comissão incide. */
+  itemValue: number;
+  /**
+   * Comissão, taxa sobre o item e frete repassado. `null` nos três quando a
+   * conta não fecha com nenhuma taxa praticada: aí só o `charged` é afirmável.
+   */
+  commission: number | null; percent: number | null; shipping: number | null;
+  /** Tudo que foi debitado do vendedor (comissão + frete). */
+  charged: number;
 }
 
 // Status de pedido que representam uma venda efetiva (excluem pending/cancelled).
@@ -58,18 +71,24 @@ const transferStatusConfig: Record<Transfer['status'], { label: string; cls: str
   aguardando_entrega: { label: 'Aguardando confirmação', cls: 'bg-muted text-muted-foreground border-border' },
 };
 
-/** Deriva a linha de repasse a partir de um pedido de venda. */
-function orderToTransfer(o: Order): Transfer {
-  // "Venda" para o vendedor é o preço do ITEM: o frete o comprador paga à parte,
-  // e o platform_fee carrega esse frete junto (a Kolecta emite a etiqueta). Sem
-  // separar, a comissão aparecia inflada (14-17% onde ele paga 9%). Mesma regra
-  // da aba Comissões e do backend (common/comissao.ts).
-  const frete = (o.shippingInCents ?? 0) / 100;
-  const gross = Math.max(0, o.totalInCents / 100 - frete);
+/**
+ * Deriva a linha de repasse a partir de um pedido de venda.
+ *
+ * As três parcelas fecham a conta: `bruto − (comissão + frete) − taxa Pagar.me =
+ * líquido`, porque é assim que o backend calcula `seller_net_in_cents`. Sem a
+ * coluna do gateway a linha não fechava e a diferença ficava sem dono.
+ *
+ * Taxa zerada vira `null` de propósito: os pedidos anteriores à conta nova foram
+ * gravados antes de as taxas do contrato existirem no ambiente, então zero ali
+ * quer dizer "não registrado". Mostrar "R$ 0,00" afirmaria que a Pagar.me não
+ * cobrou nada — e ela cobra, via `charge_processing_fee` no split.
+ */
+export function orderToTransfer(o: Order): Transfer {
+  const gross = o.totalInCents / 100;
   const hasFee = o.platformFeeInCents != null && o.sellerNetInCents != null;
-  const platformFee = (o.platformFeeInCents ?? 0) / 100;
-  const commission = hasFee ? (platformFee > frete ? platformFee - frete : platformFee) : null;
+  const commission = hasFee ? o.platformFeeInCents! / 100 : null;
   const net = hasFee ? o.sellerNetInCents! / 100 : null;
+  const gatewayFee = o.gatewayFeeInCents ? o.gatewayFeeInCents / 100 : null;
   // "Liberado" = release EFETIVO (pedido vira 'completed' quando o cron move o
   // saldo de retido → disponível). A confirmação do comprador NÃO libera na hora:
   // abre a janela de 48h (proteção contra disputa), então mostra "Em liberação".
@@ -81,7 +100,34 @@ function orderToTransfer(o: Order): Transfer {
         : o.status === 'delivered'
           ? 'aguardando_entrega'
           : 'em_processamento';
-  return { id: o.id, date: o.createdAt, order: `#${o.id.slice(0, 8)}`, gross, commission, net, status };
+  return { id: o.id, date: o.createdAt, order: `#${o.id.slice(0, 8)}`, gross, commission, net, gatewayFee, status };
+}
+
+/**
+ * Deriva a linha de comissão a partir de um pedido de venda.
+ *
+ * `platform_fee_in_cents` NÃO é comissão: desde `3ba9a4e` ele guarda comissão +
+ * frete inteiro, porque a Kolecta compra a etiqueta e cobra o custo de volta.
+ * Mostrar o campo cru como "comissão" inflava a taxa e a fazia oscilar sem
+ * motivo — no extrato do fundador, 9% viravam 14%, 15% e 17% conforme o peso do
+ * frete no pedido, porque a divisão era `(comissão + frete) / (item + frete)`.
+ *
+ * A separação sai de `montarExtrato`, que reconhece a conta em vez de assumir
+ * uma taxa; quando nada fecha, devolve `detalhe: null` e aqui as três colunas
+ * viram `null`. Rotular errado é pior do que mostrar "—".
+ */
+export function orderToCommission(o: Order): Commission {
+  const extrato = montarExtrato(o);
+  return {
+    id: o.id,
+    date: o.createdAt,
+    order: `#${o.id.slice(0, 8)}`,
+    itemValue: extrato.itemInCents / 100,
+    commission: extrato.detalhe ? extrato.detalhe.comissaoInCents / 100 : null,
+    percent: extrato.detalhe ? extrato.detalhe.taxaSobreItem : null,
+    shipping: extrato.detalhe ? extrato.detalhe.etiquetaInCents / 100 : null,
+    charged: extrato.descontosInCents / 100,
+  };
 }
 
 const MONTH_LABELS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
@@ -139,28 +185,7 @@ export default function SellerFinancialPage() {
 
   // Comissões: só pedidos com taxa já calculada (definida na confirmação).
   const commissions: Commission[] = useMemo(
-    () =>
-      saleOrders
-        .filter((o) => o.platformFeeInCents != null)
-        .map((o) => {
-          // O `platform_fee` carrega o FRETE junto (a Kolecta emite a etiqueta e
-          // cobra de volta), então mostrá-lo cru inflava o percentual: o vendedor
-          // via 14-17% onde paga 9%. A comissão de verdade é o que sobra quando o
-          // frete sai, e ela incide sobre o ITEM, não sobre o total com frete.
-          // Mesma regra do backend (common/comissao.ts).
-          const frete = (o.shippingInCents ?? 0) / 100;
-          const itemValue = Math.max(0, o.totalInCents / 100 - frete);
-          const platformFee = o.platformFeeInCents! / 100;
-          const charged = platformFee > frete ? platformFee - frete : platformFee;
-          return {
-            id: o.id,
-            date: o.createdAt,
-            order: `#${o.id.slice(0, 8)}`,
-            saleValue: itemValue,
-            percent: itemValue > 0 ? Math.round((charged / itemValue) * 100) : 0,
-            charged,
-          };
-        }),
+    () => saleOrders.filter((o) => o.platformFeeInCents != null).map(orderToCommission),
     [saleOrders],
   );
 
@@ -475,7 +500,9 @@ export default function SellerFinancialPage() {
                         <TableHead>Data</TableHead>
                         <TableHead>Pedido</TableHead>
                         <TableHead className="text-right">Valor bruto</TableHead>
-                        <TableHead className="text-right">Comissão</TableHead>
+                        {/* Comissão + frete juntos; o detalhe está no tab Comissões. */}
+                        <TableHead className="text-right">Comissão + frete</TableHead>
+                        <TableHead className="text-right">Taxa Pagar.me</TableHead>
                         <TableHead className="text-right">Valor líquido</TableHead>
                         <TableHead>Status</TableHead>
                       </TableRow>
@@ -490,6 +517,9 @@ export default function SellerFinancialPage() {
                             <TableCell className="text-right text-sm">{formatBRL(t.gross)}</TableCell>
                             <TableCell className="text-right text-sm text-kolecta-red">
                               {t.commission != null ? `-${formatBRL(t.commission)}` : '—'}
+                            </TableCell>
+                            <TableCell className="text-right text-sm text-kolecta-red">
+                              {t.gatewayFee != null ? `-${formatBRL(t.gatewayFee)}` : '—'}
                             </TableCell>
                             <TableCell className="text-right font-heading font-bold text-kolecta-gold">
                               {t.net != null ? formatBRL(t.net) : '—'}
@@ -508,6 +538,9 @@ export default function SellerFinancialPage() {
                         <TableCell className="text-right font-heading font-bold text-kolecta-red">
                           -{formatBRL(transfers.reduce((s, t) => s + (t.commission ?? 0), 0))}
                         </TableCell>
+                        <TableCell className="text-right font-heading font-bold text-kolecta-red">
+                          -{formatBRL(transfers.reduce((s, t) => s + (t.gatewayFee ?? 0), 0))}
+                        </TableCell>
                         <TableCell className="text-right font-heading font-bold text-kolecta-gold">
                           {formatBRL(transfers.reduce((s, t) => s + (t.net ?? 0), 0))}
                         </TableCell>
@@ -515,6 +548,16 @@ export default function SellerFinancialPage() {
                       </TableRow>
                     </TableFooter>
                   </Table>
+                  )}
+                  {transfers.length > 0 && (
+                    <p className="border-t border-border px-6 py-4 text-xs text-muted-foreground">
+                      A taxa Pagar.me é o custo do meio de pagamento, descontado direto do
+                      repasse pela adquirente — 1,09% no PIX e 3,89% no crédito à vista, 4,79%
+                      no parcelado. Não é receita da Kolecta. Os custos fixos por transação
+                      (R$ 0,55 de gateway e R$ 0,44 de antifraude) ainda não entram nesta
+                      coluna. Em vendas anteriores a 31/07/2026 a taxa não foi registrada e
+                      aparece como "—".
+                    </p>
                   )}
                 </CardContent>
               </Card>
@@ -534,9 +577,11 @@ export default function SellerFinancialPage() {
                       <TableRow>
                         <TableHead>Data</TableHead>
                         <TableHead>Pedido</TableHead>
-                        <TableHead className="text-right">Valor da venda</TableHead>
+                        <TableHead className="text-right">Valor do item</TableHead>
                         <TableHead className="text-right">Percentual</TableHead>
-                        <TableHead className="text-right">Valor cobrado</TableHead>
+                        <TableHead className="text-right">Comissão</TableHead>
+                        <TableHead className="text-right">Frete repassado</TableHead>
+                        <TableHead className="text-right">Total debitado</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -544,21 +589,42 @@ export default function SellerFinancialPage() {
                         <TableRow key={c.id}>
                           <TableCell className="text-sm">{fmtDate(c.date)}</TableCell>
                           <TableCell className="font-heading font-semibold">{c.order}</TableCell>
-                          <TableCell className="text-right text-sm">{formatBRL(c.saleValue)}</TableCell>
-                          <TableCell className="text-right text-sm">{c.percent}%</TableCell>
+                          <TableCell className="text-right text-sm">{formatBRL(c.itemValue)}</TableCell>
+                          <TableCell className="text-right text-sm">
+                            {c.percent != null ? commissionLabel(c.percent) : '—'}
+                          </TableCell>
+                          <TableCell className="text-right text-sm text-kolecta-red">
+                            {c.commission != null ? formatBRL(c.commission) : '—'}
+                          </TableCell>
+                          <TableCell className="text-right text-sm text-muted-foreground">
+                            {c.shipping != null ? formatBRL(c.shipping) : '—'}
+                          </TableCell>
                           <TableCell className="text-right font-heading font-bold text-kolecta-red">{formatBRL(c.charged)}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
                     <TableFooter>
                       <TableRow>
-                        <TableCell colSpan={4} className="font-heading font-bold">Total de comissões</TableCell>
+                        <TableCell colSpan={4} className="font-heading font-bold">Totais</TableCell>
+                        <TableCell className="text-right font-heading font-bold text-kolecta-red">
+                          {formatBRL(commissions.reduce((s, c) => s + (c.commission ?? 0), 0))}
+                        </TableCell>
+                        <TableCell className="text-right font-heading font-bold text-muted-foreground">
+                          {formatBRL(commissions.reduce((s, c) => s + (c.shipping ?? 0), 0))}
+                        </TableCell>
                         <TableCell className="text-right font-heading font-bold text-kolecta-red">
                           {formatBRL(commissions.reduce((s, c) => s + c.charged, 0))}
                         </TableCell>
                       </TableRow>
                     </TableFooter>
                   </Table>
+                  )}
+                  {commissions.length > 0 && (
+                    <p className="border-t border-border px-6 py-4 text-xs text-muted-foreground">
+                      A comissão incide só sobre o valor do item. O frete aparece ao lado
+                      porque é debitado no mesmo lançamento: a Kolecta emite a etiqueta e
+                      cobra o custo de volta — ele entra e sai, não é receita da plataforma.
+                    </p>
                   )}
                 </CardContent>
               </Card>
