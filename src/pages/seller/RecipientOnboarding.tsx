@@ -21,6 +21,12 @@ import type {
 
 // Só dígitos — para documentos/telefone/CEP/valores.
 const digits = (v: string) => v.replace(/\D/g, '');
+
+// Dígito de agência/conta aceita LETRA: o Banco do Brasil usa "X". Uma limpeza
+// só de números apagaria o dígito desses vendedores sem eles perceberem, e a
+// conta de repasse ficaria errada. Confirmado contra a API da Pagar.me, que
+// aceita "X" e cria o recebedor normalmente.
+const alfanumerico = (v: string) => v.replace(/[^0-9A-Za-z]/g, '').toUpperCase();
 // CEP na tela com o traço; no payload vão só os 8 dígitos.
 const formatCep = (v: string) => (v.length > 5 ? `${v.slice(0, 5)}-${v.slice(5)}` : v);
 const cepValido = (v: string) => digits(v).length === 8;
@@ -483,26 +489,40 @@ export default function RecipientOnboardingPage() {
                     <Input id="b-bank" required inputMode="numeric" maxLength={3} placeholder="341"
                       value={bank.bank} onChange={(e) => setBank((b) => ({ ...b, bank: digits(e.target.value) }))} />
                   </div>
+                  {/* Os limites vêm da Pagar.me e foram medidos campo a campo:
+                      agência até 4, dígito da agência 1, conta até 13, dígito
+                      da conta até 2. Cortar aqui é o que evita o vendedor levar
+                      um erro em inglês citando `branch_check_digit`, campo que
+                      não existe nesta tela — foi o que aconteceu em 06/08. */}
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <Label htmlFor="b-branch">Agência</Label>
-                      <Input id="b-branch" required value={bank.branchNumber} onChange={(e) => setBank((b) => ({ ...b, branchNumber: e.target.value }))} />
+                      <Input id="b-branch" required inputMode="numeric" maxLength={4} placeholder="1234"
+                        value={bank.branchNumber} onChange={(e) => setBank((b) => ({ ...b, branchNumber: digits(e.target.value).slice(0, 4) }))} />
                     </div>
                     <div>
                       <Label htmlFor="b-branch-dv">Dígito</Label>
-                      <Input id="b-branch-dv" value={bank.branchCheckDigit} onChange={(e) => setBank((b) => ({ ...b, branchCheckDigit: e.target.value }))} />
+                      <Input id="b-branch-dv" maxLength={1} placeholder="opcional"
+                        value={bank.branchCheckDigit} onChange={(e) => setBank((b) => ({ ...b, branchCheckDigit: alfanumerico(e.target.value).slice(0, 1) }))} />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <Label htmlFor="b-acc">Conta</Label>
-                      <Input id="b-acc" required value={bank.accountNumber} onChange={(e) => setBank((b) => ({ ...b, accountNumber: e.target.value }))} />
+                      <Input id="b-acc" required inputMode="numeric" maxLength={13} placeholder="12345"
+                        value={bank.accountNumber} onChange={(e) => setBank((b) => ({ ...b, accountNumber: digits(e.target.value).slice(0, 13) }))} />
                     </div>
                     <div>
                       <Label htmlFor="b-acc-dv">Dígito</Label>
-                      <Input id="b-acc-dv" required value={bank.accountCheckDigit} onChange={(e) => setBank((b) => ({ ...b, accountCheckDigit: e.target.value }))} />
+                      <Input id="b-acc-dv" required maxLength={2} placeholder="6"
+                        value={bank.accountCheckDigit} onChange={(e) => setBank((b) => ({ ...b, accountCheckDigit: alfanumerico(e.target.value).slice(0, 2) }))} />
                     </div>
                   </div>
+                  <p className="col-span-2 text-[11px] leading-snug text-muted-foreground -mt-1">
+                    A agência vai sem o dígito, no campo ao lado. Se a sua agência
+                    não tem dígito, deixe em branco. Alguns bancos usam a letra X
+                    como dígito — pode digitar.
+                  </p>
                   <div>
                     <Label>Tipo de conta</Label>
                     <RadioGroup value={bank.accountType} onValueChange={(v) => setBank((b) => ({ ...b, accountType: v as any }))} className="flex gap-4 mt-2">
