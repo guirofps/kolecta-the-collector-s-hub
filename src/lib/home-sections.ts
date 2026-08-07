@@ -103,20 +103,60 @@ export function intercalarPorVendedor(itens: Listing[]): Listing[] {
 }
 
 /**
- * Vitrine principal. Destaque pago vem primeiro (é o que o vendedor comprou);
- * o resto completa com os itens de maior valor, que é o que sustenta uma
- * primeira tela de marketplace. Sempre intercalado por loja.
+ * Embaralha de forma determinística por uma semente: a mesma semente dá sempre
+ * a mesma ordem (estável durante a visita), sementes diferentes dão ordens
+ * diferentes (varia entre visitas). Não muta a entrada.
  */
-export function destaques(ativos: Listing[], quantos = 10, excluir: Listing[] = []): Listing[] {
+export function embaralharComSemente<T>(itens: T[], semente: number): T[] {
+  // mulberry32: PRNG pequeno e suficiente para embaralhar uma vitrine.
+  let s = semente >>> 0;
+  const rand = () => {
+    s |= 0;
+    s = (s + 0x6d2b79f5) | 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  const arr = [...itens];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+/**
+ * Vitrine principal. Destaque PAGO vem primeiro (é o que o vendedor comprou) e
+ * não rotaciona. O resto completa a vitrine, mas com ROTAÇÃO: em vez de sempre
+ * os mesmos itens de maior valor, sorteia de um pool de qualidade (o topo do
+ * acervo por valor) usando `semente`, que muda por visita. Assim a home tem cara
+ * de marketplace vivo em vez de mostrar sempre os mesmos anúncios. Sempre
+ * intercalado por loja. Sem `semente`, mantém o comportamento antigo (estável).
+ */
+export function destaques(
+  ativos: Listing[],
+  quantos = 10,
+  excluir: Listing[] = [],
+  semente?: number,
+): Listing[] {
   const fora = new Set(excluir.map((l) => l.id));
   const candidatos = ativos.filter((l) => !fora.has(l.id));
 
   const pagos = candidatos.filter(isListingFeatured);
-  const resto = candidatos
-    .filter((l) => !isListingFeatured(l))
-    .sort((a, b) => preco(b) - preco(a));
+  const organicos = candidatos.filter((l) => !isListingFeatured(l));
 
-  return [...intercalarPorVendedor(pagos), ...intercalarPorVendedor(resto)].slice(0, quantos);
+  let resto: Listing[];
+  if (semente != null) {
+    // Pool de qualidade: o topo por valor (até 4x a vitrine, mínimo 40), para o
+    // sorteio não puxar uma peça de R$ 5 para a primeira tela, mas ainda variar.
+    const poolTam = Math.max(40, quantos * 4);
+    const pool = [...organicos].sort((a, b) => preco(b) - preco(a)).slice(0, poolTam);
+    resto = intercalarPorVendedor(embaralharComSemente(pool, semente));
+  } else {
+    resto = intercalarPorVendedor([...organicos].sort((a, b) => preco(b) - preco(a)));
+  }
+
+  return [...intercalarPorVendedor(pagos), ...resto].slice(0, quantos);
 }
 
 /** Recém-chegados, do mais novo para o mais antigo. */

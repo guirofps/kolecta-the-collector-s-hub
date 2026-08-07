@@ -94,12 +94,17 @@ function HomeContent() {
   const { data: feedComunidade } = useCommunityFeed({ sort: 'recent' });
   const postsDaComunidade = feedComunidade?.data ?? [];
 
+  // Semente por VISITA: muda a cada carregamento da home, mas fica estável
+  // durante a visita (não re-embaralha a cada render). É o que dá rotatividade
+  // à vitrine — o acervo é grande, mas a home mostrava sempre os mesmos.
+  const sementeVitrine = useMemo(() => Math.floor(Math.random() * 1e9), []);
+
   const secoes = useMemo(() => {
     // A ordem importa: cada seção tira do bolo o que a anterior já usou, senão
     // o mesmo leilão aparecia três vezes na mesma tela (era o item mais caro do
     // catálogo, então entrava em destaque, em Modo Lance e em novidades).
     const emLeilao = pegarLeiloes(ativos);
-    const emDestaque = pegarDestaques(ativos, 10, emLeilao);
+    const emDestaque = pegarDestaques(ativos, 10, emLeilao, sementeVitrine);
     return {
       destaque: emDestaque.map(toProduct),
       leiloes: emLeilao.map(toProduct),
@@ -110,7 +115,7 @@ function HomeContent() {
       // um piso. Por isso não há mais "mais de N": a contagem é exata.
       total: ativos.length,
     };
-  }, [ativos]);
+  }, [ativos, sementeVitrine]);
 
   return (
     <Layout>

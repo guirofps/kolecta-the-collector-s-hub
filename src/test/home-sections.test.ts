@@ -190,3 +190,35 @@ describe('parseImages', () => {
     expect(parseImages('https://x.com/a.jpg')).toEqual(['https://x.com/a.jpg']);
   });
 });
+
+describe('destaques: rotação por semente', () => {
+  it('mesma semente é estável; sementes diferentes variam a vitrine', () => {
+    const acervo = Array.from({ length: 30 }, (_, i) =>
+      item({ id: `r${i}`, sellerId: `v${i % 6}`, priceInCents: 5000 + i * 100 }));
+    const a = destaques(acervo, 10, [], 111).map((l) => l.id);
+    const a2 = destaques(acervo, 10, [], 111).map((l) => l.id);
+    const b = destaques(acervo, 10, [], 999).map((l) => l.id);
+    expect(a).toEqual(a2); // não re-embaralha na mesma visita
+    expect(a).not.toEqual(b); // muda entre visitas
+  });
+
+  it('o destaque PAGO vem sempre primeiro, mesmo com rotação', () => {
+    const futuro = new Date(Date.now() + 7 * 86400_000).toISOString();
+    const pago = item({ id: 'pago', featuredUntil: futuro, sellerId: 'vp' });
+    const acervo = [
+      pago,
+      ...Array.from({ length: 20 }, (_, i) => item({ id: `o${i}`, sellerId: `v${i % 5}` })),
+    ];
+    for (const semente of [1, 42, 777]) {
+      expect(destaques(acervo, 10, [], semente)[0].id).toBe('pago');
+    }
+  });
+
+  it('sem semente, mantém o comportamento antigo (mais caro primeiro)', () => {
+    const acervo = [
+      item({ id: 'barato', sellerId: 'v1', priceInCents: 1000 }),
+      item({ id: 'caro', sellerId: 'v2', priceInCents: 90000 }),
+    ];
+    expect(destaques(acervo, 10)[0].id).toBe('caro');
+  });
+});
