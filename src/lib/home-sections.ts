@@ -146,17 +146,23 @@ export function destaques(
   const organicos = candidatos.filter((l) => !isListingFeatured(l));
 
   let resto: Listing[];
+  let frente: Listing[];
   if (semente != null) {
     // Pool de qualidade: o topo por valor (até 4x a vitrine, mínimo 40), para o
     // sorteio não puxar uma peça de R$ 5 para a primeira tela, mas ainda variar.
     const poolTam = Math.max(40, quantos * 4);
     const pool = [...organicos].sort((a, b) => preco(b) - preco(a)).slice(0, poolTam);
     resto = intercalarPorVendedor(embaralharComSemente(pool, semente));
+    // Os pagos continuam garantidos no topo, mas a ORDEM entre eles gira por
+    // visita: com 2 destaques, o card do topo deixa de ser sempre o mesmo, sem
+    // tirar a prioridade que o vendedor comprou.
+    frente = intercalarPorVendedor(embaralharComSemente(pagos, semente));
   } else {
     resto = intercalarPorVendedor([...organicos].sort((a, b) => preco(b) - preco(a)));
+    frente = intercalarPorVendedor(pagos);
   }
 
-  return [...intercalarPorVendedor(pagos), ...resto].slice(0, quantos);
+  return [...frente, ...resto].slice(0, quantos);
 }
 
 /** Recém-chegados, do mais novo para o mais antigo. */
