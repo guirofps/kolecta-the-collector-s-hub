@@ -5,6 +5,7 @@ import {
   novidades,
   leiloes,
   lojas,
+  vitrinesPorCategoria,
   contagemPorCategoria,
   parseImages,
 } from '@/lib/home-sections';
@@ -220,5 +221,44 @@ describe('destaques: rotação por semente', () => {
       item({ id: 'caro', sellerId: 'v2', priceInCents: 90000 }),
     ];
     expect(destaques(acervo, 10)[0].id).toBe('caro');
+  });
+});
+
+describe('vitrinesPorCategoria', () => {
+  const CATS = [
+    { slug: 'cards-colecionaveis', nome: 'Cards' },
+    { slug: 'funko-pop', nome: 'Funko' },
+    { slug: 'mangas-hqs', nome: 'Mangás' },
+  ];
+
+  it('só cria prateleira de categoria com o mínimo de itens (nada de prateleira vazia)', () => {
+    const acervo = [
+      ...Array.from({ length: 15 }, (_, i) => item({ id: `c${i}`, categoryId: 'cards-colecionaveis', sellerId: `v${i % 4}` })),
+      ...Array.from({ length: 2 }, (_, i) => item({ id: `m${i}`, categoryId: 'mangas-hqs' })), // abaixo do mínimo
+    ];
+    const v = vitrinesPorCategoria(acervo, CATS, { minItens: 12, semente: 1 });
+    const slugs = v.map((x) => x.slug);
+    expect(slugs).toContain('cards-colecionaveis');
+    expect(slugs).not.toContain('mangas-hqs'); // 2 itens: escondida
+    expect(slugs).not.toContain('funko-pop'); // 0 itens
+  });
+
+  it('limita cada prateleira a porSecao e rotaciona por semente', () => {
+    const acervo = Array.from({ length: 30 }, (_, i) =>
+      item({ id: `c${i}`, categoryId: 'cards-colecionaveis', sellerId: `v${i % 5}` }));
+    const a = vitrinesPorCategoria(acervo, CATS, { minItens: 12, porSecao: 8, semente: 5 });
+    const b = vitrinesPorCategoria(acervo, CATS, { minItens: 12, porSecao: 8, semente: 999 });
+    expect(a[0].itens.length).toBe(8);
+    expect(a[0].itens.map((l) => l.id)).not.toEqual(b[0].itens.map((l) => l.id));
+  });
+
+  it('não repete o que já foi excluído (destaque/novidades)', () => {
+    const acervo = Array.from({ length: 14 }, (_, i) =>
+      item({ id: `c${i}`, categoryId: 'cards-colecionaveis', sellerId: `v${i % 3}` }));
+    const excluir = [acervo[0], acervo[1]];
+    const v = vitrinesPorCategoria(acervo, CATS, { minItens: 12, semente: 1, excluir });
+    const ids = v[0].itens.map((l) => l.id);
+    expect(ids).not.toContain('c0');
+    expect(ids).not.toContain('c1');
   });
 });

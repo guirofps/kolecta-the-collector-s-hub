@@ -168,6 +168,51 @@ export function novidades(ativos: Listing[], quantos = 20, excluir: Listing[] = 
     .slice(0, quantos);
 }
 
+export interface VitrineCategoria {
+  slug: string;
+  nome: string;
+  itens: Listing[];
+}
+
+/** Hash estável de um texto (djb2), para dar a cada categoria uma semente própria. */
+function hashTexto(s: string): number {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0;
+  return h >>> 0;
+}
+
+/**
+ * Prateleiras de descoberta por categoria. Surface a variedade que a home não
+ * mostrava: quem coleciona card, funko ou action figure via só um número na
+ * grade, enquanto miniatura dominava o Destaque.
+ *
+ * Regra de ouro: só entra categoria com um MÍNIMO de itens. Prateleira quase
+ * vazia deixa a home mais morta, não mais cheia (Mangás, com 1 item, não vira
+ * seção). Cada prateleira rotaciona por visita (semente própria) e intercala
+ * por loja, para não ficar estática nem virar a loja de um vendedor só.
+ */
+export function vitrinesPorCategoria(
+  ativos: Listing[],
+  categorias: { slug: string; nome: string }[],
+  opts: { minItens?: number; porSecao?: number; semente?: number; excluir?: Listing[] } = {},
+): VitrineCategoria[] {
+  const { minItens = 12, porSecao = 12, semente, excluir = [] } = opts;
+  const fora = new Set(excluir.map((l) => l.id));
+  const disp = ativos.filter((l) => !fora.has(l.id));
+
+  const out: VitrineCategoria[] = [];
+  for (const c of categorias) {
+    const daCat = disp.filter((l) => l.categoryId === c.slug);
+    if (daCat.length < minItens) continue; // sem prateleira vazia
+    const base =
+      semente != null
+        ? embaralharComSemente(daCat, (semente ^ hashTexto(c.slug)) >>> 0)
+        : [...daCat].sort((a, b) => quando(b) - quando(a));
+    out.push({ slug: c.slug, nome: c.nome, itens: intercalarPorVendedor(base).slice(0, porSecao) });
+  }
+  return out;
+}
+
 /**
  * Leilões realmente abertos, o que termina primeiro na frente.
  *

@@ -13,6 +13,7 @@ import {
   novidades as pegarNovidades,
   leiloes as pegarLeiloes,
   lojas as pegarLojas,
+  vitrinesPorCategoria as pegarVitrines,
   contagemPorCategoria,
 } from '@/lib/home-sections';
 import { useListings, useCommunityFeed } from '@/hooks/use-api';
@@ -105,10 +106,26 @@ function HomeContent() {
     // catálogo, então entrava em destaque, em Modo Lance e em novidades).
     const emLeilao = pegarLeiloes(ativos);
     const emDestaque = pegarDestaques(ativos, 10, emLeilao, sementeVitrine);
+    const novos = pegarNovidades(ativos, 20, [...emLeilao, ...emDestaque]);
+
+    // Prateleiras de descoberta por categoria. Miniaturas fica de fora: já domina
+    // o Destaque, e repeti-la aqui só alongaria a home. As categorias soterradas
+    // (cards, funko, action) é que ganham vitrine própria. O que já apareceu
+    // acima sai, para o mesmo item não repetir na tela; a regra do mínimo (em
+    // home-sections) esconde categoria fraca em vez de mostrar prateleira vazia.
+    const catsVitrine = CATEGORIES
+      .filter((c) => c.slug !== 'miniaturas-diecast')
+      .map((c) => ({ slug: c.slug, nome: c.name }));
+    const vitrines = pegarVitrines(ativos, catsVitrine, {
+      semente: sementeVitrine,
+      excluir: [...emLeilao, ...emDestaque, ...novos],
+    });
+
     return {
       destaque: emDestaque.map(toProduct),
       leiloes: emLeilao.map(toProduct),
-      novidades: pegarNovidades(ativos, 20, [...emLeilao, ...emDestaque]).map(toProduct),
+      novidades: novos.map(toProduct),
+      vitrines: vitrines.map((v) => ({ slug: v.slug, nome: v.nome, itens: v.itens.map(toProduct) })),
       lojas: pegarLojas(ativos, 8),
       porCategoria: contagemPorCategoria(ativos),
       // A busca agora traz TODAS as páginas, então `total` é o número real, não
@@ -417,6 +434,29 @@ function HomeContent() {
           </div>
         </section>
       )}
+
+      {/* ─── PRATELEIRAS POR CATEGORIA ────────────────── */}
+      {/* Descoberta: cards, funko e action figures ganham vitrine própria em vez
+          de sumir sob as miniaturas. Carrossel horizontal (swipe no celular);
+          só aparece a categoria com itens de sobra (ver vitrinesPorCategoria). */}
+      {secoes.vitrines.map((vitrine) => (
+        <section key={vitrine.slug} className="py-12 lg:py-14">
+          <div className="container mx-auto px-4">
+            <SectionHeader
+              title={vitrine.nome}
+              subtitle="De vários vendedores, novidades e clássicos"
+              action={{ label: 'Ver todos', href: `/categoria/${vitrine.slug}` }}
+            />
+            <div className="-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {vitrine.itens.map((product) => (
+                <div key={product.id} className="w-40 shrink-0 snap-start sm:w-48">
+                  <ProductCard product={product} />
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      ))}
 
       {/* ─── LOJAS ────────────────────────────────────── */}
       {/* Prova social que a home não tinha: quem está vendendo aqui e com
