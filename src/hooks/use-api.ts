@@ -718,6 +718,30 @@ export function useOrderById(id: string, opts?: { pollWhilePending?: boolean }) 
   });
 }
 
+// ── useRastreio (rastreio do envio de um pedido) ────────────────────────────
+
+/**
+ * Rastreio de um pedido. Cada acesso puxa do Melhor Envio no backend, então o
+ * `staleTime` é generoso (5 min): rastreio não muda de minuto em minuto e cada
+ * consulta gasta do limite da API. O botão "atualizar" força o refetch.
+ */
+export function useRastreio(orderId: string, enabled = true) {
+  const { getToken } = useAuth();
+
+  return useQuery({
+    queryKey: ['rastreio', orderId],
+    queryFn: async () => {
+      const token = await getToken();
+      return api.shipping.rastreio(token!, orderId);
+    },
+    enabled: enabled && Boolean(orderId),
+    staleTime: 5 * 60_000,
+    // Rastreio ausente (retirada, etiqueta não emitida) é resposta válida, não
+    // erro: não fica retentando.
+    retry: false,
+  });
+}
+
 // ── useSellerOrders (pedidos recebidos pelo vendedor) ────────────────────────
 
 export function useSellerOrders() {

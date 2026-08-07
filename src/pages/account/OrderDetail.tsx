@@ -3,12 +3,12 @@ import { Link, useParams } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
 import StatusTimeline, { type OrderStep } from '@/components/StatusTimeline';
 import DisputeModal from '@/components/DisputeModal';
+import RastreioCard from '@/components/RastreioCard';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import EmptyState from '@/components/EmptyState';
-import { ArrowLeft, Package, Truck, Copy, AlertTriangle, CheckCircle2 } from 'lucide-react';
-import { toast } from 'sonner';
+import { ArrowLeft, Package, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { useOrderById, useConfirmDelivery } from '@/hooks/use-api';
 import type { Order, OrderStatus } from '@/lib/api';
 import { formatBRL } from '@/lib/currency';
@@ -166,33 +166,9 @@ export default function OrderDetailPage() {
           </div>
         </div>
 
-        {/* Tracking */}
-        {order.trackingCode && (
-          <div className="p-4 rounded-lg border border-border bg-card mb-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Truck className="h-4 w-4 text-primary" />
-                <span className="text-xs font-heading uppercase tracking-widest text-muted-foreground">Rastreio</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <code className="text-sm text-foreground font-mono">{order.trackingCode}</code>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7"
-                  aria-label="Copiar código de rastreio"
-                  onClick={() => {
-                    navigator.clipboard?.writeText(order.trackingCode ?? '')
-                      .then(() => toast.success('Código de rastreio copiado'))
-                      .catch(() => toast.error('Não foi possível copiar'));
-                  }}
-                >
-                  <Copy className="h-3 w-3" />
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Rastreio: linha do tempo dos marcos do envio + código copiável.
+            Some sozinho quando não há envio (retirada em mãos). */}
+        <RastreioCard orderId={order.id} className="mb-6" />
 
         {/* Seller */}
         <div className="p-4 rounded-lg border border-border bg-card">

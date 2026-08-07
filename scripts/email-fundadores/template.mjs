@@ -90,19 +90,19 @@ export function montarEmail({ nome, anuncios, whatsapp, tipo, faltam = 0 }) {
   const n = esc(nome);
 
   const preheader = preSelecionado
-    ? `Você entrou na pré-seleção dos 100 Membros Fundadores. O resultado sai dia 25.`
+    ? `A Kolecta já está no ar e ainda há vagas de Membro Fundador. Fale com a gente.`
     : comecando
       ? `Faltam poucos anúncios para você concorrer a Membro Fundador da Kolecta.`
       : `Falta${faltam === 1 ? ' só 1 anúncio' : `m ${faltam} anúncios`} para você concorrer a Membro Fundador.`;
 
   const titulo = preSelecionado
-    ? `${n}, você está na pré-seleção`
+    ? `${n}, ainda dá tempo de ser Fundador`
     : comecando
       ? `${n}, falta pouco para você concorrer`
       : `${n}, falta pouco`;
 
   const abertura = preSelecionado
-    ? `Você publicou <strong style="color:${GOLD};">${anuncios} anúncio${anuncios > 1 ? 's' : ''}</strong> na Kolecta e com isso entrou na pré-seleção dos <strong>100 Membros Fundadores</strong> da plataforma.`
+    ? `A Kolecta <strong>já está no ar</strong>. Você publicou <strong style="color:${GOLD};">${anuncios} anúncio${anuncios > 1 ? 's' : ''}</strong> e está entre os candidatos aos <strong>100 Membros Fundadores</strong>. Já são mais de 20 selos concedidos, e ainda há vagas.`
     : comecando
       ? `Você criou sua conta na Kolecta e agora <strong>faltam poucos anúncios</strong> para entrar na
          pré-seleção dos <strong>100 Membros Fundadores</strong> da plataforma. São
@@ -110,15 +110,15 @@ export function montarEmail({ nome, anuncios, whatsapp, tipo, faltam = 0 }) {
       : `Você já publicou <strong style="color:${GOLD};">${anuncios} anúncio${anuncios > 1 ? 's' : ''}</strong> na Kolecta. Falta${faltam === 1 ? ' <strong style="color:' + GOLD + ';">apenas 1</strong>' : `m <strong style="color:${GOLD};">${faltam}</strong>`} para você entrar na pré-seleção dos 100 Membros Fundadores.`;
 
   const recado = preSelecionado
-    ? `Para ser transparente: a pré-seleção não é a vaga. São 100 lugares e a escolha final é feita
-       por nós, olhando caso a caso, com prioridade para quem vende de verdade. O resultado sai no
-       dia <strong style="color:${TEXTO};">25 de julho</strong>, junto com o lançamento.`
+    ? `São 100 lugares e a escolha é nossa, caso a caso, com prioridade para quem vende de verdade.
+       <strong style="color:${TEXTO};">Se você já recebeu seu selo de Fundador, pode desconsiderar este e-mail.</strong>
+       Se ainda não, fale com a gente pelo WhatsApp para garantir o seu antes das vagas acabarem.`
     : comecando
       ? `Se você é lojista ou vende colecionável com alguma frequência, essa é a hora: o Fundador
          paga menos comissão nos primeiros 6 meses, tem selo no perfil e destaque na vitrine. Não
          importa o que aconteceu com os anúncios que você já criou, o que conta é chegar aos cinco.`
-      : `Assim que o quinto anúncio entrar, você passa a concorrer automaticamente. O resultado da
-         seleção sai no dia <strong style="color:${TEXTO};">25 de julho</strong>, junto com o lançamento.`;
+      : `Assim que o quinto anúncio entrar, você entra na disputa pelo selo de Fundador. A Kolecta
+         <strong style="color:${TEXTO};">já está no ar</strong> e ainda há vagas.`;
 
   // Sem número configurado o botão sairia morto. Deixamos isso gritante no
   // preview em vez de gerar um e-mail que não leva a lugar nenhum.
@@ -128,7 +128,7 @@ export function montarEmail({ nome, anuncios, whatsapp, tipo, faltam = 0 }) {
     : botao(`${SITE}/painel/anuncios/novo`, comecando ? 'Publicar meu anúncio' : 'Publicar meu próximo anúncio');
 
   const legendaCta = preSelecionado
-    ? `Fale com a gente antes do dia 25. Quem conversa conosco sai na frente na escolha.`
+    ? `Fale com a gente pelo WhatsApp. Quem conversa sai na frente na escolha.`
     : `Leva menos de 3 minutos por anúncio.`;
 
   return `<!doctype html>
@@ -252,7 +252,7 @@ export function montarEmail({ nome, anuncios, whatsapp, tipo, faltam = 0 }) {
             <p style="margin:0 0 8px 0;font-family:Arial,Helvetica,sans-serif;font-size:13px;
                       line-height:20px;color:${TEXTO_FRACO};">
               Kolecta, o hub dos colecionadores.<br>
-              Lançamento em 25 de julho de 2026.
+              Já estamos no ar em kolecta.com.br.
             </p>
             <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:12px;
                       line-height:18px;color:#6A6E7C;">
@@ -275,11 +275,11 @@ export function montarEmail({ nome, anuncios, whatsapp, tipo, faltam = 0 }) {
 export function montarTexto({ nome, anuncios, whatsapp, tipo, faltam = 0 }) {
   const preSelecionado = tipo === 'preselecionado';
   if (preSelecionado) {
-    return `${nome}, você está na pré-seleção de Membro Fundador da Kolecta.
+    return `${nome}, ainda dá tempo de garantir seu selo de Membro Fundador da Kolecta.
 
-Você publicou ${anuncios} anúncio${anuncios > 1 ? 's' : ''} e com isso entrou na pré-seleção dos 100 Membros Fundadores.
+A Kolecta já está no ar. Você publicou ${anuncios} anúncio${anuncios > 1 ? 's' : ''} e está entre os candidatos aos 100 Membros Fundadores. Já são mais de 20 selos concedidos, e ainda há vagas.
 
-Sendo transparente: a pré-seleção não é a vaga. São 100 lugares e a escolha final é nossa, caso a caso, com prioridade para quem vende de verdade. O resultado sai dia 25 de julho, junto com o lançamento.
+São 100 lugares e a escolha é nossa, caso a caso, com prioridade para quem vende de verdade. Se você já recebeu seu selo de Fundador, pode desconsiderar este e-mail. Se ainda não, fale com a gente pelo WhatsApp para garantir o seu.
 
 O que o Fundador leva:
 - Comissão de 9% em vez de 11%, pelos 6 primeiros meses
@@ -287,12 +287,11 @@ O que o Fundador leva:
 - Selo de Fundador numerado, do #001 ao #100, no perfil para sempre
 - Canal direto com a equipe, sem fila de suporte
 
-Fale com a gente no WhatsApp antes do dia 25:
+Fale com a gente no WhatsApp:
 ${whatsapp}
 
 Kolecta, o hub dos colecionadores.
-Lançamento em 25 de julho de 2026.
-kolecta.com.br
+Já estamos no ar em kolecta.com.br.
 
 Você recebeu este e-mail porque criou uma conta em kolecta.com.br.
 Se não quiser mais receber, responda com "sair".`;
@@ -315,7 +314,7 @@ Publicar meu anúncio:
 https://kolecta.com.br/painel/anuncios/novo
 
 Kolecta, o hub dos colecionadores.
-Lançamento em 25 de julho de 2026.
+Já estamos no ar em kolecta.com.br.
 
 Você recebeu este e-mail porque criou uma conta em kolecta.com.br.
 Se não quiser mais receber, responda com "sair".`;
@@ -325,7 +324,7 @@ Se não quiser mais receber, responda com "sair".`;
 
 Você já publicou ${anuncios} anúncio${anuncios > 1 ? 's' : ''}. Falta${faltam === 1 ? ' apenas 1' : `m ${faltam}`} para entrar na pré-seleção dos 100 Membros Fundadores.
 
-Assim que o quinto anúncio entrar, você passa a concorrer automaticamente. O resultado sai dia 25 de julho, junto com o lançamento.
+Assim que o quinto anúncio entrar, você entra na disputa pelo selo de Fundador. A Kolecta já está no ar e ainda há vagas.
 
 O que o Fundador leva:
 - Comissão de 9% em vez de 11%, pelos 6 primeiros meses
@@ -337,14 +336,14 @@ Publicar meu próximo anúncio:
 https://kolecta.com.br/painel/anuncios/novo
 
 Kolecta, o hub dos colecionadores.
-Lançamento em 25 de julho de 2026.
+Já estamos no ar em kolecta.com.br.
 
 Você recebeu este e-mail porque criou uma conta em kolecta.com.br.
 Se não quiser mais receber, responda com "sair".`;
 }
 
 export function assunto({ nome, tipo, faltam = 0 }) {
-  if (tipo === 'preselecionado') return `${nome}, você entrou na pré-seleção de Membro Fundador`;
+  if (tipo === 'preselecionado') return `${nome}, ainda dá tempo de garantir seu selo de Fundador`;
   // Sem número para quem mal começou: "faltam 5" no assunto lê como cobrança.
   if (tipo === 'comece') return `${nome}, falta pouco para você concorrer a Fundador`;
   return `${nome}, falta${faltam === 1 ? ' 1 anúncio' : `m ${faltam} anúncios`} para concorrer a Fundador`;

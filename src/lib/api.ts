@@ -1011,6 +1011,13 @@ export const api = {
         method: 'POST',
         token,
       }),
+
+    // Rastreio do envio de um pedido. Marcos (emitida, postado, entregue) com
+    // data, não os eventos cidade a cidade dos Correios. Comprador, vendedor e
+    // admin do pedido podem consultar.
+    rastreio: (token: string, orderId: string) =>
+      request<{ data: RastreioResposta }>(`/api/shipping/rastreio/${orderId}`, { token })
+        .then(r => r.data),
   },
 
   // ── Disputes (comprador) ─────────────────────────────────────────────────────
@@ -1244,6 +1251,39 @@ export interface BlingResultadoEstoque {
     motivo: 'saldo' | 'zerou' | 'voltou';
   }>;
 }
+
+/** Etapas do rastreio. Marcos, não eventos cidade a cidade. */
+export type EtapaRastreio =
+  | 'pendente'
+  | 'emitida'
+  | 'postado'
+  | 'entregue'
+  | 'cancelado';
+
+export interface MarcoRastreio {
+  etapa: EtapaRastreio;
+  /** Data crua do Melhor Envio: "2026-08-04 14:18:16". */
+  data: string | null;
+}
+
+export interface Rastreio {
+  status: string;
+  etapaAtual: EtapaRastreio;
+  codigo: string | null;
+  marcos: MarcoRastreio[];
+  postadoEm: string | null;
+  entregueEm: string | null;
+  canceladoEm: string | null;
+}
+
+/**
+ * Resposta do rastreio. `rastreavel: false` quando não há envio no Melhor Envio
+ * (retirada em mãos, ou etiqueta ainda não emitida): a tela mostra o estado
+ * certo em vez de um erro.
+ */
+export type RastreioResposta =
+  | ({ rastreavel: true } & Rastreio)
+  | { rastreavel: false };
 
 /** Arquivo do envio que o vendedor pode baixar. */
 export type LabelFileKind = 'completo' | 'etiqueta' | 'declaracao';

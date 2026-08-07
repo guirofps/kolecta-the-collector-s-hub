@@ -49,6 +49,7 @@ const valor = (nome, padrao) => {
 };
 
 const ENVIAR_DE_VERDADE = flag('--enviar');
+const REENVIAR = flag('--reenviar');            // ignora o log e reenvia para todos (campanha nova)
 const SO_ESTE = valor('--so', null);            // manda para um e-mail só, para teste
 const GRUPO = valor('--grupo', 'todos');        // preselecionado | quase-la | todos
 const CSV = valor('--csv', path.join(AQUI, 'dados.csv'));
@@ -114,6 +115,7 @@ for (const r of todos) {
   const email = (r.email || '').trim().toLowerCase();
   const anuncios = num(r.enviados);
   if (!email || INTERNOS.has(email)) continue;
+  if ((r.founder_number || '').trim()) continue;   // já é fundador, não recebe
 
   let tipo = null;
   if (anuncios >= MIN_CANDIDATO) tipo = 'preselecionado';
@@ -206,7 +208,7 @@ function tipoJaEnviado(email) {
   return RECEBERAM_QUASE_LA.has(email) ? 'quase-la' : 'preselecionado';
 }
 
-const fila = destinatarios.filter((d) => {
+const fila = REENVIAR ? destinatarios : destinatarios.filter((d) => {
   const anterior = tipoJaEnviado(d.email);
   if (!anterior) return true;                                   // nunca recebeu
   if (anterior === 'preselecionado') return false;              // não repete
@@ -249,7 +251,7 @@ async function enviarResend(d) {
       html: montarEmail(d),
       text: montarTexto(d),
       // Descarta duplicata na janela de 24h, caso o script rode duas vezes.
-      headers: { 'X-Entity-Ref-ID': `founder-${d.tipo}-${d.email}` },
+      headers: { 'X-Entity-Ref-ID': `founder2-${d.tipo}-${d.email}` },
     }),
   });
   const corpo = await resp.json().catch(() => ({}));

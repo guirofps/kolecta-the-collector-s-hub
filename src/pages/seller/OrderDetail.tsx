@@ -15,6 +15,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { formatBRL } from '@/lib/currency';
 import { montarExtrato } from '@/lib/order-breakdown';
 import EmptyState from '@/components/EmptyState';
+import RastreioCard from '@/components/RastreioCard';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog';
@@ -361,6 +362,9 @@ export default function SellerOrderDetailPage() {
                 )}
               </CardContent>
             </Card>
+
+            {/* Rastreio do envio: some sozinho na retirada em mãos. */}
+            <RastreioCard orderId={order.id} />
 
             {/* Buyer */}
             <Card className="bg-gradient-card">
