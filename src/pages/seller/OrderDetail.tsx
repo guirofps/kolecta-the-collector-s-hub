@@ -343,16 +343,30 @@ export default function SellerOrderDetailPage() {
                         <p className="font-mono text-sm font-medium">{order.trackingCode}</p>
                       </>
                     )}
-                    <Button
-                      size="sm"
-                      variant="outline-gold"
-                      className="w-full"
-                      disabled={markDelivered.isPending}
-                      onClick={() => markDelivered.mutate(order.id)}
-                    >
-                      <CheckCircle2 className="h-4 w-4 mr-1" />
-                      {markDelivered.isPending ? 'Marcando...' : 'Marcar como entregue'}
-                    </Button>
+                    {/* "Marcar como entregue" só na RETIRADA EM MÃOS: nela o
+                        vendedor é quem sabe que entregou. No envio, o backend
+                        recusa esse botão de propósito, porque a entrega é
+                        confirmada pelo rastreio (automático) ou pelo comprador.
+                        Antes o botão aparecia nos dois casos e dava erro no
+                        frete. */}
+                    {order.deliveryMethod === 'pickup' ? (
+                      <Button
+                        size="sm"
+                        variant="outline-gold"
+                        className="w-full"
+                        disabled={markDelivered.isPending}
+                        onClick={() => markDelivered.mutate(order.id)}
+                      >
+                        <CheckCircle2 className="h-4 w-4 mr-1" />
+                        {markDelivered.isPending ? 'Marcando...' : 'Marcar como entregue'}
+                      </Button>
+                    ) : (
+                      <p className="text-xs text-muted-foreground flex items-start gap-1.5">
+                        <Truck className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                        A entrega é confirmada pelo rastreio ou quando o comprador
+                        recebe. Acompanhe abaixo.
+                      </p>
+                    )}
                   </div>
                 )}
                 {order.status === 'delivered' && (

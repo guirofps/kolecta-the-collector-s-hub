@@ -1444,6 +1444,10 @@ export interface Order {
   listingId: string;
   status: OrderStatus;
   totalInCents: number;
+  // 'shipping' = envio via transportadora | 'pickup' = retirada em mãos.
+  // Decide quem confirma a entrega: na retirada é o vendedor (botão); no envio é
+  // o rastreio ou o comprador.
+  deliveryMethod?: 'shipping' | 'pickup' | null;
   trackingCode?: string | null;
   // Etiqueta emitida automaticamente pela Kolecta no Melhor Envio.
   // pending | cart | paid | generated | ready | failed
