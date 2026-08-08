@@ -39,6 +39,18 @@ const RE_TH = /\btreasure\s*hunts?\b|\bt[-\s]?hunts?\b|\bth\b/i;
 const RE_CHASE = /\bchase\b/i;
 
 /**
+ * A variante NEGADA no próprio título: o vendedor do REGULAR anuncia dizendo o
+ * que a peça NÃO é ("Ferrari F40 Black NON Super Treasure Hunt", "not STH",
+ * "não é chase") para aparecer na busca de quem procura a rara. Sem isto o
+ * detector lia "Super Treasure Hunt" e marcava a peça de US$ 5 como STH,
+ * contaminando a amostra da rara e derrubando a mediana. A negação tem que ser
+ * COLADA na sigla (0–1 palavra), senão "não vem com protetor ... STH" de uma STH
+ * de verdade cairia aqui por engano.
+ */
+const RE_VARIANTE_NEGADA =
+  /\b(?:non|not|sem|n(?:ã|a)o(?:\s*(?:é|e|possui|tem))?)[\s-]*(?:a\s+|the\s+|ser\s+|vers(?:ã|a)o\s+)?(?:super\s+)?(?:t\.?\s*reasure\s+hunts?|t[-\s]?hunts?|sth|s\.?t\.?h\.?|chase)\b/i;
+
+/**
  * Exclusivo de evento ou de loja: tiragem pequena, mercado próprio.
  *
  * Entrou depois que a esteira casou um "Nissan LB-Super Silhouette 180SX TAS
@@ -59,6 +71,29 @@ const RE_EXCLUSIVO =
  */
 const RE_LOTE =
   /\b(lotes?|lot\s*\d|kit\s*com|packs?|conjuntos?|sets?|combos?|\d+\s*(?:pe(?:ç|c)as|unidades|minis|carrinhos|miniaturas|pcs|pieces|cars)|com\s+\d+\s+carr)\b/i;
+
+/**
+ * Peça SOLTA/ABERTA. O KPV só compara novo-lacrado, e "loose" é a nomenclatura
+ * padrão do mercado internacional para a peça tirada da cartela: um STH loose
+ * de US$ 85 no meio dos lacrados de US$ 160 arrastava a mediana pra baixo. No
+ * nosso lado a condição já vem do campo próprio, mas no eBay o sinal de aberto
+ * vive só no título.
+ */
+const RE_ABERTO =
+  /\bloose\b|\bsolt[oa]\b|\bavuls[oa]\b|\bopened\b|\bunpackaged\b|out\s*of\s*(?:the\s*)?(?:box|package|card|blister)|sem\s*(?:a\s*)?(?:cartela|blister|embalagem)|fora\s*d[ae]\s*(?:cartela|embalagem|blister)/i;
+
+/**
+ * Card de arte e peça customizada: não é o item de fábrica. Um "Custom Premium
+ * card" (arte impressa) e um "Custom Ferrari F40 STH Blue" (repaint) apareciam
+ * na busca da STH por US$ 10–18 e entravam como se fossem a peça real.
+ *
+ * A regra é estreita de propósito: "custom" sozinho NÃO reprova, porque é nome
+ * de molde oficial ("Custom '77 Dodge Van", "Custom Otto"). Só reprova o card de
+ * arte, ou "custom/repaint" JUNTO de uma variante rara — combinação que na
+ * prática é sempre peça modificada, nunca casting de fábrica.
+ */
+const RE_CARD_ART = /\b(?:custom|premium|art|graphic|fan)\s*(?:made\s*)?cards?\b/i;
+const RE_CUSTOM = /\bcustom(?:s|iz(?:ed|ad[oa]))?\b|\brepaint(?:ed)?\b|\brestyled?\b/i;
 
 /**
  * Veículo de franquia (nave, avião, personagem). Sai da comparação porque não
@@ -97,14 +132,38 @@ const CODIGOS: { marca: string | null; re: RegExp }[] = [
   { marca: null, re: /\b(in64-?[a-z0-9]{3,})\b/i },
 ];
 
-/** Linhas/séries que aparecem no título e valem como discriminador. */
+/**
+ * Linhas/séries que aparecem no título e valem como discriminador.
+ *
+ * Treasure Hunt e Super Treasure Hunt saíram daqui de propósito: são VARIANTE,
+ * não linha, e a variante já separa a amostra. Deixá-las como linha fazia a
+ * nossa "Mainline STH" bater de frente com a "Super Treasure Hunt" do eBay e
+ * reprovar a peça certa por "linha diferente".
+ */
 const LINHAS = [
-  'Super Treasure Hunt', 'Treasure Hunt', 'Car Culture', 'Pop Culture',
+  'Car Culture', 'Pop Culture',
   'Team Transport', 'Boulevard', 'Fast & Furious', 'Velozes e Furiosos',
   'Premium', 'Mainline', 'Silhouette', 'Red Line Club', 'RLC',
   'Monster Trucks', 'Formula 1', 'F1', 'Kaido House', 'LB Works', 'LBWK',
   'Collectors', 'Retro Entertainment', 'Entertainment',
 ];
+
+/** Linha genérica: é o "default" do fabricante, não discrimina peça nenhuma. */
+const RE_LINHA_GENERICA = /^(mainline|b[áa]sic[oa]|regular|padr[ãa]o|comum)$/i;
+
+/**
+ * Limpa a linha declarada: tira marcador de variante que o vendedor jogou no
+ * campo ("Mainline STH" é Mainline com a variante no lugar errado) e zera a
+ * linha genérica, que não serve para separar peça.
+ */
+function limparLinha(linha: string | null): string | null {
+  if (!linha) return null;
+  const limpo = linha
+    .replace(RE_SUPER_TH, ' ').replace(RE_TH, ' ').replace(RE_CHASE, ' ')
+    .replace(/\s+/g, ' ').trim();
+  if (!limpo || RE_LINHA_GENERICA.test(limpo)) return null;
+  return limpo;
+}
 
 /** Ruído de anúncio: não identifica peça nenhuma. */
 const RE_RUIDO =
@@ -190,9 +249,13 @@ export function detectarVariante(
   descricao?: string | null,
 ): Variante {
   const t = titulo ?? '';
-  if (RE_SUPER_TH.test(t)) return 'super-treasure-hunt';
-  if (RE_TH.test(t)) return 'treasure-hunt';
-  if (RE_CHASE.test(t)) return 'chase';
+  // Título que NEGA a variante ("NON Super Treasure Hunt") é regular: não deixa
+  // a menção positiva logo em seguida marcar a peça como rara.
+  if (!RE_VARIANTE_NEGADA.test(t)) {
+    if (RE_SUPER_TH.test(t)) return 'super-treasure-hunt';
+    if (RE_TH.test(t)) return 'treasure-hunt';
+    if (RE_CHASE.test(t)) return 'chase';
+  }
   if (RE_EXCLUSIVO.test(t)) return 'exclusivo-evento';
 
   const d = descricao ?? '';
@@ -210,6 +273,21 @@ export function ehLote(titulo: string | null | undefined): boolean {
 
 export function ehFranquia(titulo: string | null | undefined): boolean {
   return RE_FRANQUIA.test(titulo ?? '');
+}
+
+/** Peça solta/aberta (loose), que não é novo-lacrado. */
+export function ehAberto(titulo: string | null | undefined): boolean {
+  return RE_ABERTO.test(titulo ?? '');
+}
+
+/**
+ * Card de arte, ou peça customizada de uma variante rara. Não é item de fábrica,
+ * então fica fora da comparação de preço.
+ */
+export function ehCustomizado(titulo: string | null | undefined): boolean {
+  const t = titulo ?? '';
+  if (RE_CARD_ART.test(t)) return true;
+  return RE_CUSTOM.test(t) && detectarVariante(t) !== 'regular';
 }
 
 /** Conjunto de dois ou mais veículos descrito por extenso (F-100 + Bronco). */
@@ -299,6 +377,8 @@ export function motivoNaoComparavel(a: AnuncioParaKPV): string | null {
   }
   if (ehLote(titulo)) return 'é lote ou pack, não peça única';
   if (ehFranquia(titulo)) return 'é veículo de franquia, tem mercado próprio';
+  if (ehAberto(titulo)) return 'peça solta/aberta, e o KPV compara só novo-lacrado';
+  if (ehCustomizado(titulo)) return 'é peça customizada ou card de arte, não item de fábrica';
   // A marca pode vir do título quando o campo falha. Isso importa dos dois
   // lados: o catálogo do Mercado Livre frequentemente NÃO preenche o atributo
   // "Marca", e exigir o campo derrubava 11 de 45 candidatos no piloto, antes
@@ -314,7 +394,7 @@ export function identidadeDe(a: AnuncioParaKPV): IdentidadeKPV | null {
 
   const titulo = (a.title ?? '').trim();
   const marca = normalizarMarcaDoAnuncio(a.brand, titulo).marca as string;
-  const linha = (a.line ?? '').trim() || linhaNoTitulo(titulo);
+  const linha = limparLinha((a.line ?? '').trim() || linhaNoTitulo(titulo));
   const modelo = extrairModelo(titulo, a.brand, linha);
   const variante = detectarVariante(titulo, a.description);
   const escala = normalizarEscala(a.scale);

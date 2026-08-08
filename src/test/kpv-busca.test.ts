@@ -15,6 +15,18 @@ describe('termoBuscaExterna', () => {
       .toBe('hot wheels fast furious dodge charger');
   });
 
+  it('reserva a frase da variante rara, para o eBay não trazer o carro comum', () => {
+    // Sem a variante no termo, a busca do STH voltava a população geral do F40
+    // (99% regular barato) e o porteiro reprovava quase tudo.
+    const t = termoBuscaExterna('Hot Wheels', 'ferrari f40 competizione 2026', null, 'super-treasure-hunt');
+    expect(t).toContain('super treasure hunt');
+    expect(t.split(' ').length).toBeLessThanOrEqual(8);
+    expect(termoBuscaExterna('Hot Wheels', 'Skyline', null, 'treasure-hunt')).toContain('treasure hunt');
+    expect(termoBuscaExterna('Hot Wheels', 'Civic', null, 'chase')).toContain('chase');
+    // Regular não injeta frase nenhuma.
+    expect(termoBuscaExterna('Hot Wheels', 'Civic', null, 'regular')).toBe('hot wheels civic');
+  });
+
   it('traduz cor, que o eBay escreve em inglês', () => {
     const t = termoBuscaExterna('Hot Wheels', 'Nissan Skyline azul');
     expect(t).toContain('blue');

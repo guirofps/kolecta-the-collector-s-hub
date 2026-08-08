@@ -88,7 +88,7 @@ for (const item of alvo) {
     // Termo normalizado: traduz o que o mercado global indexa em inglês
     // ("velozes e furiosos" some no eBay US, "fast furious" acha aos milhares) e
     // tira o ruído que transforma título em frase. Ver kpv-busca.
-    const termo = termoBuscaExterna(item.identidade.marca, item.identidade.modelo, item.identidade.linha);
+    const termo = termoBuscaExterna(item.identidade.marca, item.identidade.modelo, item.identidade.linha, item.identidade.variante);
     anuncios = await buscarEbay(termo, 50);
     viaEan = false;
     await pausa(400);
