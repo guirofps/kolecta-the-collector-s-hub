@@ -220,6 +220,37 @@ export function vitrinesPorCategoria(
 }
 
 /**
+ * Recomendações para a página de UM anúncio ("Explore mais").
+ *
+ * Antes a página mostrava sempre os 4 primeiros do catálogo: iguais em toda
+ * página, sem relação com o que a pessoa está vendo. Aqui a mesma categoria vem
+ * primeiro (relevância), o resto completa (variedade de "outros tipos"), tudo
+ * intercalado por loja e embaralhado por uma semente derivada do anúncio atual.
+ * Assim cada anúncio mostra um conjunto DIFERENTE, e estável durante a visita.
+ */
+export function recomendados(
+  ativos: Listing[],
+  atual: Pick<Listing, 'id' | 'categoryId' | 'sellerId'>,
+  opts: { quantos?: number; semente?: number } = {},
+): Listing[] {
+  const { quantos = 16, semente } = opts;
+  const pool = ativos.filter((l) => l.id !== atual.id);
+  // Sem semente explícita, o próprio id do anúncio vira a semente: cada página
+  // tem seu conjunto, e ele não muda a cada re-render dentro da mesma visita.
+  const base = semente ?? hashTexto(atual.id);
+
+  const misturar = (xs: Listing[], sal: number) =>
+    intercalarPorVendedor(embaralharComSemente(xs, (base ^ sal) >>> 0));
+
+  const mesmaCat = pool.filter((l) => l.categoryId === atual.categoryId);
+  const outras = pool.filter((l) => l.categoryId !== atual.categoryId);
+
+  // Mesma categoria primeiro, depois o resto. Não re-intercala o todo para não
+  // perder essa prioridade; cada grupo já sai espalhado por loja.
+  return [...misturar(mesmaCat, 0x9e3779b1), ...misturar(outras, 0x85ebca77)].slice(0, quantos);
+}
+
+/**
  * Leilões realmente abertos, o que termina primeiro na frente.
  *
  * A regra do que está aberto vive em lib/leilao. O filtro anterior só olhava

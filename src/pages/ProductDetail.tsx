@@ -13,6 +13,7 @@ import AuctionCountdown from '@/components/AuctionCountdown';
 import VerificationBadge from '@/components/VerificationBadge';
 import { FounderBadgeFor } from '@/components/FounderBadge';
 import { onlyPublic } from '@/lib/listing-visibility';
+import { recomendados } from '@/lib/home-sections';
 import { LIMITE_CATALOGO } from '@/lib/catalogo';
 import ProductDescription from '@/components/ProductDescription';
 import ProductGallery from '@/components/ProductGallery';
@@ -233,12 +234,11 @@ export default function ProductDetail() {
     ? `/modo-lance/${listing.auctionId}`
     : '/modo-lance';
 
-  // "Explore mais": anúncios REAIS da plataforma (antes vinha de mock, que
-  // exibia produtos inexistentes com preço e contagem de lances falsos).
-  // Tira o próprio anúncio da lista e mostra até 4.
-  const similar: Product[] = onlyPublic(similarData ?? [])
-    .filter((l) => l.id !== listing.id)
-    .slice(0, 4)
+  // "Explore mais": anúncios REAIS da plataforma. Antes pegava os 4 primeiros
+  // do catálogo, iguais em toda página. Agora prioriza a mesma categoria,
+  // completa com variedade e varia por anúncio (semente derivada do id), num
+  // carrossel rolável.
+  const similar: Product[] = recomendados(onlyPublic(similarData ?? []), listing, { quantos: 16 })
     .map(listingToCartProduct);
 
   return (
@@ -580,15 +580,17 @@ export default function ProductDetail() {
           </Tabs>
         </div>
 
-        {/* Similares — mock por enquanto */}
+        {/* Explore mais: carrossel rolável, varia por anúncio */}
         {similar.length > 0 && (
           <div className="mt-12">
             <h2 className="font-heading text-xl font-extrabold italic uppercase mb-6">
               Explore Mais
             </h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {similar.map(p => (
-                <ProductCard key={p.id} product={p} />
+                <div key={p.id} className="w-40 shrink-0 snap-start sm:w-48">
+                  <ProductCard product={p} />
+                </div>
               ))}
             </div>
           </div>
