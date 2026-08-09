@@ -20,21 +20,27 @@ if (import.meta.env.PROD && CLERK_PUBLISHABLE_KEY.startsWith('pk_test_')) {
 /**
  * Tema Clerk com a identidade da Kolecta.
  *
- * Mapeado a partir dos tokens do `index.css` (primary gold #FFCC00 = hsl(48 100% 50%),
- * texto navy, cards claros, radius 0.5rem). Aplicado globalmente no `ClerkProvider`,
- * então tematiza de uma vez o `UserButton`, o dropdown E o modal "Manage account".
+ * As cores são AMARRADAS aos tokens CSS do app (`hsl(var(--token))` do
+ * `index.css`), então viram sozinhas no modo escuro pela classe `.dark` — sem
+ * isso o widget ficava com tema claro fixo (texto navy sobre card claro) e, no
+ * dark, os rótulos sumiam e o rodapé aparecia numa faixa branca. Aplicado
+ * globalmente no `ClerkProvider`: tematiza `SignIn`, `UserButton`, o dropdown E
+ * o modal "Manage account".
  *
  * Importante: NÃO mirar classes `cl-internal-*` (hash instável). Usar as keys
- * semânticas de `elements` abaixo.
+ * semânticas de `elements` abaixo, e as classes Tailwind (bg-card, text-*) que
+ * já são theme-aware.
  */
 export const kolectaClerkAppearance = {
   variables: {
-    colorPrimary: 'hsl(48, 100%, 50%)',
-    colorText: 'hsl(225, 20%, 12%)',
-    colorTextSecondary: 'hsl(225, 8%, 45%)',
-    colorBackground: 'hsl(0, 0%, 100%)',
-    colorInputBackground: 'hsl(225, 10%, 94%)',
-    colorInputText: 'hsl(225, 20%, 12%)',
+    colorPrimary: 'hsl(var(--primary))',
+    colorText: 'hsl(var(--card-foreground))',
+    colorTextSecondary: 'hsl(var(--muted-foreground))',
+    colorTextOnPrimaryBackground: 'hsl(var(--primary-foreground))',
+    colorBackground: 'hsl(var(--card))',
+    colorInputBackground: 'hsl(var(--input))',
+    colorInputText: 'hsl(var(--foreground))',
+    colorDanger: 'hsl(var(--accent))',
     borderRadius: '0.5rem',
     fontFamily: 'inherit',
   },
@@ -46,8 +52,12 @@ export const kolectaClerkAppearance = {
     userButtonPopoverActionButton: 'text-foreground hover:bg-accent/30',
     userButtonPopoverActionButtonText: 'font-body',
     userButtonPopoverActionButtonIcon: 'text-primary',
-    // ── Modal "Manage account" (UserProfile) ──
+    // ── Card (SignIn/SignUp e modal "Manage account") ──
     card: 'bg-card border border-border',
+    // O rodapé "Não possui conta?" vinha numa faixa clara fixa; força o token.
+    footer: 'bg-card border-t border-border',
+    footerAction: 'bg-card',
+    footerActionText: 'text-muted-foreground',
     headerTitle: 'font-heading uppercase tracking-tight',
     profileSectionTitleText: 'font-heading uppercase',
     formButtonPrimary:

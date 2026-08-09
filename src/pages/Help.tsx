@@ -29,7 +29,7 @@ const mockFAQs: Record<string, { q: string; a: string }[]> = {
     { q: 'E se o produto chegar danificado ou diferente do anúncio?', a: 'Você pode abrir uma disputa em até 7 dias após o recebimento. Acesse "Meus Pedidos", localize o pedido em questão e clique em "Abrir Disputa". A Kolecta irá mediar a resolução entre você e o vendedor, podendo determinar reembolso total ou parcial.' },
   ],
   vendendo: [
-    { q: 'Como começo a vender na Kolecta?', a: 'Crie uma conta, acesse o Painel do Vendedor e complete a verificação de identidade (KYC). Após aprovação, você poderá criar seus primeiros anúncios. Também será necessário vincular uma conta Stripe para receber seus pagamentos.' },
+    { q: 'Como começo a vender na Kolecta?', a: 'Crie uma conta, acesse o Painel do Vendedor e complete a verificação de identidade (KYC). Após aprovação, você poderá criar seus primeiros anúncios. Também será necessário concluir o cadastro de recebedor na Pagar.me para receber seus pagamentos.' },
     { q: 'Quanto custa vender na Kolecta?', a: 'A Kolecta cobra uma comissão única de 11% sobre cada venda realizada, igual para Venda Direta e Modo Lance, mais uma pequena taxa operacional fixa por venda concluída. Confira os detalhes em Taxas e Comissões. Não há mensalidade ou taxa para anunciar.' },
     { q: 'Quanto tempo leva para receber meu dinheiro?', a: 'Os repasses são realizados automaticamente em até 3 dias úteis após a confirmação de entrega pelo comprador. O valor já desconta a comissão da Kolecta. Saques podem ser solicitados a partir de R$ 50,00.' },
     { q: 'Posso editar meu anúncio depois de publicado?', a: 'Sim, você pode editar a maioria das informações do anúncio (descrição, fotos, preço) a qualquer momento, desde que não haja vendas pendentes. Anúncios no Modo Lance não podem ter o lance mínimo alterado após receberem o primeiro lance.' },
@@ -44,7 +44,7 @@ const mockFAQs: Record<string, { q: string; a: string }[]> = {
   ],
   pagamentos: [
     { q: 'Quais formas de pagamento são aceitas?', a: 'A Kolecta aceita Pix e cartão de crédito (Visa, Mastercard, Elo, American Express). As opções disponíveis podem variar conforme o tipo de transação (compra direta ou Modo Lance).' },
-    { q: 'Os pagamentos são seguros?', a: 'Sim. Todos os pagamentos são processados pelo Stripe, uma das maiores plataformas de pagamentos do mundo. Os dados do seu cartão são criptografados e nunca armazenados nos servidores da Kolecta. Utilizamos criptografia TLS/SSL em todas as transações.' },
+    { q: 'Os pagamentos são seguros?', a: 'Sim. Todos os pagamentos são processados pela Pagar.me, uma das maiores processadoras de pagamento do Brasil. Os dados do seu cartão são criptografados e nunca armazenados nos servidores da Kolecta. Utilizamos criptografia TLS/SSL em todas as transações.' },
     { q: 'Posso parcelar minhas compras?', a: 'Sim, compras com cartão de crédito podem ser parceladas em até 12x, sujeito a juros da operadora do cartão. Compras via Pix são à vista. As condições de parcelamento são exibidas no checkout.' },
     { q: 'Como funciona o reembolso?', a: 'Em caso de reembolso aprovado (por disputa, cancelamento ou estorno), o valor é devolvido pela mesma forma de pagamento original. Reembolsos em cartão de crédito podem levar até 2 faturas para aparecer. Reembolsos via Pix são processados em até 5 dias úteis.' },
     { q: 'O que é o saldo disponível do vendedor?', a: 'O saldo disponível é o valor que o vendedor já pode sacar para sua conta bancária. Ele é composto pelos valores de vendas concluídas (entrega confirmada) menos a comissão da Kolecta. Saques podem ser solicitados a partir de R$ 20,00.' },
@@ -162,7 +162,7 @@ export default function HelpPage() {
                 <a href="/conta/disputas"><MessageCircle className="h-4 w-4" /> Abrir chamado</a>
               </Button>
               <Button variant="outline" className="gap-2" asChild>
-                <a href="mailto:suporte@kolecta.com.br"><Mail className="h-4 w-4" /> Email de suporte</a>
+                <a href="mailto:contato@kolecta.com.br"><Mail className="h-4 w-4" /> Email de suporte</a>
               </Button>
             </div>
           </CardContent>
