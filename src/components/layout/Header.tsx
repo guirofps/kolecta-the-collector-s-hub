@@ -55,13 +55,19 @@ function DrawerContent() {
           <>
             <SignedIn>
               {user && (
-                <div className="flex items-center gap-3">
-                  <img src={user.imageUrl} alt={user.fullName || 'User'} className="w-10 h-10 rounded-full object-cover" />
-                  <div className="flex flex-col overflow-hidden">
-                    <span className="font-semibold text-white truncate text-sm">{user.fullName}</span>
-                    <span className="text-xs text-white/50 truncate">{user.primaryEmailAddress?.emailAddress}</span>
-                  </div>
-                </div>
+                /* Tocar no cabeçalho leva ao painel da conta (/conta). No mobile
+                   era o único lugar sem acesso: o drawer tinha os atalhos soltos
+                   mas não a visão geral (carteira, Painel Admin, Painel de Vendas). */
+                <SheetClose asChild>
+                  <Link to="/conta" className="flex items-center gap-3 group">
+                    <img src={user.imageUrl} alt={user.fullName || 'User'} className="w-10 h-10 rounded-full object-cover" />
+                    <div className="flex flex-col overflow-hidden flex-1">
+                      <span className="font-semibold text-white truncate text-sm">{user.fullName}</span>
+                      <span className="text-xs text-white/50 truncate">{user.primaryEmailAddress?.emailAddress}</span>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-white/40 group-hover:text-white shrink-0" />
+                  </Link>
+                </SheetClose>
               )}
             </SignedIn>
             <SignedOut>
@@ -147,6 +153,15 @@ function DrawerContent() {
             <div>
               <h3 className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-3">Minha Conta</h3>
               <div className="space-y-1">
+                <SheetClose asChild>
+                  <Link to="/conta" className="flex items-center justify-between py-2 text-white/70 hover:text-white transition-colors">
+                    <div className="flex items-center gap-3">
+                      <User className="w-4 h-4" />
+                      <span className="text-sm">Painel da Conta</span>
+                    </div>
+                    <ChevronRight className="w-4 h-4 opacity-50" />
+                  </Link>
+                </SheetClose>
                 <SheetClose asChild>
                   <Link to="/conta/pedidos" className="flex items-center justify-between py-2 text-white/70 hover:text-white transition-colors">
                     <div className="flex items-center gap-3">
