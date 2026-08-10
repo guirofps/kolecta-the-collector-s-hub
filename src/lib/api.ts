@@ -84,6 +84,14 @@ export const api = {
     getMe: (token: string) =>
       request<{ data: UserProfile }>('/api/users/me', { token }).then(r => r.data),
 
+    /** Atualiza o próprio perfil (nome/telefone). O backend valida o telefone. */
+    updateMe: (token: string, payload: { name?: string; phone?: string }) =>
+      request<{ data: UserProfile }>('/api/users/me', {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+        token,
+      }).then(r => r.data),
+
     /** Registra o aceite de Termos + LGPD do cadastro (idempotente no backend). */
     recordConsent: (
       token: string,
@@ -1834,6 +1842,8 @@ export interface UserProfile {
   id: string;
   email: string;
   name: string | null;
+  /** Telefone só com dígitos (DDD + número). Vazio/null até o cadastro captar. */
+  phone: string | null;
   role: 'user' | 'admin';
   createdAt: string;
   updatedAt: string;

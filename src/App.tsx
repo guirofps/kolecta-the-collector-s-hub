@@ -87,6 +87,7 @@ import { CartProvider } from "./contexts/CartContext";
 import CartDrawer from "./components/CartDrawer";
 import { MetaPixelPageView, MetaPixelSignup } from "./components/MetaPixel";
 import TrafficTracker from "./components/TrafficTracker";
+import ProfileCompletionGate from "./components/ProfileCompletionGate";
 import { Analytics } from "@vercel/analytics/react";
 import { Navigate } from "react-router-dom";
 
@@ -120,6 +121,9 @@ const App = () => (
           <Analytics />
           {CLERK_ENABLED && <MetaPixelSignup />}
           {CLERK_ENABLED && <ConsentSync />}
+          {/* Captura obrigatória do telefone logo após o cadastro (só e-mail vem
+              do Clerk). Bloqueia o uso até o usuário logado ter telefone. */}
+          {CLERK_ENABLED && <ProfileCompletionGate />}
           {showDevUserSwitcher && <DevUserSwitcher />}
           <LaunchGate>
           {/* Comunicado da mudança nos meios de pagamento. Dentro do LaunchGate
