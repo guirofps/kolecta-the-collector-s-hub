@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
-import { Package, ChevronLeft, ChevronRight, MessageCircle, Star, Loader2 } from 'lucide-react';
+import { Package, ChevronLeft, ChevronRight, MessageCircle, Star, Loader2, Truck } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
 import EmptyState from '@/components/EmptyState';
+import AuctionShippingDialog from '@/components/AuctionShippingDialog';
 import { useOrders, useStartConversationFromOrder, useConfirmDelivery, useCreateReview, useCancelOrder, usePayAuctionOrder } from '@/hooks/use-api';
 import type { Order, OrderStatus } from '@/lib/api';
 import { formatBRL } from '@/lib/currency';
@@ -221,11 +222,16 @@ function OrderCard({ order }: { order: Order }) {
   const cancelOrder = useCancelOrder();
   const payAuctionOrder = usePayAuctionOrder();
   const [reviewOpen, setReviewOpen] = useState(false);
+  const [shippingOpen, setShippingOpen] = useState(false);
 
-  // Fase 4: arremate cuja captura falhou — o vencedor paga no cartão salvo
-  // dentro do prazo. `remaining` é null quando o prazo já venceu.
+  // Arremate aguardando o vencedor: leilão não tem checkout, então é aqui que
+  // ele escolhe como receber e paga. `remaining` é null quando o prazo venceu.
   const isPendingPayment = order.status === 'pending_payment';
   const remaining = isPendingPayment ? timeLeft(order.paymentDeadlineAt) : null;
+  // Entrega já escolhida? 'pickup' só existe por escolha explícita, e no envio
+  // o serviço fica gravado — um dos dois basta (mesma regra do backend).
+  const escolheuEntrega =
+    order.deliveryMethod === 'pickup' || !!order.shippingServiceName;
 
   // F12: comprador confirma recebimento (libera saldo retido ao vendedor).
   const alreadyConfirmed = !!order.buyerConfirmedAt;
@@ -269,12 +275,14 @@ function OrderCard({ order }: { order: Order }) {
           </div>
         )}
 
-        {/* Arremate pendente: aviso de prazo para pagar (Fase 4) */}
+        {/* Arremate pendente: falta escolher a entrega e/ou pagar */}
         {isPendingPayment && (
           <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-600 dark:text-amber-400">
-            {remaining
-              ? <>Você arrematou este item, mas o pagamento não foi concluído. Pague no seu cartão salvo em <strong>{remaining}</strong> para garantir a compra.</>
-              : <>O prazo para pagamento venceu. Se ainda estiver disponível, você pode tentar pagar; caso contrário, o item foi oferecido a outro participante.</>}
+            {!remaining
+              ? <>O prazo venceu. Se o item ainda estiver disponível, você pode tentar concluir; caso contrário, ele foi oferecido a outro participante.</>
+              : escolheuEntrega
+                ? <>Você arrematou este item, mas o pagamento não foi concluído. Pague no seu cartão salvo em <strong>{remaining}</strong> para garantir a compra.</>
+                : <>Você arrematou este item! Falta escolher como quer receber — o frete entra no total e a cobrança sai de uma vez só. Você tem <strong>{remaining}</strong>.</>}
           </div>
         )}
 
@@ -286,7 +294,15 @@ function OrderCard({ order }: { order: Order }) {
             {formatBRL(order.totalInCents / 100)}
           </span>
           <div className="flex gap-2 flex-wrap justify-end">
-            {isPendingPayment && (
+            {/* Sem entrega escolhida o pagamento nem é oferecido: o backend
+                recusa, porque o total ainda não inclui o frete. */}
+            {isPendingPayment && !escolheuEntrega && (
+              <Button variant="kolecta" size="sm" onClick={() => setShippingOpen(true)}>
+                <Truck className="h-3.5 w-3.5 mr-1" />
+                Escolher frete e pagar
+              </Button>
+            )}
+            {isPendingPayment && escolheuEntrega && (
               <Button
                 variant="kolecta"
                 size="sm"
@@ -294,7 +310,7 @@ function OrderCard({ order }: { order: Order }) {
                 onClick={() => payAuctionOrder.mutate(order.id)}
               >
                 {payAuctionOrder.isPending && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}
-                Pagar agora
+                Pagar {formatBRL(order.totalInCents / 100)}
               </Button>
             )}
             {canReview && (
@@ -346,6 +362,13 @@ function OrderCard({ order }: { order: Order }) {
           </div>
         </div>
       </CardContent>
+
+      <AuctionShippingDialog
+        orderId={order.id}
+        listingTitle={listing?.title}
+        open={shippingOpen}
+        onOpenChange={setShippingOpen}
+      />
 
       <ReviewDialog order={order} open={reviewOpen} onOpenChange={setReviewOpen} />
     </Card>
