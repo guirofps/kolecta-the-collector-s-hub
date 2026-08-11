@@ -147,6 +147,20 @@ function DrawerContent() {
             <div>
               <h3 className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-3">Minha Conta</h3>
               <div className="space-y-1">
+                {/* A vitrine pública do próprio usuário. No celular não existe o
+                    popover do avatar (é `hidden lg:block`), então sem esta linha
+                    o atalho não chegaria a quem usa o site pelo telefone. */}
+                {acessivel('/vendedor') && user?.id && (
+                  <SheetClose asChild>
+                    <Link to={`/vendedor/${user.id}`} className="flex items-center justify-between py-2 text-white/70 hover:text-white transition-colors">
+                      <div className="flex items-center gap-3">
+                        <User className="w-4 h-4" />
+                        <span className="text-sm">Meu Perfil</span>
+                      </div>
+                      <ChevronRight className="w-4 h-4 opacity-50" />
+                    </Link>
+                  </SheetClose>
+                )}
                 <SheetClose asChild>
                   <Link to="/conta/pedidos" className="flex items-center justify-between py-2 text-white/70 hover:text-white transition-colors">
                     <div className="flex items-center gap-3">
@@ -288,6 +302,82 @@ function DrawerContent() {
   );
 }
 
+/**
+ * Menu do avatar (popover do UserButton), com os atalhos da Kolecta.
+ *
+ * Componente à parte por dois motivos:
+ *
+ * 1. `useUser()` só pode ser chamado com o ClerkProvider montado, e ele só
+ *    existe quando `CLERK_ENABLED` é true (ver main.tsx). Como isto aqui só é
+ *    renderizado dentro de <SignedIn>, o hook está sempre no lugar certo.
+ * 2. `UserButton.MenuItems` precisa ser filho DIRETO de `UserButton` — nada
+ *    pode entrar no meio dos dois, então o componente envolve a árvore inteira.
+ */
+function MenuDoUsuario({ gateActive }: { gateActive: boolean }) {
+  const { user } = useUser();
+  const navigate = useNavigate();
+
+  return (
+    <UserButton>
+      <UserButton.MenuItems>
+        {/* Ver a própria loja como o comprador vê. Todo usuário tem vitrine em
+            /vendedor/:id, e o :id é o mesmo do Clerk (o backend espelha no
+            user.created), então dá para montar o link sem ida ao servidor.
+            Sem id não renderiza: /vendedor/undefined abre um perfil vazio,
+            que é o mesmo buraco que o F32 fechou nos cards. */}
+        {!gateActive && user?.id && (
+          <UserButton.Action
+            label="Meu Perfil"
+            labelIcon={<User className="h-4 w-4" />}
+            onClick={() => navigate(`/vendedor/${user.id}`)}
+          />
+        )}
+        {/* Atalhos de navegação Kolecta (ocultos no pré-lançamento) */}
+        {!gateActive && (
+          <UserButton.Action
+            label="Painel de Vendas"
+            labelIcon={<Store className="h-4 w-4" />}
+            onClick={() => navigate('/painel')}
+          />
+        )}
+        {!gateActive && (
+          <UserButton.Action
+            label="Explorar"
+            labelIcon={<ShoppingBag className="h-4 w-4" />}
+            onClick={() => navigate('/busca')}
+          />
+        )}
+        {!gateActive && (
+          <UserButton.Action
+            label="Modo Lance"
+            labelIcon={<Gavel className="h-4 w-4" />}
+            onClick={() => navigate('/modo-lance')}
+          />
+        )}
+        {/* Atalhos rápidos da Conta */}
+        <UserButton.Action
+          label="Meus Pedidos"
+          labelIcon={<Package className="h-4 w-4" />}
+          onClick={() => navigate('/conta/pedidos')}
+        />
+        <UserButton.Action
+          label="Pagamentos"
+          labelIcon={<CreditCard className="h-4 w-4" />}
+          onClick={() => navigate('/conta/pagamentos')}
+        />
+        <UserButton.Action
+          label="Mensagens"
+          labelIcon={<MessageSquare className="h-4 w-4" />}
+          onClick={() => navigate('/conta/mensagens')}
+        />
+        {/* Ações nativas do Clerk (reposicionadas) */}
+        <UserButton.Action label="manageAccount" />
+        <UserButton.Action label="signOut" />
+      </UserButton.MenuItems>
+    </UserButton>
+  );
+}
+
 export default function Header() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -423,51 +513,7 @@ export default function Header() {
                     <span className="text-sm font-medium">Minha Conta</span>
                   </Link>
                   <div className="hidden lg:block ml-2">
-                    <UserButton>
-                      <UserButton.MenuItems>
-                        {/* Atalhos de navegação Kolecta (ocultos no pré-lançamento) */}
-                        {!gateActive && (
-                          <UserButton.Action
-                            label="Painel de Vendas"
-                            labelIcon={<Store className="h-4 w-4" />}
-                            onClick={() => navigate('/painel')}
-                          />
-                        )}
-                        {!gateActive && (
-                          <UserButton.Action
-                            label="Explorar"
-                            labelIcon={<ShoppingBag className="h-4 w-4" />}
-                            onClick={() => navigate('/busca')}
-                          />
-                        )}
-                        {!gateActive && (
-                          <UserButton.Action
-                            label="Modo Lance"
-                            labelIcon={<Gavel className="h-4 w-4" />}
-                            onClick={() => navigate('/modo-lance')}
-                          />
-                        )}
-                        {/* Atalhos rápidos da Conta */}
-                        <UserButton.Action
-                          label="Meus Pedidos"
-                          labelIcon={<Package className="h-4 w-4" />}
-                          onClick={() => navigate('/conta/pedidos')}
-                        />
-                        <UserButton.Action
-                          label="Pagamentos"
-                          labelIcon={<CreditCard className="h-4 w-4" />}
-                          onClick={() => navigate('/conta/pagamentos')}
-                        />
-                        <UserButton.Action
-                          label="Mensagens"
-                          labelIcon={<MessageSquare className="h-4 w-4" />}
-                          onClick={() => navigate('/conta/mensagens')}
-                        />
-                        {/* Ações nativas do Clerk (reposicionadas) */}
-                        <UserButton.Action label="manageAccount" />
-                        <UserButton.Action label="signOut" />
-                      </UserButton.MenuItems>
-                    </UserButton>
+                    <MenuDoUsuario gateActive={gateActive} />
                   </div>
                 </SignedIn>
                 <SignedOut>

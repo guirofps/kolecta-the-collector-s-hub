@@ -23,7 +23,7 @@ vi.mock('@clerk/clerk-react', () => ({
   SignedIn: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   SignedOut: () => null,
   UserButton: Object.assign(() => null, { MenuItems: () => null, Action: () => null, Link: () => null }),
-  useUser: () => ({ user: { fullName: 'Vendedor Teste', imageUrl: '', primaryEmailAddress: { emailAddress: 'v@teste.com' } } }),
+  useUser: () => ({ user: { id: 'user_abc123', fullName: 'Vendedor Teste', imageUrl: '', primaryEmailAddress: { emailAddress: 'v@teste.com' } } }),
   useClerk: () => ({ signOut: vi.fn() }),
 }));
 
@@ -72,6 +72,11 @@ describe('menu de gaveta no pré-lançamento', () => {
     expect(screen.getByText('Meus Pedidos')).toBeInTheDocument();
     expect(screen.getByText('Endereços')).toBeInTheDocument();
   });
+
+  it('esconde "Meu Perfil", porque /vendedor é rota fechada antes do lançamento', () => {
+    abrirGaveta();
+    expect(screen.queryByText('Meu Perfil')).toBeNull();
+  });
 });
 
 describe('barra inferior do celular', () => {
@@ -118,5 +123,17 @@ describe('menu de gaveta depois do lançamento', () => {
     expect(screen.getAllByText('Explorar').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Modo Lance').length).toBeGreaterThan(0);
     expect(screen.getByText('Vendedor')).toBeInTheDocument();
+  });
+
+  /**
+   * "Meu Perfil" é a vitrine pública do próprio usuário — o único jeito de ver
+   * a loja como o comprador vê. O link tem que ser /vendedor/:id com o id do
+   * Clerk (o backend espelha em users.id no user.created); qualquer outra coisa
+   * abre perfil de outra pessoa ou /vendedor/undefined.
+   */
+  it('leva "Meu Perfil" para a vitrine do próprio usuário', () => {
+    abrirGaveta();
+    const link = screen.getByText('Meu Perfil').closest('a');
+    expect(link).toHaveAttribute('href', '/vendedor/user_abc123');
   });
 });
