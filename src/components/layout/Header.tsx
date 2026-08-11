@@ -5,7 +5,7 @@ import {
   Search, Heart, MessageSquare, X, Gavel, User,
   ShoppingCart, Home, LogOut, MapPin, AlertCircle,
   Tag, PlusCircle, DollarSign, Package, List,
-  HelpCircle, ChevronRight, Users, Store, ShoppingBag, CreditCard
+  HelpCircle, ChevronRight, Users, Store, ShoppingBag, CreditCard, Settings
 } from 'lucide-react';
 import { SignedIn, SignedOut, UserButton, useUser, useClerk } from '@clerk/clerk-react';
 import { useState, useEffect } from 'react';
@@ -268,6 +268,18 @@ function DrawerContent() {
                     <div className="flex items-center gap-3">
                       <DollarSign className="w-4 h-4" />
                       <span className="text-sm">Financeiro</span>
+                    </div>
+                    <ChevronRight className="w-4 h-4 opacity-50" />
+                  </Link>
+                </SheetClose>
+                {/* Configurações da loja (nome da loja, foto, políticas). No
+                    mobile não havia caminho nenhum para cá, e é onde o vendedor
+                    troca o nome que aparece nos anúncios. */}
+                <SheetClose asChild>
+                  <Link to="/painel/configuracoes" className="flex items-center justify-between py-2 text-white/70 hover:text-white transition-colors">
+                    <div className="flex items-center gap-3">
+                      <Settings className="w-4 h-4" />
+                      <span className="text-sm">Configurações da Loja</span>
                     </div>
                     <ChevronRight className="w-4 h-4 opacity-50" />
                   </Link>
