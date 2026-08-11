@@ -17,6 +17,7 @@ import ProductDescription from '@/components/ProductDescription';
 import RejectionNotice from '@/components/RejectionNotice';
 import { isOpenRoute } from '@/components/LaunchGate';
 import { useListing, useUpdateListing, useUploadImage, useCategories, useTogglePauseListing } from '@/hooks/use-api';
+import { medirImagem, resolucaoBaixa, LADO_MINIMO_RECOMENDADO } from '@/lib/qualidade-imagem';
 import type { CreateListingPayload } from '@/lib/api';
 import { toast } from 'sonner';
 import CategoryFieldsEditor from '@/components/CategoryFieldsEditor';
@@ -183,6 +184,15 @@ export default function EditListing() {
 
   const handleFileSelect = (file: File) => {
     if (form.photos.length >= MAX_PHOTOS) return;
+    // Aviso de baixa resolução na origem (não bloqueia): thumbnail miúdo escapa
+    // na aprovação, então quem sobe vê o alerta na hora.
+    void medirImagem(file).then(({ largura, altura }) => {
+      if (resolucaoBaixa(largura, altura)) {
+        toast.warning(
+          `Foto com baixa resolução (abaixo de ${LADO_MINIMO_RECOMENDADO}px). Se puder, reenvie uma imagem maior e nítida.`,
+        );
+      }
+    });
     uploadImage.mutate(file, {
       onSuccess: (data) => {
         setForm((prev) => ({ ...prev, photos: [...prev.photos, data.url] }));

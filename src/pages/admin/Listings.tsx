@@ -5,6 +5,7 @@ import {
   ArrowDownWideNarrow, ArrowUpNarrowWide,
 } from 'lucide-react';
 import AdminLayout from '@/components/layout/AdminLayout';
+import ImagemModeracao from '@/components/ImagemModeracao';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -868,13 +869,9 @@ export default function AdminListings() {
                           {selecionados.has(listing.id) && <Check className="h-3.5 w-3.5" />}
                         </button>
 
-                        {/* Image */}
+                        {/* Image — com aviso de baixa resolução na moderação */}
                         <div className="w-20 h-20 rounded-md overflow-hidden bg-secondary shrink-0">
-                          {imgs[0] ? (
-                            <img src={imgs[0]} alt={listing.title} className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">Sem foto</div>
-                          )}
+                          <ImagemModeracao src={imgs[0]} alt={listing.title} className="w-full h-full object-cover" />
                         </div>
 
                         {/* Info */}
@@ -1016,11 +1013,7 @@ export default function AdminListings() {
                 <div className="space-y-4">
                   <div className="flex gap-4">
                     <div className="w-32 h-32 rounded-md overflow-hidden bg-secondary shrink-0">
-                      {imgs[0] ? (
-                        <img src={imgs[0]} alt="" className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">Sem foto</div>
-                      )}
+                      <ImagemModeracao src={imgs[0]} alt={selectedListing.title} className="w-full h-full object-cover" />
                     </div>
                     <div className="flex-1">
                       <h3 className="font-heading text-base font-bold mb-1">{selectedListing.title}</h3>
