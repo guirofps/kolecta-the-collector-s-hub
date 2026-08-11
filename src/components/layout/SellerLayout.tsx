@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Package, PlusCircle, ShoppingBag, Gavel, Wallet, MessageSquare, Settings, Megaphone, Plug } from 'lucide-react';
 import Header from './Header';
+import LojaSemNomeAviso from '@/components/LojaSemNomeAviso';
 import { cn } from '@/lib/utils';
 
 const sidebarLinks = [
@@ -50,6 +51,7 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
 
         {/* Content */}
         <main className="flex-1 overflow-y-auto">
+          <LojaSemNomeAviso />
           {children}
         </main>
       </div>

@@ -224,7 +224,14 @@ export default function SellerSettingsPage() {
         </div>
         <div className="space-y-1.5">
           <Label>Nome da loja</Label>
-          <Input value={store.storeName} onChange={(e) => setStore(s => ({ ...s, storeName: e.target.value }))} />
+          <Input
+            value={store.storeName}
+            onChange={(e) => setStore(s => ({ ...s, storeName: e.target.value }))}
+            placeholder="Ex: Escala Miniaturas"
+          />
+          <p className="text-xs text-muted-foreground">
+            É o nome que aparece nos seus anúncios para os compradores. Sem ele, mostramos seu nome de usuário.
+          </p>
         </div>
         <div className="space-y-1.5">
           <Label>Descrição da loja</Label>
