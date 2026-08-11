@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { useCart } from '@/contexts/CartContext';
+import { useCart, maxQtd } from '@/contexts/CartContext';
 import { formatBRL } from '@/lib/mock-data';
 
 export default function CartDrawer() {
@@ -69,9 +69,9 @@ export default function CartDrawer() {
                           size="icon"
                           className="h-6 w-6"
                           onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
-                          // D1: 1 unidade por anúncio enquanto o checkout não aceita quantidade.
-                          disabled={item.quantity >= 1}
-                          title="1 unidade por anúncio"
+                          // Teto = estoque do anúncio (peça única continua em 1).
+                          disabled={item.quantity >= maxQtd(item.product)}
+                          title={maxQtd(item.product) > 1 ? `Até ${maxQtd(item.product)} unidades` : '1 unidade'}
                         >
                           <Plus className="h-3 w-3" />
                         </Button>

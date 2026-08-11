@@ -113,6 +113,7 @@ describe('Checkout — frete a partir do endereço salvo', () => {
     expect(quoteMock).toHaveBeenCalledWith({
       to_cep: '09560000',
       listing_id: 'listing_1',
+      quantity: 1,
     });
   });
 

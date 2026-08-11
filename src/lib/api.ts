@@ -611,7 +611,7 @@ export const api = {
         token,
       }).then(r => r.data),
 
-    createCheckout: (token: string, body: { items: { listingId: string }[]; addressId?: string; shippingAddress?: { recipientName: string; street: string; number: string; complement?: string; neighborhood?: string; city: string; state: string; zip: string; country?: string }; shippingInCents?: number; shippingServiceId?: number; shippingServiceName?: string; deliveryMethod?: 'shipping' | 'pickup'; useWalletBalance?: boolean; buyerCpf?: string; buyerPhone?: string; paymentMethod?: 'pix' | 'credit_card'; cardToken?: string; installments?: number }) =>
+    createCheckout: (token: string, body: { items: { listingId: string; quantity?: number }[]; addressId?: string; shippingAddress?: { recipientName: string; street: string; number: string; complement?: string; neighborhood?: string; city: string; state: string; zip: string; country?: string }; shippingInCents?: number; shippingServiceId?: number; shippingServiceName?: string; deliveryMethod?: 'shipping' | 'pickup'; useWalletBalance?: boolean; buyerCpf?: string; buyerPhone?: string; paymentMethod?: 'pix' | 'credit_card'; cardToken?: string; installments?: number }) =>
       request<{
         orderId: string;
         totalInCents: number;
@@ -969,6 +969,7 @@ export const api = {
       width_cm?: number;
       height_cm?: number;
       length_cm?: number;
+      quantity?: number;
     }) =>
       request<{ options: ShippingQuoteOption[]; pickup?: boolean }>('/api/shipping/quote', {
         method: 'POST',

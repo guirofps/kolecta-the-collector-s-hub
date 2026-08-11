@@ -67,6 +67,12 @@ export interface Product {
   tags: string[];
   status: ListingStatus;
   createdAt: string;
+  /**
+   * Unidades disponíveis. `null`/ausente = peça única (regra do MVP: 1 anúncio,
+   * 1 peça). Número = anúncio com estoque, e o comprador pode levar até esse
+   * total. Usado para liberar a quantidade no carrinho.
+   */
+  stock?: number | null;
 }
 
 export interface Bid {

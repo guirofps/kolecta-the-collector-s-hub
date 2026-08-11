@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { useCart } from '@/contexts/CartContext';
+import { useCart, maxQtd } from '@/contexts/CartContext';
 import {
   Heart, ShieldCheck, Star, Gavel, ShoppingCart, Flag,
   ChevronRight, ArrowLeft, MessageSquare, CreditCard,
@@ -101,6 +101,7 @@ function listingToCartProduct(listing: Listing) {
       listing.currentBidInCents != null ? listing.currentBidInCents / 100 : undefined,
     bidsCount: listing.bidsCount ?? 0,
     auctionEndsAt: listing.endsAt ?? undefined,
+    stock: listing.stock ?? null,
   } as Product;
 }
 
@@ -132,6 +133,8 @@ export default function ProductDetail() {
   const { addItem, openCart } = useCart();
   const { getToken } = useAuth();
   const { toast } = useToast();
+  // Quantidade escolhida na página (só relevante para anúncio com estoque > 1).
+  const [quantidade, setQuantidade] = useState(1);
 
   // ── Dados reais do backend ───────────────────────────────────────────────
   const { data: listing, isLoading, isError } = useListing(id);
@@ -356,6 +359,40 @@ export default function ProductDetail() {
                     </div>
                   )}
 
+                  {/* Seletor de quantidade: só quando o anúncio tem estoque > 1.
+                      Peça única não mostra (não faz sentido escolher). */}
+                  {isAvailable && maxQtd(cartProduct) > 1 && (
+                    <div className="flex items-center gap-3 mb-3">
+                      <span className="text-sm text-muted-foreground">Quantidade</span>
+                      <div className="flex items-center rounded-md border border-border">
+                        <button
+                          type="button"
+                          className="px-3 py-2 text-lg leading-none disabled:opacity-40"
+                          disabled={quantidade <= 1}
+                          onClick={() => setQuantidade((q) => Math.max(1, q - 1))}
+                          aria-label="Diminuir quantidade"
+                        >
+                          −
+                        </button>
+                        <span className="w-10 text-center text-sm font-semibold">{quantidade}</span>
+                        <button
+                          type="button"
+                          className="px-3 py-2 text-lg leading-none disabled:opacity-40"
+                          disabled={quantidade >= maxQtd(cartProduct)}
+                          onClick={() =>
+                            setQuantidade((q) => Math.min(maxQtd(cartProduct), q + 1))
+                          }
+                          aria-label="Aumentar quantidade"
+                        >
+                          +
+                        </button>
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {maxQtd(cartProduct)} disponíveis
+                      </span>
+                    </div>
+                  )}
+
                   <div className="flex gap-3">
                     <Button
                       variant="kolecta"
@@ -364,7 +401,7 @@ export default function ProductDetail() {
                       disabled={!isAvailable}
                       onClick={() => {
                         trackEvent('buy_now_click', { productId: listing.id });
-                        addItem(cartProduct, 1);
+                        addItem(cartProduct, quantidade);
                         openCart();
                       }}
                     >

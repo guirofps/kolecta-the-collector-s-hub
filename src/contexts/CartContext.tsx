@@ -22,6 +22,15 @@ export interface CartItem {
   quantity: number;
 }
 
+/**
+ * Teto de unidades no carrinho: o estoque do anúncio quando há estoque, senão 1
+ * (peça única, regra do MVP). O backend revalida no checkout — aqui é só a UI.
+ */
+export function maxQtd(product: Product): number {
+  const s = product.stock;
+  return typeof s === 'number' && s > 0 ? s : 1;
+}
+
 interface CartContextType {
   items: CartItem[];
   addItem: (product: Product, quantity?: number) => void;
@@ -53,25 +62,20 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const openCart = useCallback(() => setIsCartOpen(true), []);
   const closeCart = useCallback(() => setIsCartOpen(false), []);
 
-  // D1: o checkout do backend cria 1 unidade por anúncio (item por listingId,
-  // sem quantidade). Enquanto for assim, travamos a quantidade em 1 no carrinho
-  // para o total exibido não divergir do pedido criado. Reverter = subir MAX_QTY
-  // quando o backend aceitar quantidade.
-  const MAX_QTY = 1;
-
   const addItem = useCallback((product: Product, quantity = 1) => {
     // Funil de tráfego: a etapa "adicionou ao carrinho" (ver lib/analytics).
     trackEvent('add_to_cart', { id: product.id, price: product.price });
+    const teto = maxQtd(product);
     setItems(prev => {
       const existing = prev.find(i => i.product.id === product.id);
       if (existing) {
         return prev.map(i =>
           i.product.id === product.id
-            ? { ...i, quantity: Math.min(MAX_QTY, i.quantity + quantity) }
+            ? { ...i, quantity: Math.min(teto, i.quantity + quantity) }
             : i
         );
       }
-      return [...prev, { product, quantity: Math.min(MAX_QTY, quantity) }];
+      return [...prev, { product, quantity: Math.min(teto, Math.max(1, quantity)) }];
     });
   }, []);
 
@@ -81,9 +85,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const updateQuantity = useCallback((productId: string, quantity: number) => {
     if (quantity < 1) return;
-    const clamped = Math.min(MAX_QTY, quantity);
     setItems(prev =>
-      prev.map(i => (i.product.id === productId ? { ...i, quantity: clamped } : i))
+      prev.map(i =>
+        i.product.id === productId
+          ? { ...i, quantity: Math.min(maxQtd(i.product), quantity) }
+          : i
+      )
     );
   }, []);
 
