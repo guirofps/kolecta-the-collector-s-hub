@@ -167,6 +167,8 @@ export default function CheckoutPage() {
   const [cepError, setCepError] = useState(false);
   const [isCepFilled, setIsCepFilled] = useState(false);
   const [cepInlineError, setCepInlineError] = useState('');
+  /** Motivo da cotação vazia, quando o backend soube dizer qual foi. */
+  const [freteErro, setFreteErro] = useState('');
 
   // ── Shipping state ────────────────────────────────────────────────────
   const [selectedShipping, setSelectedShipping] = useState<Record<string, string>>({});
@@ -215,6 +217,7 @@ export default function CheckoutPage() {
   const cotarFretes = useCallback(async (digits: string) => {
     if (digits.length !== 8) return;
     setCepLoading(true);
+    setFreteErro('');
     try {
       const results = await Promise.all(
         groups.map(async (g) => {
@@ -232,8 +235,16 @@ export default function CheckoutPage() {
               serviceId: typeof o.raw?.id === 'number' ? o.raw.id : undefined,
             }));
             return { slug: g.sellerSlug, options: mapped, pickup: resp.pickup !== false };
-          } catch {
-            return { slug: g.sellerSlug, options: [] as ShippingOption[], pickup: true };
+          } catch (err) {
+            // O motivo importa: "não encontramos esse CEP" é coisa que o
+            // comprador conserta em cinco segundos; engolir tudo num
+            // "sem opções de envio" fazia ele achar que a culpa era da loja.
+            return {
+              slug: g.sellerSlug,
+              options: [] as ShippingOption[],
+              pickup: true,
+              erro: err instanceof Error ? err.message : '',
+            };
           }
         }),
       );
@@ -252,9 +263,15 @@ export default function CheckoutPage() {
       setShippingOptions(optionsBySlug);
       setPickupPorVendedor(pickupBySlug);
       setSelectedShipping(prev => ({ ...prev, ...newSelected }));
-      // Se nenhum vendedor retornou opções, sinaliza o erro visual de frete.
+      // Se nenhum vendedor retornou opções, sinaliza o erro visual de frete —
+      // com o motivo, quando o backend soube dizer qual foi.
       if (anyEmpty && Object.values(optionsBySlug).every(o => o.length === 0)) {
+        const motivo = results.map(r => ('erro' in r ? r.erro : '')).find(Boolean) ?? '';
+        setFreteErro(motivo);
         setCepError(true);
+        // CEP errado é do campo de CEP: o erro tem que aparecer nele, e não só
+        // num aviso lá embaixo que o comprador já rolou passando.
+        if (/cep de entrega/i.test(motivo)) setCepInlineError(motivo);
       }
     } finally {
       setCepLoading(false);
@@ -721,7 +738,11 @@ export default function CheckoutPage() {
                         {cepError && (
                           <div className="flex items-center gap-3 p-4 rounded-md border border-amber-500/50 bg-amber-500/10 text-amber-600">
                             <AlertTriangle className="h-5 w-5 shrink-0" />
-                            <p className="text-sm font-medium">Sem opções de envio para este CEP — você ainda pode escolher <strong>Retirada pessoal</strong>.</p>
+                            <p className="text-sm font-medium">
+                              {freteErro
+                                ? freteErro
+                                : <>Sem opções de envio para este CEP — você ainda pode escolher <strong>Retirada pessoal</strong>.</>}
+                            </p>
                           </div>
                         )}
                         {groups.map((group, idx) => {
