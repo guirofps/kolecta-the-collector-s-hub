@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   detectarVariante, ehLote, ehFranquia, ehAberto, ehCustomizado, extrairCodigo,
   linhaNoTitulo, extrairModelo, motivoNaoComparavel, identidadeDe, mesmaPeca,
-  agruparPorPeca, CONDICAO_BASE,
+  agruparPorPeca, CONDICAO_BASE, extrairCodigoFunko,
 } from '@/lib/kpv-identidade';
 
 // Todos os títulos abaixo saíram do catálogo de produção.
@@ -44,6 +44,39 @@ describe('variante — o que nunca pode ser misturado', () => {
     expect(
       detectarVariante('Hot Wheels Ferrari F40 Super Treasure Hunt w/ protector, does not come with box'),
     ).toBe('super-treasure-hunt');
+  });
+});
+
+describe('Funko — identidade por categoria', () => {
+  const funko = (title: string) => ({ title, brand: 'Funko', condition: CONDICAO_BASE });
+
+  it('reconhece Funko e extrai o número como código forte', () => {
+    const id = identidadeDe(funko('Funko Pop! Teddiursa 985 – Pokémon'));
+    expect(id).not.toBeNull();
+    expect(id!.marca).toBe('Funko');
+    expect(id!.codigo).toBe('985');
+    expect(id!.escala).toBe('unica'); // Funko não tem escala
+  });
+
+  it('não aplica a regra de franquia em Funko (Marvel é o personagem)', () => {
+    // Diecast: um X-Jet dos X-Men é excluído. Funko de Marvel, não.
+    expect(motivoNaoComparavel(funko('POP Marvel Ironheart 687'))).toBeNull();
+    expect(motivoNaoComparavel(funko('Funko Pop Batman 01'))).toBeNull();
+  });
+
+  it('separa chase e especial (glow/flocked) do comum', () => {
+    expect(identidadeDe(funko('Funko Pop Batman 01 Chase'))!.variante).toBe('chase');
+    expect(identidadeDe(funko('Funko Pop Batman 01 Glow in the Dark'))!.variante).toBe('exclusivo-evento');
+    expect(identidadeDe(funko('Funko Pop Batman 01'))!.variante).toBe('regular');
+  });
+
+  it('o número ignora ano e 1 dígito (não confunde com o Funko number)', () => {
+    expect(extrairCodigoFunko('Funko Pop BTS Suga 2021 250')).toBe('250');
+    expect(extrairCodigoFunko('Funko Pop Iron Man mark 5')).toBeNull();
+  });
+
+  it('diecast NÃO é afetado: franquia continua excluída', () => {
+    expect(motivoNaoComparavel(novo('Hot Wheels X-Men X-Jet', 'Hot Wheels'))).toMatch(/franquia/);
   });
 });
 

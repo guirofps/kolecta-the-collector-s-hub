@@ -362,6 +362,48 @@ export function extrairModelo(
   return t;
 }
 
+// ─── Funko (identidade por categoria) ────────────────────────────────────────
+//
+// O KPV nasceu diecast (marca + linha + modelo + escala). Funko é outra
+// categoria e não encaixa nessas guardas: não tem escala, e "Marvel"/"Batman"
+// é o personagem, não motivo de excluir como franquia. Aqui vive só o que muda
+// para Funko; todo o resto do porteiro continua igual para diecast.
+
+/** True quando a marca canônica é Funko. */
+export function ehFunko(marca: string | null | undefined): boolean {
+  return marca === 'Funko';
+}
+
+const RE_ANO = /^(19|20)\d{2}$/;
+
+/**
+ * Número do Funko Pop: o identificador forte da peça (tipo o #NNNN do Mini GT).
+ * Dois Funkos do mesmo personagem com números diferentes são peças diferentes.
+ * 2-4 dígitos (Funko não usa 1 dígito), o último do título, ignorando ano.
+ */
+export function extrairCodigoFunko(titulo: string | null | undefined): string | null {
+  const nums = [...(titulo ?? '').matchAll(/\b(\d{2,4})\b/g)]
+    .map((m) => m[1])
+    .filter((n) => !RE_ANO.test(n));
+  return nums.length ? nums[nums.length - 1] : null;
+}
+
+// Chase e variantes que MUDAM o preço do Funko (não misturam com o comum). A
+// lista é estreita de propósito: "Special Edition" sozinho é adesivo de loja
+// (comum), então fica de fora; convenção (NYCC/SDCC) e acabamento (glow/flocked)
+// entram.
+const RE_FUNKO_CHASE = /\bchase\b/i;
+const RE_FUNKO_ESPECIAL =
+  /\b(glow|gitd|flocked|flocado|metallic|met[áa]lic[oa]|diamond|diamante|nycc|sdcc|eccc|c2e2|funko\s*shop|convention\s*exclusive)\b/i;
+
+/** Variante do Funko: chase, especial (glow/flocked/convenção) ou comum. */
+export function detectarVarianteFunko(titulo: string | null | undefined): Variante {
+  const t = titulo ?? '';
+  if (RE_FUNKO_CHASE.test(t)) return 'chase';
+  if (RE_FUNKO_ESPECIAL.test(t)) return 'exclusivo-evento';
+  return 'regular';
+}
+
 /**
  * Por que este anúncio NÃO entra na comparação de preço. Null = entra.
  *
@@ -375,15 +417,17 @@ export function motivoNaoComparavel(a: AnuncioParaKPV): string | null {
   if ((a.condition ?? '') !== CONDICAO_BASE) {
     return `condição é "${a.condition ?? 'não informada'}", e o KPV compara só ${CONDICAO_BASE}`;
   }
+  const marca = normalizarMarcaDoAnuncio(a.brand, titulo).marca;
   if (ehLote(titulo)) return 'é lote ou pack, não peça única';
-  if (ehFranquia(titulo)) return 'é veículo de franquia, tem mercado próprio';
+  // Em Funko, franquia (Marvel/Batman/...) é o personagem, não motivo de excluir.
+  if (!ehFunko(marca) && ehFranquia(titulo)) return 'é veículo de franquia, tem mercado próprio';
   if (ehAberto(titulo)) return 'peça solta/aberta, e o KPV compara só novo-lacrado';
   if (ehCustomizado(titulo)) return 'é peça customizada ou card de arte, não item de fábrica';
   // A marca pode vir do título quando o campo falha. Isso importa dos dois
   // lados: o catálogo do Mercado Livre frequentemente NÃO preenche o atributo
   // "Marca", e exigir o campo derrubava 11 de 45 candidatos no piloto, antes
   // mesmo de olhar escala ou modelo.
-  if (!normalizarMarcaDoAnuncio(a.brand, titulo).marca) return 'marca fora da lista canônica';
+  if (!marca) return 'marca fora da lista canônica';
   if (!extrairModelo(titulo, a.brand, a.line)) return 'não sobrou modelo depois de limpar o título';
   return null;
 }
@@ -394,10 +438,13 @@ export function identidadeDe(a: AnuncioParaKPV): IdentidadeKPV | null {
 
   const titulo = (a.title ?? '').trim();
   const marca = normalizarMarcaDoAnuncio(a.brand, titulo).marca as string;
-  const linha = limparLinha((a.line ?? '').trim() || linhaNoTitulo(titulo));
+  const funko = ehFunko(marca);
+  // Funko: sem linha (a "linha" seria a franquia, que é o personagem no modelo),
+  // sem escala ('unica' sentinela), variante e código próprios. Diecast segue igual.
+  const linha = funko ? null : limparLinha((a.line ?? '').trim() || linhaNoTitulo(titulo));
   const modelo = extrairModelo(titulo, a.brand, linha);
-  const variante = detectarVariante(titulo, a.description);
-  const escala = normalizarEscala(a.scale);
+  const variante = funko ? detectarVarianteFunko(titulo) : detectarVariante(titulo, a.description);
+  const escala = funko ? 'unica' : normalizarEscala(a.scale);
 
   return {
     marca,
@@ -406,7 +453,7 @@ export function identidadeDe(a: AnuncioParaKPV): IdentidadeKPV | null {
     variante,
     escala,
     condicao: CONDICAO_BASE,
-    codigo: extrairCodigo(titulo, a.brand),
+    codigo: funko ? extrairCodigoFunko(titulo) : extrairCodigo(titulo, a.brand),
     // Escala nula entra como "?" em vez de sumir: peça sem escala declarada não
     // pode ser tratada como se fosse da mesma escala das outras.
     chave: [marca, linha || '-', modelo, variante, escala ?? '?', CONDICAO_BASE]
