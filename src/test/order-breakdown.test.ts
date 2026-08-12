@@ -89,4 +89,89 @@ describe('montarExtrato', () => {
     });
     expect(e.liquidoInCents).toBe(3500);
   });
+
+  /**
+   * Reportado por um vendedor em 12/08, com razão: a tela mostrava item
+   * R$ 200,00, comissão de R$ 18,00 e líquido de R$ 174,22. Faltavam R$ 7,78
+   * sem nenhuma linha que os explicasse — a taxa da operadora não existia no
+   * modelo, então os descontos exibidos não somavam o líquido logo abaixo.
+   */
+  it('mostra a taxa do gateway, que sumia da conta (arremate de R$ 200)', () => {
+    const e = montarExtrato({
+      totalInCents: 20000,
+      shippingInCents: 0,
+      platformFeeInCents: 1800, // 9% — vendedor Membro Fundador
+      gatewayFeeInCents: 778,
+      sellerNetInCents: 17422,
+    });
+
+    expect(e.detalhe).toMatchObject({
+      comissaoInCents: 1800,
+      etiquetaInCents: 0,
+      gatewayInCents: 778,
+    });
+    expect(e.detalhe!.taxaSobreItem).toBeCloseTo(0.09);
+    // E agora a conta FECHA: 200,00 − 18,00 − 7,78 = 174,22.
+    expect(e.descontosInCents).toBe(2578);
+    expect(e.totalInCents - e.descontosInCents).toBe(e.liquidoInCents);
+  });
+
+  it('gateway convive com comissão e etiqueta na mesma venda', () => {
+    // Item R$ 100 + frete R$ 15,50; comissão 11% + etiqueta = 2650; gateway 449.
+    const e = montarExtrato({
+      totalInCents: 11550,
+      shippingInCents: 1550,
+      platformFeeInCents: 2650,
+      gatewayFeeInCents: 449,
+      sellerNetInCents: 8451,
+    });
+
+    expect(e.detalhe).toMatchObject({
+      comissaoInCents: 1100,
+      etiquetaInCents: 1550,
+      gatewayInCents: 449,
+    });
+    expect(e.totalInCents - e.descontosInCents).toBe(e.liquidoInCents);
+  });
+
+  /**
+   * A regra estrutural: as linhas TÊM que somar os descontos. Antes bastava a
+   * comissão bater com uma taxa conhecida, e o resto podia sumir da soma — foi
+   * exatamente assim que a taxa do gateway desapareceu da tela.
+   */
+  it('cai no agregado quando sobra desconto sem linha própria', () => {
+    const e = montarExtrato({
+      totalInCents: 20000,
+      shippingInCents: 0,
+      platformFeeInCents: 1800,
+      gatewayFeeInCents: 0, // backend antigo, sem o campo
+      sellerNetInCents: 17422, // mas o líquido já embute a taxa
+    });
+
+    // 1800 != 2578 → não fecha → não inventa linhas.
+    expect(e.detalhe).toBeNull();
+    expect(e.descontosInCents).toBe(2578);
+    expect(e.totalInCents - e.descontosInCents).toBe(e.liquidoInCents);
+  });
+
+  it('o extrato SEMPRE fecha, tenha detalhe ou não', () => {
+    const casos = [
+      { totalInCents: 20000, platformFeeInCents: 1800, gatewayFeeInCents: 778, sellerNetInCents: 17422 },
+      { totalInCents: 5000, shippingInCents: 3000, platformFeeInCents: 4000, sellerNetInCents: 1000 },
+      { totalInCents: 5000 },
+      { totalInCents: 11550, shippingInCents: 1550, platformFeeInCents: 2650, gatewayFeeInCents: 449, sellerNetInCents: 8451 },
+    ];
+
+    for (const caso of casos) {
+      const e = montarExtrato(caso);
+      expect(e.totalInCents - e.descontosInCents).toBe(e.liquidoInCents);
+      if (e.detalhe) {
+        const soma =
+          e.detalhe.comissaoInCents +
+          e.detalhe.etiquetaInCents +
+          e.detalhe.gatewayInCents;
+        expect(soma).toBe(e.descontosInCents);
+      }
+    }
+  });
 });

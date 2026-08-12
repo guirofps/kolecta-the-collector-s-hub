@@ -29,8 +29,16 @@ export interface EntradaExtrato {
   totalInCents: number;
   /** Frete cobrado no checkout. */
   shippingInCents?: number | null;
-  /** Tudo que o backend descontou do vendedor. */
+  /** Comissão da plataforma (mais a etiqueta, quando a Kolecta a emite). */
   platformFeeInCents?: number | null;
+  /**
+   * Taxa da Pagar.me, descontada do vendedor no split.
+   *
+   * Sem ela a tela não fechava: um arremate de R$ 200 mostrava comissão de
+   * R$ 18 e líquido de R$ 174,22 — faltavam R$ 7,78 sem nenhuma linha que os
+   * explicasse, e o vendedor tinha razão em achar que a conta estava errada.
+   */
+  gatewayFeeInCents?: number | null;
   /** Quanto sobra para o vendedor, segundo o backend. */
   sellerNetInCents?: number | null;
 }
@@ -44,13 +52,19 @@ export interface Extrato {
   descontosInCents: number;
   liquidoInCents: number;
   /**
-   * Quando dá para separar com segurança, vem a comissão e o custo da etiqueta
-   * em linhas próprias. `null` quando os números não fecham: nesse caso a tela
-   * mostra só o total dos descontos, em vez de inventar rótulo.
+   * Quando dá para separar com segurança, vêm as linhas próprias. `null`
+   * quando os números não fecham: nesse caso a tela mostra só o total dos
+   * descontos, em vez de inventar rótulo.
+   *
+   * A regra de "fechar" é literal — as linhas TÊM que somar `descontosInCents`.
+   * Antes bastava a comissão bater com uma taxa conhecida, e a taxa do gateway
+   * simplesmente não entrava na conta: a tela exibia linhas que não somavam o
+   * líquido logo abaixo delas.
    */
   detalhe: {
     comissaoInCents: number;
     etiquetaInCents: number;
+    gatewayInCents: number;
     /** Percentual sobre o ITEM, que é onde a comissão incide de verdade. */
     taxaSobreItem: number;
   } | null;
@@ -65,8 +79,16 @@ export function montarExtrato(pedido: EntradaExtrato): Extrato {
   // O frete nunca deveria passar do total; se passar, o dado está errado e é
   // melhor zerar do que mostrar item negativo.
   const item = Math.max(0, total - Math.min(frete, total));
-  const descontos = Math.max(0, pedido.platformFeeInCents ?? 0);
-  const liquido = pedido.sellerNetInCents ?? total - descontos;
+  const comissaoEEtiqueta = Math.max(0, pedido.platformFeeInCents ?? 0);
+  const gateway = Math.max(0, pedido.gatewayFeeInCents ?? 0);
+  const liquido =
+    pedido.sellerNetInCents ?? total - comissaoEEtiqueta - gateway;
+
+  // Os descontos são o que NÃO chegou ao vendedor — derivado do líquido, não
+  // somado a partir das taxas. Somar as taxas conhecidas deixava de fora
+  // qualquer desconto que a tela não conhecesse (foi o caso do gateway), e o
+  // resultado era um extrato que não fechava com o próprio total logo abaixo.
+  const descontos = Math.max(0, total - liquido);
 
   return {
     itemInCents: item,
@@ -74,7 +96,7 @@ export function montarExtrato(pedido: EntradaExtrato): Extrato {
     totalInCents: total,
     descontosInCents: descontos,
     liquidoInCents: liquido,
-    detalhe: separarDescontos(item, frete, descontos),
+    detalhe: separarDescontos(item, frete, descontos, gateway),
   };
 }
 
@@ -93,6 +115,7 @@ function separarDescontos(
   item: number,
   frete: number,
   descontos: number,
+  gateway: number,
 ): Extrato['detalhe'] {
   if (item <= 0 || descontos <= 0) return null;
 
@@ -100,19 +123,39 @@ function separarDescontos(
   const reconhecida = (taxa: number) =>
     TAXAS_CONHECIDAS.some((conhecida) => Math.abs(taxa - conhecida) <= TOLERANCIA);
 
-  // Hipótese 1: descontos = comissão + etiqueta.
-  if (frete > 0 && descontos >= frete) {
-    const comissao = descontos - frete;
-    const taxa = comissao / item;
-    if (reconhecida(taxa)) {
-      return { comissaoInCents: comissao, etiquetaInCents: frete, taxaSobreItem: taxa };
+  /**
+   * Só devolve o detalhe se as linhas somarem EXATAMENTE os descontos. É esta
+   * checagem que impede a tela de voltar a exibir um extrato que não fecha:
+   * qualquer desconto novo que apareça no futuro e não tenha linha própria
+   * derruba para o agregado, em vez de sumir da soma.
+   */
+  const seFechar = (comissao: number, etiqueta: number) =>
+    comissao + etiqueta + gateway === descontos
+      ? {
+          comissaoInCents: comissao,
+          etiquetaInCents: etiqueta,
+          gatewayInCents: gateway,
+          taxaSobreItem: comissao / item,
+        }
+      : null;
+
+  // A taxa do gateway não é deduzida, vem informada pelo backend — o que sobra
+  // depois dela é que precisa ser explicado como comissão (+ etiqueta).
+  const semGateway = descontos - gateway;
+  if (semGateway <= 0) return null;
+
+  // Hipótese 1: o resto é comissão + etiqueta.
+  if (frete > 0 && semGateway >= frete) {
+    const comissao = semGateway - frete;
+    if (reconhecida(comissao / item)) {
+      const detalhe = seFechar(comissao, frete);
+      if (detalhe) return detalhe;
     }
   }
 
-  // Hipótese 2: descontos são só a comissão.
-  const taxaDireta = descontos / item;
-  if (reconhecida(taxaDireta)) {
-    return { comissaoInCents: descontos, etiquetaInCents: 0, taxaSobreItem: taxaDireta };
+  // Hipótese 2: o resto é só a comissão.
+  if (reconhecida(semGateway / item)) {
+    return seFechar(semGateway, 0);
   }
 
   return null;
