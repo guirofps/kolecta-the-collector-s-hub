@@ -844,6 +844,60 @@ export function useCancelOrder() {
   });
 }
 
+// ── Frete do arremate (o vencedor escolhe depois do fecho) ───────────────────
+
+/**
+ * Opções de entrega do arremate. `enabled` fica a cargo de quem chama: só faz
+ * sentido para pedido `pending_payment`, e a cotação bate no Melhor Envio.
+ */
+export function useAuctionShippingOptions(orderId: string | null, enabled = true) {
+  const { getToken } = useAuth();
+
+  return useQuery({
+    queryKey: ['auction-shipping', orderId],
+    queryFn: async () => {
+      const token = await getToken();
+      return api.auctions.shippingOptions(token!, orderId!);
+    },
+    enabled: !!orderId && enabled,
+    // Preço de frete envelhece: recota ao reabrir em vez de mostrar valor velho
+    // que o servidor vai recusar na hora de gravar.
+    staleTime: 0,
+    retry: false,
+  });
+}
+
+export function useChooseAuctionShipping() {
+  const { getToken } = useAuth();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (vars: {
+      orderId: string;
+      deliveryMethod: 'shipping' | 'pickup';
+      shippingServiceId?: number;
+      addressId?: string;
+    }) => {
+      const token = await getToken();
+      const { orderId, ...body } = vars;
+      return api.auctions.chooseShipping(token!, orderId, body);
+    },
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      queryClient.invalidateQueries({ queryKey: ['orders', vars.orderId] });
+      queryClient.invalidateQueries({ queryKey: ['auction-shipping', vars.orderId] });
+    },
+    onError: (err: Error) => {
+      toast({
+        title: 'Não foi possível salvar a entrega',
+        description: err.message,
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
 // ── usePayAuctionOrder (vencedor paga arremate pendente no cartão) ───────────
 
 export function usePayAuctionOrder() {

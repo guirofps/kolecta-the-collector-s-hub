@@ -8,14 +8,15 @@ import EmptyState from '@/components/EmptyState';
 import { useMyBids } from '@/hooks/use-api';
 import { MyBid } from '@/lib/api';
 import { formatBRL } from '@/lib/currency';
-import { Gavel, TrendingUp, TrendingDown, Clock, XCircle } from 'lucide-react';
+import { Gavel, TrendingUp, TrendingDown, Clock, XCircle, CheckCircle2 } from 'lucide-react';
 
-type BidStatus = 'leading' | 'outbid' | 'won_pending' | 'lost';
+type BidStatus = 'leading' | 'outbid' | 'won_pending' | 'won_paid' | 'lost';
 
 const statusConfig: Record<BidStatus, { label: string; icon: React.ElementType; color: string }> = {
   leading:     { label: 'Liderando',            icon: TrendingUp,   color: 'text-primary bg-primary/10 border-primary/20' },
   outbid:      { label: 'Você foi superado',     icon: TrendingDown, color: 'text-accent bg-accent/10 border-accent/20' },
-  won_pending: { label: 'Aguardando pagamento',  icon: Clock,        color: 'text-primary bg-primary/10 border-primary/20' },
+  won_pending: { label: 'Escolha o frete',       icon: Clock,        color: 'text-amber-500 bg-amber-500/10 border-amber-500/20' },
+  won_paid:    { label: 'Arrematado',            icon: CheckCircle2, color: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20' },
   lost:        { label: 'Perdido',               icon: XCircle,      color: 'text-muted-foreground bg-secondary border-border' },
 };
 
@@ -26,6 +27,12 @@ function getImages(raw: string | null): string[] {
 }
 
 function getBidStatus(bid: MyBid): BidStatus {
+  // O status do LANCE manda quando existe: 'won' é arremate já pago e liquidado,
+  // 'lost' é lance perdido ou vencedor que deixou o prazo vencer. Deduzir tudo
+  // do status do LEILÃO fazia quem já tinha pago continuar vendo "aguardando".
+  if (bid.status === 'won') return 'won_paid';
+  if (bid.status === 'lost') return 'lost';
+
   // `findMyBids` retorna apenas o MAIOR lance do usuário por leilão, então
   // se ele bate o lance atual do leilão, este usuário é quem lidera/venceu.
   const isTopBid = bid.currentBidInCents === bid.amountInCents;
@@ -33,6 +40,8 @@ function getBidStatus(bid: MyBid): BidStatus {
     return isTopBid ? 'leading' : 'outbid';
   }
   if (bid.auctionStatus === 'ended') {
+    // Leilão encerrado com o lance ainda vivo = arremate esperando o vencedor
+    // escolher a entrega e pagar.
     return isTopBid ? 'won_pending' : 'lost';
   }
   return 'lost';
@@ -49,6 +58,7 @@ export default function MyBidsPage() {
     leading:     enriched.filter(b => b.bidStatus === 'leading').length,
     outbid:      enriched.filter(b => b.bidStatus === 'outbid').length,
     won_pending: enriched.filter(b => b.bidStatus === 'won_pending').length,
+    won_paid:    enriched.filter(b => b.bidStatus === 'won_paid').length,
     lost:        enriched.filter(b => b.bidStatus === 'lost').length,
   };
 
@@ -71,7 +81,8 @@ export default function MyBidsPage() {
             { value: 'all' as const,         label: 'Todos' },
             { value: 'leading' as const,     label: `Liderando (${counts.leading})` },
             { value: 'outbid' as const,      label: `Superados (${counts.outbid})` },
-            { value: 'won_pending' as const, label: `Aguardando (${counts.won_pending})` },
+            { value: 'won_pending' as const, label: `Aguardando você (${counts.won_pending})` },
+            { value: 'won_paid' as const,    label: `Arrematados (${counts.won_paid})` },
             { value: 'lost' as const,        label: `Perdidos (${counts.lost})` },
           ].map((f) => (
             <Badge
@@ -128,9 +139,17 @@ export default function MyBidsPage() {
                         </Link>
                       </Button>
                     )}
+                    {/* Vai para PEDIDOS, não para a página do leilão: é lá que
+                        ele escolhe o frete e paga. O link antigo devolvia o
+                        vencedor ao leilão encerrado, sem nada para fazer. */}
                     {bid.bidStatus === 'won_pending' && (
                       <Button variant="kolecta" size="sm" className="text-xs shrink-0" asChild>
-                        <Link to={`/modo-lance/${bid.auctionId}`}>Pagar</Link>
+                        <Link to="/conta/pedidos?tab=em-andamento">Escolher frete e pagar</Link>
+                      </Button>
+                    )}
+                    {bid.bidStatus === 'won_paid' && (
+                      <Button variant="outline-gold" size="sm" className="text-xs shrink-0" asChild>
+                        <Link to="/conta/pedidos">Ver pedido</Link>
                       </Button>
                     )}
                   </div>

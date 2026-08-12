@@ -413,8 +413,30 @@ export const api = {
         token,
       }).then(r => r.data),
 
-    // Vencedor paga um arremate cuja captura falhou (pedido pending_payment),
-    // via cartão salvo, dentro do prazo (Fase 4).
+    // Leilão não tem checkout: o vencedor escolhe como receber DEPOIS do fecho,
+    // e o frete entra no total do arremate. Estas duas rotas são esse passo.
+    shippingOptions: (token: string, orderId: string) =>
+      request<{ data: AuctionShippingQuote }>(
+        `/api/auctions/orders/${orderId}/shipping`,
+        { token },
+      ).then(r => r.data),
+
+    chooseShipping: (
+      token: string,
+      orderId: string,
+      body: {
+        deliveryMethod: 'shipping' | 'pickup';
+        shippingServiceId?: number;
+        addressId?: string;
+      },
+    ) =>
+      request<{ data: AuctionShippingChoice }>(
+        `/api/auctions/orders/${orderId}/shipping`,
+        { method: 'POST', body: JSON.stringify(body), token },
+      ).then(r => r.data),
+
+    // Vencedor paga o arremate (lance + frete escolhido) no cartão salvo,
+    // dentro do prazo.
     payOrder: (token: string, orderId: string) =>
       request<{ data: { orderId: string; paid: boolean } }>(
         `/api/auctions/orders/${orderId}/pay`,
@@ -1456,6 +1478,9 @@ export interface Order {
   // 'shipping' = envio via transportadora | 'pickup' = retirada em mãos.
   // Decide quem confirma a entrega: na retirada é o vendedor (botão); no envio é
   // o rastreio ou o comprador.
+  //
+  // Num ARREMATE ainda sem escolha do vencedor vem no default 'shipping' com
+  // `shippingServiceName` nulo — é assim que se sabe que falta escolher.
   deliveryMethod?: 'shipping' | 'pickup' | null;
   trackingCode?: string | null;
   // Etiqueta emitida automaticamente pela Kolecta no Melhor Envio.
@@ -1467,7 +1492,7 @@ export interface Order {
   shippingInCents?: number | null;
   createdAt: string;
   updatedAt: string;
-  // Prazo para o vencedor pagar um arremate `pending_payment` (Fase 4).
+  // Prazo para o vencedor escolher a entrega e pagar um arremate.
   paymentDeadlineAt?: string | null;
   // Financeiro (preenchido em GET /api/orders/:id)
   sellerNetInCents?: number | null;
@@ -1978,6 +2003,12 @@ export interface MyBid {
   auctionId: string;
   amountInCents: number;
   createdAt: string;
+  /**
+   * Status do LANCE. 'won' = arremate pago e liquidado; 'lost' = perdido ou
+   * prazo vencido; 'active'/'outbid'/'released' = ainda em jogo. Distingue
+   * arremate já pago de arremate esperando o vencedor agir.
+   */
+  status?: 'active' | 'outbid' | 'won' | 'lost' | 'released' | null;
   auctionStatus: 'active' | 'ended' | 'cancelled';
   auctionEndsAt: string;
   currentBidInCents: number | null;
@@ -1985,6 +2016,39 @@ export interface MyBid {
   listingId: string;
   title: string;
   images: string | null;
+}
+
+/** Uma opção de entrega para o vencedor do leilão, já com o total fechado. */
+export interface AuctionShippingOption {
+  serviceId: number;
+  carrier: string;
+  service: string;
+  name: string;
+  shippingInCents: number;
+  deliveryTimeDays: number | null;
+  /** lance + frete — o que será cobrado se ele escolher esta. */
+  totalInCents: number;
+}
+
+/** GET /api/auctions/orders/:id/shipping */
+export interface AuctionShippingQuote {
+  bidInCents: number;
+  address: { id: string; city: string; state: string; zip: string } | null;
+  /** true = o vencedor não tem endereço cadastrado e precisa cadastrar um. */
+  needsAddress: boolean;
+  /** true = o vendedor aceita entrega em mãos. */
+  pickup: boolean;
+  options: AuctionShippingOption[];
+}
+
+/** POST /api/auctions/orders/:id/shipping */
+export interface AuctionShippingChoice {
+  orderId: string;
+  deliveryMethod: 'shipping' | 'pickup';
+  bidInCents: number;
+  shippingInCents: number;
+  shippingServiceName: string | null;
+  totalInCents: number;
 }
 
 export interface AdminStats {
