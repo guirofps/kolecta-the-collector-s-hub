@@ -444,6 +444,18 @@ export default function SellerOrderDetailPage() {
                         </span>
                       </div>
                     )}
+                    {/* A taxa da operadora do cartão. Faltava esta linha: a tela
+                        mostrava comissão de R$18 e líquido de R$174,22 num
+                        pedido de R$200, e os R$7,78 de diferença não tinham
+                        explicação nenhuma na tela. */}
+                    {extrato.detalhe.gatewayInCents > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Taxa de pagamento (operadora)</span>
+                        <span className="text-kolecta-red">
+                          -{formatBRL(extrato.detalhe.gatewayInCents / 100)}
+                        </span>
+                      </div>
+                    )}
                   </>
                 ) : (
                   extrato.descontosInCents > 0 && (
