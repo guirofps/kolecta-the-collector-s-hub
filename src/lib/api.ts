@@ -2188,6 +2188,10 @@ export interface AdminOrderDetail {
   trackingCode: string | null;
   shippingLabelStatus: string | null;
   shippingLabelUrl: string | null;
+  // Motivo da última falha de emissão. O painel do vendedor já mostrava; aqui
+  // faltava, e "failed" sem motivo manda o admin abrir o log do Render para
+  // descobrir se foi saldo, documento ou a transportadora recusando.
+  shippingLabelError: string | null;
   shippingServiceName: string | null;
   createdAt: string;
   buyer: { id: string; name: string | null; email: string | null } | null;

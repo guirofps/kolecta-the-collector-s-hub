@@ -111,6 +111,15 @@ export default function AdminOrderDetail() {
                   <span>Rastreio: <span className="text-foreground font-mono">{o.trackingCode ?? '—'}</span></span>
                   <span>Etiqueta: <span className="text-foreground">{o.shippingLabelStatus ?? 'não emitida'}</span></span>
                 </div>
+                {/* Sem o motivo, "failed" manda o admin caçar no log do Render
+                    para saber se foi saldo, documento ou a transportadora
+                    recusando o trecho — e a ação certa é diferente em cada caso. */}
+                {o.shippingLabelStatus === 'failed' && (
+                  <p className="rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs text-muted-foreground">
+                    <strong className="text-foreground">Última falha: </strong>
+                    {o.shippingLabelError || 'motivo não registrado.'}
+                  </p>
+                )}
                 <p className="text-xs text-muted-foreground">
                   O PDF "completo" traz etiqueta e declaração de conteúdo na mesma folha. Se a declaração ainda estiver sendo emitida pelo Melhor Envio, baixa só a etiqueta e avisa.
                 </p>
