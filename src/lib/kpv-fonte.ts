@@ -41,6 +41,9 @@ const MARCAS_TIRAGEM_PEQUENA = [
 export function fonteRecomendada(id: IdentidadeKPV): FonteKPV {
   if (id.variante !== 'regular') return 'ebay';
   if (MARCAS_TIRAGEM_PEQUENA.includes(id.marca)) return 'ebay';
+  // Funko: o ML BR tem o produto no catálogo mas quase sem anúncio ativo (deu
+  // "0 preços" na coleta), enquanto o eBay é o maior mercado de Funko do mundo.
+  if (id.marca === 'Funko') return 'ebay';
   return 'mercado-livre';
 }
 

@@ -32,6 +32,10 @@ describe('qual fonte usar', () => {
     expect(fonteRecomendada(id('Kaido House Datsun 510 Wagon', 'Kaido House'))).toBe('ebay');
     expect(fonteRecomendada(id('Tarmac Works Honda Civic EG6', 'Tarmac Works'))).toBe('ebay');
   });
+
+  it('Funko vai para o eBay: o ML BR tem o catálogo mas quase sem preço', () => {
+    expect(fonteRecomendada(id('Funko Pop Sylvanas 990', 'Funko'))).toBe('ebay');
+  });
 });
 
 describe('o porteiro — casos reais que o piloto errou', () => {
