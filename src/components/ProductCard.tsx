@@ -168,7 +168,10 @@ export default function ProductCard({ product, className = '' }: ProductCardProp
             página de captação. O selo é uma consulta leve (0,3s) e o cache é por
             usuário: numa vitrine, os mesmos vendedores se repetem em vários
             cards e a consulta acontece uma vez só por vendedor. */}
-        <div className="mt-2.5 flex items-center gap-1.5 border-t border-border pt-2.5">
+        {/* `min-h` porque o selo de Fundador é mais alto que o nome sozinho: sem
+            isso o rodapé mede 33px em quem tem selo e 28px em quem não tem, e
+            numa prateleira lado a lado esses 5px aparecem como card torto. */}
+        <div className="mt-2.5 flex min-h-[33px] items-center gap-1.5 border-t border-border pt-2.5">
           <Link
             to={product.seller.storeSlug ? `/${product.seller.storeSlug}` : `/vendedor/${product.seller.slug}`}
             className="min-w-0 truncate text-[11px] text-muted-foreground transition-colors hover:text-foreground"

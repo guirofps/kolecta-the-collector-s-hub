@@ -52,6 +52,13 @@ const ATALHOS_BUSCA = ['Hot Wheels', 'Mini GT', 'Kaido House', 'Pokémon'];
 // 500: quem clicava numa categoria esperava a mesma listagem duas vezes.
 const LIMITE_HOME = LIMITE_CATALOGO;
 
+// Cards por prateleira de categoria.
+//
+// Seis porque a grade usa 2, 3 e 6 colunas conforme a largura, e os três são
+// divisores de 6: a última linha sempre fecha, nunca sobra card órfão. Mudar
+// este número pede rever as colunas da seção, e vice-versa.
+const ITENS_POR_VITRINE = 6;
+
 const fadeUp = {
   hidden: { opacity: 0, y: 30 },
   visible: (i: number) => ({
@@ -118,6 +125,10 @@ function HomeContent() {
       .map((c) => ({ slug: c.slug, nome: c.name }));
     const vitrines = pegarVitrines(ativos, catsVitrine, {
       semente: sementeVitrine,
+      // Seis, e não doze: a prateleira virou GRADE (ver a seção lá embaixo), e
+      // seis é o número que fecha a linha em toda largura — 2, 3 ou 6 colunas.
+      // Quem quiser mais tem o "Ver todos" no cabeçalho da seção.
+      porSecao: ITENS_POR_VITRINE,
       excluir: [...emLeilao, ...emDestaque, ...novos],
     });
 
@@ -437,8 +448,17 @@ function HomeContent() {
 
       {/* ─── PRATELEIRAS POR CATEGORIA ────────────────── */}
       {/* Descoberta: cards, funko e action figures ganham vitrine própria em vez
-          de sumir sob as miniaturas. Carrossel horizontal (swipe no celular);
-          só aparece a categoria com itens de sobra (ver vitrinesPorCategoria). */}
+          de sumir sob as miniaturas. Só aparece a categoria com itens de sobra
+          (ver vitrinesPorCategoria).
+
+          GRADE, e não mais carrossel horizontal. O carrossel cortava o último
+          card na borda do container — e card cortado não lê como "tem mais para
+          o lado", lê como página quebrada, ainda mais numa vitrine de produto
+          onde o preço e o botão ficam justamente na parte que some.
+
+          As colunas (2, 3 e 6) são todas divisores de ITENS_POR_VITRINE, então a
+          última linha fecha completa em qualquer largura, sem card órfão. Mexer
+          em um dos dois números exige conferir o outro. */}
       {secoes.vitrines.map((vitrine) => (
         <section key={vitrine.slug} className="py-12 lg:py-14">
           <div className="container mx-auto px-4">
@@ -447,11 +467,9 @@ function HomeContent() {
               subtitle="De vários vendedores, novidades e clássicos"
               action={{ label: 'Ver todos', href: `/categoria/${vitrine.slug}` }}
             />
-            <div className="-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-6">
               {vitrine.itens.map((product) => (
-                <div key={product.id} className="w-40 shrink-0 snap-start sm:w-48">
-                  <ProductCard product={product} />
-                </div>
+                <ProductCard key={product.id} product={product} />
               ))}
             </div>
           </div>
