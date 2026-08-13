@@ -932,6 +932,10 @@ export const api = {
     getProfile: (id: string) =>
       request<SellerProfile>(`/api/sellers/${id}`),
 
+    /** Resolve a loja pela URL amigável (kolecta.com.br/<slug>). */
+    getProfileBySlug: (slug: string) =>
+      request<SellerProfile>(`/api/sellers/by-slug/${encodeURIComponent(slug)}`),
+
     getListings: (id: string, params?: { page?: number; limit?: number; categoryId?: string }) => {
       const searchParams = new URLSearchParams();
       if (params?.page) searchParams.append('page', params.page.toString());
@@ -1139,6 +1143,9 @@ export interface SellerProfile {
   bio: string | null;
   avatarUrl: string | null;
   isVerified: boolean | null;
+  /** Nome da loja e URL amigável (kolecta.com.br/<slug>), quando definidos. */
+  storeName?: string | null;
+  slug?: string | null;
   createdAt: string;
   totalActiveListings: number;
   totalSales: number;

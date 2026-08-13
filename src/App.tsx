@@ -220,6 +220,11 @@ const App = () => (
             <Route path="/admin/relatorios" element={<ProtectedRoute role="admin"><AdminReports /></ProtectedRoute>} />
             <Route path="/admin/configuracoes" element={<ProtectedRoute role="admin"><AdminSettings /></ProtectedRoute>} />
 
+            {/* URL amigável da loja na RAIZ (kolecta.com.br/nome). ÚLTIMA rota
+                antes do 404: todas as rotas específicas acima ganham por
+                especificidade; slug que não resolve cai em "loja não encontrada".
+                Ver common/slug (palavras reservadas) no backend. */}
+            <Route path="/:handle" element={<SellerProfilePage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           </ErrorBoundary>

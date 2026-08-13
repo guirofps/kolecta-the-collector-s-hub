@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { CategoryIcon } from '@/components/CategoryIcon';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, Navigate } from 'react-router-dom';
 import { ShieldCheck, MapPin, Star, MessageSquare, Heart, Search } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import Layout from '@/components/layout/Layout';
@@ -78,8 +78,11 @@ function ProfileSkeleton() {
 // ─── Main Page ───────────────────────────────────────────
 
 export default function SellerProfilePage() {
-  const { slug } = useParams<{ slug: string }>(); // slug here represents the user ID
-  const id = slug as string;
+  // Dois caminhos: /vendedor/:sellerId (id do Clerk) e /:handle (URL amigável da
+  // loja). O `handle` resolve pelo slug; o `sellerId` é o antigo, que redireciona
+  // para a URL bonita quando a loja tem slug.
+  const { slug: sellerIdParam, handle } = useParams<{ slug?: string; handle?: string }>();
+  const porHandle = !!handle;
 
   const [following, setFollowing] = useState(false);
   const [showFullDesc, setShowFullDesc] = useState(false);
@@ -93,10 +96,16 @@ export default function SellerProfilePage() {
   // Queries
   const { data: categories } = useCategories();
   const { data: seller, isLoading: loadingProfile } = useQuery({
-    queryKey: ['sellerProfile', id],
-    queryFn: () => api.sellers.getProfile(id),
-    enabled: !!id,
+    queryKey: porHandle ? ['sellerBySlug', handle] : ['sellerProfile', sellerIdParam],
+    queryFn: () =>
+      porHandle
+        ? api.sellers.getProfileBySlug(handle as string)
+        : api.sellers.getProfile(sellerIdParam as string),
+    enabled: porHandle ? !!handle : !!sellerIdParam,
   });
+
+  // O id real do vendedor: do param (rota antiga) ou do perfil (rota por slug).
+  const id = (porHandle ? seller?.id : sellerIdParam) as string;
 
   const { data: listingsResponse, isLoading: loadingListings } = useQuery({
     queryKey: ['sellerListings', id, categoryFilter],
@@ -114,6 +123,27 @@ export default function SellerProfilePage() {
     queryFn: () => api.sellers.getReviews(id, { limit: 50 }),
     enabled: !!id,
   });
+
+  // Rota antiga (/vendedor/:id): se a loja tem URL amigável, manda pra ela (a
+  // bonita vira canônica, e link antigo compartilhado continua funcionando).
+  if (!porHandle && seller?.slug) {
+    return <Navigate to={`/${seller.slug}`} replace />;
+  }
+
+  // Slug/id que não resolve (loja inexistente): 404 amigável, não skeleton eterno.
+  if (!loadingProfile && !seller) {
+    return (
+      <Layout>
+        <div className="container mx-auto px-4 py-20 text-center">
+          <h1 className="font-heading text-2xl font-extrabold italic uppercase">Loja não encontrada</h1>
+          <p className="text-muted-foreground mt-2">Confira o link ou volte para a home.</p>
+          <Link to="/" className="mt-4 inline-block text-primary underline underline-offset-2">
+            Ir para a home
+          </Link>
+        </div>
+      </Layout>
+    );
+  }
 
   if (loadingProfile || !seller) {
     return (
@@ -171,7 +201,7 @@ export default function SellerProfilePage() {
       <SEO
         title={`${seller.name || 'Loja'} · Loja na Kolecta`}
         description={`Confira os anúncios de ${seller.name || 'esta loja'} na Kolecta, o marketplace dos colecionadores. Compre com segurança.`}
-        canonicalPath={`/vendedor/${slug}`}
+        canonicalPath={seller.slug ? `/${seller.slug}` : `/vendedor/${id}`}
       />
       <div className="container mx-auto px-4 py-8 space-y-8">
         {/* ─── Header ─── */}
@@ -189,7 +219,7 @@ export default function SellerProfilePage() {
               {/* O selo aparecia na página do anúncio mas não aqui, que é a
                   vitrine da loja: quem clicava no nome do vendedor para ver
                   quem ele é perdia justamente a informação. */}
-              <FounderBadgeFor userId={slug} />
+              <FounderBadgeFor userId={id} />
               {seller.isVerified && (
                 <Badge className="bg-primary/10 text-primary border-primary/30">
                   <ShieldCheck className="h-3.5 w-3.5 mr-1" />
@@ -345,7 +375,7 @@ export default function SellerProfilePage() {
                     ...toProduct(product),
                     // O perfil sabe o nome e o selo da loja; o conversor genérico não.
                     // F32: sem id/slug o card apontava para "/vendedor/undefined".
-                    seller: { name: seller.name, slug: slug, id: slug, verified: !!seller.isVerified },
+                    seller: { name: seller.name, slug: id, id: id, verified: !!seller.isVerified },
                   } as unknown as import('@/lib/mock-data').Product;
                   return <ProductCard key={product.id} product={mapped} />;
                 })}
