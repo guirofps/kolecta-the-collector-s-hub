@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { useCart } from '@/contexts/CartContext';
+import { useCart, maxQtd } from '@/contexts/CartContext';
 import {
   Heart, ShieldCheck, Star, Gavel, ShoppingCart, Flag,
   ChevronRight, ArrowLeft, MessageSquare, CreditCard,
@@ -13,6 +13,8 @@ import AuctionCountdown from '@/components/AuctionCountdown';
 import VerificationBadge from '@/components/VerificationBadge';
 import { FounderBadgeFor } from '@/components/FounderBadge';
 import { onlyPublic } from '@/lib/listing-visibility';
+import { recomendados } from '@/lib/home-sections';
+import SEO from '@/components/SEO';
 import { LIMITE_CATALOGO } from '@/lib/catalogo';
 import ProductDescription from '@/components/ProductDescription';
 import ProductGallery from '@/components/ProductGallery';
@@ -78,6 +80,7 @@ function listingToCartProduct(listing: Listing) {
       id: listing.sellerId,
       name: listing.sellerName || 'Vendedor Kolecta',
       slug: listing.sellerId,
+      storeSlug: listing.sellerSlug ?? null,
       avatar: '/placeholder.svg',
       verified: false,
       rating: 0,
@@ -100,6 +103,7 @@ function listingToCartProduct(listing: Listing) {
       listing.currentBidInCents != null ? listing.currentBidInCents / 100 : undefined,
     bidsCount: listing.bidsCount ?? 0,
     auctionEndsAt: listing.endsAt ?? undefined,
+    stock: listing.stock ?? null,
   } as Product;
 }
 
@@ -131,6 +135,8 @@ export default function ProductDetail() {
   const { addItem, openCart } = useCart();
   const { getToken } = useAuth();
   const { toast } = useToast();
+  // Quantidade escolhida na página (só relevante para anúncio com estoque > 1).
+  const [quantidade, setQuantidade] = useState(1);
 
   // ── Dados reais do backend ───────────────────────────────────────────────
   const { data: listing, isLoading, isError } = useListing(id);
@@ -219,6 +225,42 @@ export default function ProductDetail() {
   const images = parseImages(listing.images);
   const details = buildDetails(listing);
   const cartProduct = listingToCartProduct(listing);
+
+  // ── SEO: título/descrição/canônica únicos + Product JSON-LD (resultado rico) ──
+  const descricaoSeo =
+    (listing.description ?? '').replace(/\s+/g, ' ').trim().slice(0, 160) ||
+    `${listing.title} à venda na Kolecta, o marketplace dos colecionadores.`;
+  const precoReais =
+    listing.priceInCents != null ? (listing.priceInCents / 100).toFixed(2) : undefined;
+  const imagensHttp = images.filter((u) => u.startsWith('http'));
+  const produtoJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: listing.title,
+    ...(imagensHttp.length ? { image: imagensHttp } : {}),
+    description: descricaoSeo,
+    ...(listing.brand ? { brand: { '@type': 'Brand', name: listing.brand } } : {}),
+    ...(precoReais
+      ? {
+          offers: {
+            '@type': 'Offer',
+            price: precoReais,
+            priceCurrency: 'BRL',
+            availability:
+              listing.status === 'active'
+                ? 'https://schema.org/InStock'
+                : 'https://schema.org/OutOfStock',
+            itemCondition: (listing.condition ?? '').startsWith('novo')
+              ? 'https://schema.org/NewCondition'
+              : 'https://schema.org/UsedCondition',
+            url: `https://kolecta.com.br/produto/${listing.id}`,
+            ...(listing.sellerName
+              ? { seller: { '@type': 'Organization', name: listing.sellerName } }
+              : {}),
+          },
+        }
+      : {}),
+  };
   const priceInBRL = listing.priceInCents != null ? listing.priceInCents / 100 : null;
   const isAvailable = listing.status === 'active';
 
@@ -233,16 +275,22 @@ export default function ProductDetail() {
     ? `/modo-lance/${listing.auctionId}`
     : '/modo-lance';
 
-  // "Explore mais": anúncios REAIS da plataforma (antes vinha de mock, que
-  // exibia produtos inexistentes com preço e contagem de lances falsos).
-  // Tira o próprio anúncio da lista e mostra até 4.
-  const similar: Product[] = onlyPublic(similarData ?? [])
-    .filter((l) => l.id !== listing.id)
-    .slice(0, 4)
+  // "Explore mais": anúncios REAIS da plataforma. Antes pegava os 4 primeiros
+  // do catálogo, iguais em toda página. Agora prioriza a mesma categoria,
+  // completa com variedade e varia por anúncio (semente derivada do id), num
+  // carrossel rolável.
+  const similar: Product[] = recomendados(onlyPublic(similarData ?? []), listing, { quantos: 16 })
     .map(listingToCartProduct);
 
   return (
     <Layout>
+      <SEO
+        title={listing.title}
+        description={descricaoSeo}
+        canonicalPath={`/produto/${listing.id}`}
+        image={imagensHttp[0]}
+        jsonLd={produtoJsonLd}
+      />
       <div className="container mx-auto px-4 py-6">
 
         {/* Breadcrumb */}
@@ -356,6 +404,40 @@ export default function ProductDetail() {
                     </div>
                   )}
 
+                  {/* Seletor de quantidade: só quando o anúncio tem estoque > 1.
+                      Peça única não mostra (não faz sentido escolher). */}
+                  {isAvailable && maxQtd(cartProduct) > 1 && (
+                    <div className="flex items-center gap-3 mb-3">
+                      <span className="text-sm text-muted-foreground">Quantidade</span>
+                      <div className="flex items-center rounded-md border border-border">
+                        <button
+                          type="button"
+                          className="px-3 py-2 text-lg leading-none disabled:opacity-40"
+                          disabled={quantidade <= 1}
+                          onClick={() => setQuantidade((q) => Math.max(1, q - 1))}
+                          aria-label="Diminuir quantidade"
+                        >
+                          −
+                        </button>
+                        <span className="w-10 text-center text-sm font-semibold">{quantidade}</span>
+                        <button
+                          type="button"
+                          className="px-3 py-2 text-lg leading-none disabled:opacity-40"
+                          disabled={quantidade >= maxQtd(cartProduct)}
+                          onClick={() =>
+                            setQuantidade((q) => Math.min(maxQtd(cartProduct), q + 1))
+                          }
+                          aria-label="Aumentar quantidade"
+                        >
+                          +
+                        </button>
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {maxQtd(cartProduct)} disponíveis
+                      </span>
+                    </div>
+                  )}
+
                   <div className="flex gap-3">
                     <Button
                       variant="kolecta"
@@ -364,7 +446,7 @@ export default function ProductDetail() {
                       disabled={!isAvailable}
                       onClick={() => {
                         trackEvent('buy_now_click', { productId: listing.id });
-                        addItem(cartProduct, 1);
+                        addItem(cartProduct, quantidade);
                         openCart();
                       }}
                     >
@@ -580,15 +662,17 @@ export default function ProductDetail() {
           </Tabs>
         </div>
 
-        {/* Similares — mock por enquanto */}
+        {/* Explore mais: carrossel rolável, varia por anúncio */}
         {similar.length > 0 && (
           <div className="mt-12">
             <h2 className="font-heading text-xl font-extrabold italic uppercase mb-6">
               Explore Mais
             </h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {similar.map(p => (
-                <ProductCard key={p.id} product={p} />
+                <div key={p.id} className="w-40 shrink-0 snap-start sm:w-48">
+                  <ProductCard product={p} />
+                </div>
               ))}
             </div>
           </div>

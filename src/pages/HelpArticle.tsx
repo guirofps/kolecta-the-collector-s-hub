@@ -44,7 +44,7 @@ const mockArticles: Record<string, {
       { type: 'h3', text: 'Criando sua conta de vendedor' },
       { type: 'p', text: 'Após criar sua conta na Kolecta, acesse o Painel do Vendedor e inicie o processo de verificação de identidade (KYC). Você precisará enviar documentos de identificação, comprovante de residência e uma selfie com documento. A análise é feita em até 24 horas.' },
       { type: 'h3', text: 'Configurando pagamentos' },
-      { type: 'p', text: 'Para receber seus pagamentos, vincule uma conta Stripe ao seu perfil de vendedor. O processo é rápido e seguro. Os repasses são feitos automaticamente em até 3 dias úteis após a confirmação de entrega.' },
+      { type: 'p', text: 'Para receber seus pagamentos, conclua o cadastro de recebedor na Pagar.me no seu perfil de vendedor. O processo é rápido e seguro. O valor líquido fica retido e é liberado após a confirmação de entrega, respeitando o prazo de segurança da Plataforma.' },
       { type: 'highlight', text: 'Importante: Configure suas políticas de envio e devolução no Painel do Vendedor antes de criar seu primeiro anúncio. Isso transmite confiança aos compradores.' },
       { type: 'h3', text: 'Criando seu primeiro anúncio' },
       { type: 'p', text: 'No Painel do Vendedor, clique em "Novo Anúncio". Preencha todas as informações do produto: título claro, descrição detalhada, condição exata do item, fotos de alta qualidade (mínimo 2 fotos) e preço competitivo. Anúncios completos e bem elaborados vendem até 3x mais rápido.' },

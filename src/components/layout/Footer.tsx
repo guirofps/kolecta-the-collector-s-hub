@@ -94,9 +94,14 @@ export default function Footer() {
 
         {/* Bottom bar */}
         <div className="line-tech mt-10 mb-6" />
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-white/40">
-          <p>© {new Date().getFullYear()} Kolecta. Todos os direitos reservados.</p>
-          <p>Feito para colecionadores, por colecionadores.</p>
+        <div className="flex flex-col gap-3 text-xs text-white/40">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <p>© {new Date().getFullYear()} Kolecta. Todos os direitos reservados.</p>
+            <p>Feito para colecionadores, por colecionadores.</p>
+          </div>
+          <p className="text-center sm:text-left text-white/30">
+            KOLECTA MARKETPLACE LTDA · CNPJ 67.620.642/0001-64 · Rua São Paulo, 671, Apt. 12, Cerâmica, São Caetano do Sul/SP, CEP 09530-211
+          </p>
         </div>
       </div>
     </footer>

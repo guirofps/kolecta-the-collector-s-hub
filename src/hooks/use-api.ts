@@ -53,6 +53,23 @@ export function useMyProfile() {
   });
 }
 
+// ── useUpdateMyProfile ───────────────────────────────────────────────────────
+
+/** Atualiza nome/telefone do próprio usuário e revalida o perfil. */
+export function useUpdateMyProfile() {
+  const { getToken } = useAuth();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: { name?: string; phone?: string }) => {
+      const token = await getToken();
+      return api.users.updateMe(token || '', payload);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['my-profile'] });
+    },
+  });
+}
+
 // ── useFounderBadge ──────────────────────────────────────────────────────────
 
 /** Selo público de um usuário (para render no card/perfil). null se não-fundador. */

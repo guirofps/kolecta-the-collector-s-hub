@@ -87,6 +87,7 @@ import { CartProvider } from "./contexts/CartContext";
 import CartDrawer from "./components/CartDrawer";
 import { MetaPixelPageView, MetaPixelSignup } from "./components/MetaPixel";
 import TrafficTracker from "./components/TrafficTracker";
+import ProfileCompletionGate from "./components/ProfileCompletionGate";
 import { Analytics } from "@vercel/analytics/react";
 import { Navigate } from "react-router-dom";
 
@@ -101,6 +102,7 @@ const showDevUserSwitcher =
   isLovablePreview;
 
 const App = () => (
+
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
     <CartProvider>
@@ -120,6 +122,9 @@ const App = () => (
           <Analytics />
           {CLERK_ENABLED && <MetaPixelSignup />}
           {CLERK_ENABLED && <ConsentSync />}
+          {/* Captura obrigatória do telefone logo após o cadastro (só e-mail vem
+              do Clerk). Bloqueia o uso até o usuário logado ter telefone. */}
+          {CLERK_ENABLED && <ProfileCompletionGate />}
           {showDevUserSwitcher && <DevUserSwitcher />}
           <LaunchGate>
           {/* Comunicado da mudança nos meios de pagamento. Dentro do LaunchGate
@@ -215,6 +220,11 @@ const App = () => (
             <Route path="/admin/relatorios" element={<ProtectedRoute role="admin"><AdminReports /></ProtectedRoute>} />
             <Route path="/admin/configuracoes" element={<ProtectedRoute role="admin"><AdminSettings /></ProtectedRoute>} />
 
+            {/* URL amigável da loja na RAIZ (kolecta.com.br/nome). ÚLTIMA rota
+                antes do 404: todas as rotas específicas acima ganham por
+                especificidade; slug que não resolve cai em "loja não encontrada".
+                Ver common/slug (palavras reservadas) no backend. */}
+            <Route path="/:handle" element={<SellerProfilePage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           </ErrorBoundary>
@@ -224,6 +234,7 @@ const App = () => (
     </CartProvider>
     </AuthProvider>
   </QueryClientProvider>
+
 );
 
 export default App;

@@ -6,6 +6,10 @@ import SellerLayout from '@/components/layout/SellerLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction,
+} from '@/components/ui/alert-dialog';
 import { formatBRL, conditionLabel } from '@/lib/mock-data';
 import { isListingFeatured } from '@/lib/api';
 import { useMyListings, useDeleteListing, useTogglePauseListing, usePublishListing, useMyFounder, useUseFounderCredit, useIsFounderActive, useColocarEmLeilao, useReorderListings, useDestacarListings } from '@/hooks/use-api';
@@ -65,6 +69,9 @@ const statusLabels: Record<string, string> = {
 
 export default function SellerListings() {
   const [activeTab, setActiveTab] = useState<string>('todos');
+  // Confirmação antes de gastar um crédito: destaque é benefício escasso (5, com
+  // validade), e o clique era imediato — um toque errado no celular queimava um.
+  const [featureTarget, setFeatureTarget] = useState<{ id: string; title: string } | null>(null);
   const [search, setSearch] = useState('');
   // Modo de organizar a vitrine: arrastar os anúncios ATIVOS para a ordem em que
   // aparecem na página do vendedor. Fica separado da gestão normal para não
@@ -82,7 +89,8 @@ export default function SellerListings() {
   // Fundador ativo com créditos disponíveis pode destacar anúncios ativos.
   const creditsAvailable = founder?.credits?.available ?? 0;
   // Só depois da seleção (25/07). Ver useIsFounderActive.
-  const canFeature = useIsFounderActive() && creditsAvailable > 0;
+  const isFounderActive = useIsFounderActive();
+  const canFeature = isFounderActive && creditsAvailable > 0;
   // A vitrine pública só abre no lançamento. Perguntamos ao próprio gate em vez
   // de repetir a regra aqui: mudou a allowlist, isto acompanha.
   const paginaPublicaDisponivel = isOpenRoute('/produto/x');
@@ -190,6 +198,25 @@ export default function SellerListings() {
   return (
     <SellerLayout>
       <div className="p-6 lg:p-8 max-w-6xl">
+        {/* Saldo de créditos de destaque: antes o benefício ficava escondido no
+            menu "..." e o vendedor não via quantos tinha nem o que fazia. */}
+        {isFounderActive && (
+          <div className="mb-6 flex items-start gap-3 rounded-lg border border-primary/30 bg-primary/10 px-4 py-3">
+            <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+            <div className="flex-1 text-sm">
+              <p className="font-medium text-foreground">
+                Você tem <strong>{creditsAvailable}</strong>{' '}
+                {creditsAvailable === 1 ? 'crédito' : 'créditos'} de destaque de Fundador.
+              </p>
+              <p className="mt-0.5 text-muted-foreground">
+                Cada crédito coloca um anúncio em <strong>"Em Destaque"</strong> na home por 7 dias.
+                {creditsAvailable > 0
+                  ? ' Abra o menu "..." de um anúncio ativo e toque em "Destacar".'
+                  : ' Seus créditos acabaram por enquanto.'}
+              </p>
+            </div>
+          </div>
+        )}
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="font-heading text-2xl font-extrabold italic uppercase">Meus Anúncios</h1>
@@ -469,7 +496,7 @@ export default function SellerListings() {
                           <DropdownMenuItem
                             className="gap-2 text-sm text-primary"
                             disabled={useCreditMutation.isPending}
-                            onClick={() => useCreditMutation.mutate(product.id)}
+                            onClick={() => setFeatureTarget({ id: product.id, title: product.title })}
                           >
                             <Sparkles className="h-3.5 w-3.5" /> Destacar (usar 1 crédito)
                           </DropdownMenuItem>
@@ -582,6 +609,34 @@ export default function SellerListings() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Confirmação antes de gastar um crédito de destaque (anti-misclique). */}
+      <AlertDialog open={!!featureTarget} onOpenChange={(o) => !o && setFeatureTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" /> Destacar anúncio?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Vamos colocar <strong>"{featureTarget?.title}"</strong> em destaque na home por
+              7 dias. Isso usa <strong>1</strong> dos seus <strong>{creditsAvailable}</strong>{' '}
+              {creditsAvailable === 1 ? 'crédito' : 'créditos'}, e não dá para desfazer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={useCreditMutation.isPending}
+              onClick={() => {
+                if (featureTarget) useCreditMutation.mutate(featureTarget.id);
+                setFeatureTarget(null);
+              }}
+            >
+              Destacar por 7 dias
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
     </SellerLayout>
   );

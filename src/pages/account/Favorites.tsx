@@ -55,6 +55,8 @@ export default function FavoritesPage() {
       type: listing.type,
       price: (listing.priceInCents ?? 0) / 100,
       seller: {
+        // storeSlug ausente aqui (endpoint de favoritos não devolve): cai no
+        // fallback /vendedor/:id, que redireciona pra vitrine mesmo assim.
         id: listing.sellerId, name: 'Vendedor Kolecta', slug: listing.sellerId,
         avatar: '/placeholder.svg', verified: false, rating: 0, totalSales: 0, location: '', since: '',
       },

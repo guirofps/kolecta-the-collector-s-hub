@@ -225,6 +225,8 @@ export default function CheckoutPage() {
             const resp = await api.shipping.quote({
               to_cep: digits,
               listing_id: g.items[0]?.product.id,
+              // Frete pelo peso total: N unidades em 1 envio.
+              quantity: g.items[0]?.quantity ?? 1,
             });
             const opts = resp.options;
             const mapped: ShippingOption[] = opts.map((o) => ({
@@ -443,8 +445,9 @@ export default function CheckoutPage() {
 
     const group = groups[currentGroupIndex];
 
-    // Um listingId por item do grupo (MVP: 1 item por seller)
-    const listingItems = group.items.map(i => ({ listingId: i.product.id }));
+    // Um listingId por item do grupo (MVP: 1 item por seller), com a quantidade
+    // escolhida. O backend cobra preço*qtd e baixa o estoque por qtd.
+    const listingItems = group.items.map(i => ({ listingId: i.product.id, quantity: i.quantity }));
     // Os DOIS caminhos são válidos — a política de entrega é do comprador.
     // Endereço salvo vai por id; o digitado vai inteiro e o backend o salva na
     // conta dele. Antes o digitado era descartado: pedido sem destino, cartão

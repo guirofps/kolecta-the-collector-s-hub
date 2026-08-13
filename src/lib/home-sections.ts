@@ -42,6 +42,7 @@ export function toProduct(l: Listing): Product {
       id: l.sellerId,
       name: l.sellerName || 'Vendedor Kolecta',
       slug: l.sellerId,
+      storeSlug: l.sellerSlug ?? null,
       avatar: '/placeholder.svg',
       verified: true,
       rating: 5,
@@ -55,6 +56,7 @@ export function toProduct(l: Listing): Product {
     tags: [],
     status: l.status,
     createdAt: l.createdAt,
+    stock: l.stock ?? null,
     // Sem estes campos o card do leilão cai no `|| 0` e mostra "R$ 0,00".
     auctionId: l.auctionId ?? undefined,
     startingBid: l.startingBidInCents != null ? l.startingBidInCents / 100 : undefined,
@@ -146,17 +148,23 @@ export function destaques(
   const organicos = candidatos.filter((l) => !isListingFeatured(l));
 
   let resto: Listing[];
+  let frente: Listing[];
   if (semente != null) {
     // Pool de qualidade: o topo por valor (até 4x a vitrine, mínimo 40), para o
     // sorteio não puxar uma peça de R$ 5 para a primeira tela, mas ainda variar.
     const poolTam = Math.max(40, quantos * 4);
     const pool = [...organicos].sort((a, b) => preco(b) - preco(a)).slice(0, poolTam);
     resto = intercalarPorVendedor(embaralharComSemente(pool, semente));
+    // Os pagos continuam garantidos no topo, mas a ORDEM entre eles gira por
+    // visita: com 2 destaques, o card do topo deixa de ser sempre o mesmo, sem
+    // tirar a prioridade que o vendedor comprou.
+    frente = intercalarPorVendedor(embaralharComSemente(pagos, semente));
   } else {
     resto = intercalarPorVendedor([...organicos].sort((a, b) => preco(b) - preco(a)));
+    frente = intercalarPorVendedor(pagos);
   }
 
-  return [...intercalarPorVendedor(pagos), ...resto].slice(0, quantos);
+  return [...frente, ...resto].slice(0, quantos);
 }
 
 /** Recém-chegados, do mais novo para o mais antigo. */
@@ -211,6 +219,37 @@ export function vitrinesPorCategoria(
     out.push({ slug: c.slug, nome: c.nome, itens: intercalarPorVendedor(base).slice(0, porSecao) });
   }
   return out;
+}
+
+/**
+ * Recomendações para a página de UM anúncio ("Explore mais").
+ *
+ * Antes a página mostrava sempre os 4 primeiros do catálogo: iguais em toda
+ * página, sem relação com o que a pessoa está vendo. Aqui a mesma categoria vem
+ * primeiro (relevância), o resto completa (variedade de "outros tipos"), tudo
+ * intercalado por loja e embaralhado por uma semente derivada do anúncio atual.
+ * Assim cada anúncio mostra um conjunto DIFERENTE, e estável durante a visita.
+ */
+export function recomendados(
+  ativos: Listing[],
+  atual: Pick<Listing, 'id' | 'categoryId' | 'sellerId'>,
+  opts: { quantos?: number; semente?: number } = {},
+): Listing[] {
+  const { quantos = 16, semente } = opts;
+  const pool = ativos.filter((l) => l.id !== atual.id);
+  // Sem semente explícita, o próprio id do anúncio vira a semente: cada página
+  // tem seu conjunto, e ele não muda a cada re-render dentro da mesma visita.
+  const base = semente ?? hashTexto(atual.id);
+
+  const misturar = (xs: Listing[], sal: number) =>
+    intercalarPorVendedor(embaralharComSemente(xs, (base ^ sal) >>> 0));
+
+  const mesmaCat = pool.filter((l) => l.categoryId === atual.categoryId);
+  const outras = pool.filter((l) => l.categoryId !== atual.categoryId);
+
+  // Mesma categoria primeiro, depois o resto. Não re-intercala o todo para não
+  // perder essa prioridade; cada grupo já sai espalhado por loja.
+  return [...misturar(mesmaCat, 0x9e3779b1), ...misturar(outras, 0x85ebca77)].slice(0, quantos);
 }
 
 /**

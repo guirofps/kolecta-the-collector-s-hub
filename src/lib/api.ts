@@ -84,6 +84,14 @@ export const api = {
     getMe: (token: string) =>
       request<{ data: UserProfile }>('/api/users/me', { token }).then(r => r.data),
 
+    /** Atualiza o próprio perfil (nome/telefone). O backend valida o telefone. */
+    updateMe: (token: string, payload: { name?: string; phone?: string }) =>
+      request<{ data: UserProfile }>('/api/users/me', {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+        token,
+      }).then(r => r.data),
+
     /** Registra o aceite de Termos + LGPD do cadastro (idempotente no backend). */
     recordConsent: (
       token: string,
@@ -639,7 +647,7 @@ export const api = {
         token,
       }).then(r => r.data),
 
-    createCheckout: (token: string, body: { items: { listingId: string }[]; addressId?: string; shippingAddress?: { recipientName: string; street: string; number: string; complement?: string; neighborhood?: string; city: string; state: string; zip: string; country?: string }; shippingInCents?: number; shippingServiceId?: number; shippingServiceName?: string; deliveryMethod?: 'shipping' | 'pickup'; useWalletBalance?: boolean; buyerCpf?: string; buyerPhone?: string; paymentMethod?: 'pix' | 'credit_card'; cardToken?: string; installments?: number }) =>
+    createCheckout: (token: string, body: { items: { listingId: string; quantity?: number }[]; addressId?: string; shippingAddress?: { recipientName: string; street: string; number: string; complement?: string; neighborhood?: string; city: string; state: string; zip: string; country?: string }; shippingInCents?: number; shippingServiceId?: number; shippingServiceName?: string; deliveryMethod?: 'shipping' | 'pickup'; useWalletBalance?: boolean; buyerCpf?: string; buyerPhone?: string; paymentMethod?: 'pix' | 'credit_card'; cardToken?: string; installments?: number }) =>
       request<{
         orderId: string;
         totalInCents: number;
@@ -938,6 +946,10 @@ export const api = {
     getProfile: (id: string) =>
       request<SellerProfile>(`/api/sellers/${id}`),
 
+    /** Resolve a loja pela URL amigável (kolecta.com.br/<slug>). */
+    getProfileBySlug: (slug: string) =>
+      request<SellerProfile>(`/api/sellers/by-slug/${encodeURIComponent(slug)}`),
+
     getListings: (id: string, params?: { page?: number; limit?: number; categoryId?: string }) => {
       const searchParams = new URLSearchParams();
       if (params?.page) searchParams.append('page', params.page.toString());
@@ -997,6 +1009,7 @@ export const api = {
       width_cm?: number;
       height_cm?: number;
       length_cm?: number;
+      quantity?: number;
     }) =>
       request<{ options: ShippingQuoteOption[]; pickup?: boolean }>('/api/shipping/quote', {
         method: 'POST',
@@ -1160,6 +1173,9 @@ export interface SellerProfile {
   avatarUrl: string | null;
   cover: StoreCoverData | null;
   isVerified: boolean | null;
+  /** Nome da loja e URL amigável (kolecta.com.br/<slug>), quando definidos. */
+  storeName?: string | null;
+  slug?: string | null;
   createdAt: string;
   totalActiveListings: number;
   totalSales: number;
@@ -1169,6 +1185,8 @@ export interface SellerProfile {
 
 export interface SellerSelfProfile {
   storeName: string | null;
+  /** URL amigável da loja (kolecta.com.br/<slug>), gerada do nome da loja. */
+  slug: string | null;
   avatarUrl: string | null;
   cover: StoreCoverData | null;
   bio: string | null;
@@ -1638,6 +1656,8 @@ export interface Listing {
   id: string;
   sellerId: string;
   sellerName?: string | null;
+  /** Slug público da loja do vendedor (vanity URL). Null em lojas antigas. */
+  sellerSlug?: string | null;
   categoryId: string | null;
   title: string;
   description: string | null;
@@ -1900,6 +1920,8 @@ export interface UserProfile {
   id: string;
   email: string;
   name: string | null;
+  /** Telefone só com dígitos (DDD + número). Vazio/null até o cadastro captar. */
+  phone: string | null;
   role: 'user' | 'admin';
   createdAt: string;
   updatedAt: string;

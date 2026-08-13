@@ -42,6 +42,7 @@ import { definirCapa, removerFoto } from '@/lib/fotos-anuncio';
 import { fieldsForCategory, formatFieldValue, isFieldApplicable } from '@/lib/category-fields';
 import ProductDescription from '@/components/ProductDescription';
 import { useCreateListing, useUploadImage, useCategories, useAddresses, useCommissionRate } from '@/hooks/use-api';
+import { medirImagem, resolucaoBaixa, LADO_MINIMO_RECOMENDADO } from '@/lib/qualidade-imagem';
 import { useToast } from '@/hooks/use-toast';
 import type { CreateListingPayload } from '@/lib/api';
 
@@ -416,6 +417,23 @@ export default function CreateListing() {
 
     const batch = files.slice(0, free);
     setUploadingCount((n) => n + batch.length);
+
+    // Aviso de baixa resolução: mede as escolhidas e alerta ANTES de o vendedor
+    // publicar. Não bloqueia (é aviso, não trava), mas quem sobe thumbnail passa
+    // a ver na hora, em vez de a foto miúda escapar na aprovação.
+    void Promise.all(batch.map((f) => medirImagem(f))).then((dims) => {
+      const pequenas = dims.filter((d) => resolucaoBaixa(d.largura, d.altura)).length;
+      if (pequenas > 0) {
+        toast({
+          title:
+            pequenas === 1
+              ? 'Foto com baixa resolução'
+              : `${pequenas} fotos com baixa resolução`,
+          description: `Fotos pequenas (abaixo de ${LADO_MINIMO_RECOMENDADO}px) afastam comprador e prejudicam a venda. Se puder, reenvie imagens maiores e nítidas.`,
+          variant: 'destructive',
+        });
+      }
+    });
 
     const falhas: string[] = [];
     const fila = [...batch];

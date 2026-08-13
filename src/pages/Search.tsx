@@ -93,6 +93,7 @@ export default function SearchPage() {
         id: l.sellerId,
         name: l.sellerName || 'Vendedor Kolecta',
         slug: l.sellerId,
+        storeSlug: l.sellerSlug ?? null,
         avatar: '/placeholder.svg',
         // F30: sem dado real de verificação/reputação, não inventamos selo nem nota.
         verified: false,

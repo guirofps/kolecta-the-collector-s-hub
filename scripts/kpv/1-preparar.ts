@@ -43,19 +43,26 @@ console.log(dicionario.length
   ? `dicionário: ${dicionario.length} produtos, ${dicionario.filter((e) => e.ean).length} com EAN válido`
   : 'dicionário: não encontrado, seguindo só por nome');
 
-const rows = await consultar<AnuncioBanco>(`
-  SELECT id, title, COALESCE(description,'') AS description, brand, line, scale,
-         condition, price_in_cents
-  FROM listings
-  WHERE status = 'active'
-    AND category_id = (SELECT id FROM categories WHERE slug = 'miniaturas-diecast')`);
+// Categorias que o KPV cobre. Diecast é o núcleo; Funko entrou com identidade
+// própria (ver kpv-identidade, ramo `marca === 'Funko'`).
+const rows = await consultar<AnuncioBanco & { category_slug: string }>(`
+  SELECT l.id, l.title, COALESCE(l.description,'') AS description, l.brand, l.line,
+         l.scale, l.condition, l.price_in_cents, c.slug AS category_slug
+  FROM listings l JOIN categories c ON c.id = l.category_id
+  WHERE l.status = 'active'
+    AND c.slug IN ('miniaturas-diecast', 'funko-pop')`);
 
-console.log(`catálogo ativo em miniaturas: ${rows.length}`);
+const nFunko = rows.filter((r) => r.category_slug === 'funko-pop').length;
+console.log(`catálogo ativo: ${rows.length} (miniaturas ${rows.length - nFunko} + funko ${nFunko})`);
 
 const descartes: Record<string, number> = {};
 const grupos = new Map<string, ItemDaFila>();
 
-for (const r of rows) {
+for (const rBruto of rows) {
+  // A categoria funko-pop é a verdade sobre a marca: força 'Funko' para o ramo
+  // Funko da identidade pegar mesmo quando o título diz só "POP" (sem "Funko").
+  const r =
+    rBruto.category_slug === 'funko-pop' ? { ...rBruto, brand: 'Funko' } : rBruto;
   const motivo = motivoNaoComparavel(r);
   if (motivo) {
     // Agrupa o motivo sem o valor específico, para o relatório não virar lista.

@@ -30,6 +30,10 @@ export const MARCAS_MINIATURA = [
   'Storehouse Custom', 'SHOOM64', 'CKS', 'D Model', 'Cool Car', 'MoreArt',
   // Coleções de banca (fascículo), que o mercado trata como marca própria.
   'BR Classics', 'Carros Inesquecíveis',
+  // Fora de miniatura de carro, mas com identidade limpa e mercado próprio: o
+  // KPV passou a cobrir Funko (identidade por número, sem escala). Ver
+  // kpv-identidade (ramo `marca === 'Funko'`).
+  'Funko',
   'Outra',
 ] as const;
 
@@ -95,6 +99,12 @@ const APELIDOS: Record<string, MarcaMiniatura> = {
   storehousecustom: 'Storehouse Custom',
   'more art': 'MoreArt',
   'br classics escala miniaturas': 'BR Classics',
+  // Funko. Sem "pop" sozinho de propósito: colidiria com "Pop Race"/"Pop Culture".
+  funko: 'Funko',
+  'funko pop': 'Funko',
+  'funko pop!': 'Funko',
+  'boneco funko': 'Funko',
+  'boneco funko pop': 'Funko',
 };
 
 /** Marcas canônicas indexadas pela chave normalizada. */

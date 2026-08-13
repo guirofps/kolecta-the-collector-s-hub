@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
-  detectarVariante, ehLote, ehFranquia, extrairCodigo, linhaNoTitulo,
-  extrairModelo, motivoNaoComparavel, identidadeDe, mesmaPeca, agruparPorPeca,
-  CONDICAO_BASE,
+  detectarVariante, ehLote, ehFranquia, ehAberto, ehCustomizado, extrairCodigo,
+  linhaNoTitulo, extrairModelo, motivoNaoComparavel, identidadeDe, mesmaPeca,
+  agruparPorPeca, CONDICAO_BASE, extrairCodigoFunko,
 } from '@/lib/kpv-identidade';
 
 // Todos os títulos abaixo saíram do catálogo de produção.
@@ -27,6 +27,77 @@ describe('variante — o que nunca pode ser misturado', () => {
 
   it('reconhece chase', () => {
     expect(detectarVariante('Hot Wheels Premium - Alfa Romeo GTV6 - CHASE - 1:64')).toBe('chase');
+  });
+
+  // O REGULAR se anuncia dizendo o que NÃO é, para aparecer na busca da rara.
+  // Sem tratar isto, a peça de US$ 5 caía na amostra da STH e derrubava a mediana
+  // (o F40 Competizione STH virou referência de R$ 85 em vez de ~R$ 1.500).
+  it('título que NEGA a variante é regular, não a rara', () => {
+    expect(detectarVariante('Hot Wheels Ferrari F40 Competizione Black NON Super Treasure Hunt')).toBe('regular');
+    expect(detectarVariante('Hot Wheels Ferrari F40 not STH')).toBe('regular');
+    expect(detectarVariante('Hot Wheels Civic não é chase, versão comum')).toBe('regular');
+    expect(detectarVariante('Hot Wheels Skyline sem ser treasure hunt')).toBe('regular');
+  });
+
+  it('negação LONGE da sigla não derruba uma STH de verdade', () => {
+    // "does not come with protector" é ressalva de frete, não nega a variante.
+    expect(
+      detectarVariante('Hot Wheels Ferrari F40 Super Treasure Hunt w/ protector, does not come with box'),
+    ).toBe('super-treasure-hunt');
+  });
+});
+
+describe('Funko — identidade por categoria', () => {
+  const funko = (title: string) => ({ title, brand: 'Funko', condition: CONDICAO_BASE });
+
+  it('reconhece Funko e extrai o número como código forte', () => {
+    const id = identidadeDe(funko('Funko Pop! Teddiursa 985 – Pokémon'));
+    expect(id).not.toBeNull();
+    expect(id!.marca).toBe('Funko');
+    expect(id!.codigo).toBe('985');
+    expect(id!.escala).toBe('unica'); // Funko não tem escala
+  });
+
+  it('não aplica a regra de franquia em Funko (Marvel é o personagem)', () => {
+    // Diecast: um X-Jet dos X-Men é excluído. Funko de Marvel, não.
+    expect(motivoNaoComparavel(funko('POP Marvel Ironheart 687'))).toBeNull();
+    expect(motivoNaoComparavel(funko('Funko Pop Batman 01'))).toBeNull();
+  });
+
+  it('separa chase e especial (glow/flocked) do comum', () => {
+    expect(identidadeDe(funko('Funko Pop Batman 01 Chase'))!.variante).toBe('chase');
+    expect(identidadeDe(funko('Funko Pop Batman 01 Glow in the Dark'))!.variante).toBe('exclusivo-evento');
+    expect(identidadeDe(funko('Funko Pop Batman 01'))!.variante).toBe('regular');
+  });
+
+  it('o número ignora ano e 1 dígito (não confunde com o Funko number)', () => {
+    expect(extrairCodigoFunko('Funko Pop BTS Suga 2021 250')).toBe('250');
+    expect(extrairCodigoFunko('Funko Pop Iron Man mark 5')).toBeNull();
+  });
+
+  it('diecast NÃO é afetado: franquia continua excluída', () => {
+    expect(motivoNaoComparavel(novo('Hot Wheels X-Men X-Jet', 'Hot Wheels'))).toMatch(/franquia/);
+  });
+});
+
+describe('aberto e customizado — não entram na comparação', () => {
+  it('peça solta/loose não é novo-lacrado', () => {
+    expect(ehAberto('2026 Hot Wheels Ferrari F40 SUPER TREASURE HUNT Loose')).toBe(true);
+    expect(ehAberto('Hot Wheels Skyline solto sem cartela')).toBe(true);
+    expect(ehAberto('Hot Wheels Ferrari F40 Competizione lacrado')).toBe(false);
+    expect(motivoNaoComparavel(novo('Hot Wheels Ferrari F40 STH Loose', 'Hot Wheels'))).toMatch(/solta|aberta/);
+  });
+
+  it('card de arte e repaint de variante são customizados', () => {
+    expect(ehCustomizado('Custom Premium card Hot Wheels Super Treasure Hunt Ferrari F40')).toBe(true);
+    expect(ehCustomizado('Hot Wheels Custom Ferrari F40 STH Super Treasure Hunt Blue')).toBe(true);
+    expect(motivoNaoComparavel(novo('Custom Ferrari F40 STH repaint', 'Hot Wheels'))).toMatch(/customizada|card/);
+  });
+
+  it('"Custom" de MOLDE OFICIAL (regular) não é reprovado', () => {
+    // "Custom '77 Dodge Van" e "Custom Otto" são nomes de casting de fábrica.
+    expect(ehCustomizado("Hot Wheels Custom '77 Dodge Van")).toBe(false);
+    expect(motivoNaoComparavel(novo("Hot Wheels Custom '77 Dodge Van", 'Hot Wheels'))).toBeNull();
   });
 
   it('sem marcação é regular', () => {

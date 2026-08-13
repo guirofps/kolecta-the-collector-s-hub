@@ -22,7 +22,7 @@ import {
 } from '@/lib/capa-loja';
 import {
   User, ShieldCheck, Bell, Lock, KeyRound, Camera, Loader2, Trash2, Truck,
-  AlertTriangle, Image as ImageIcon,
+  AlertTriangle, Copy, Check, ExternalLink, Image as ImageIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -110,6 +110,22 @@ export default function SellerSettingsPage() {
   // estado de quem nunca abriu esta aba.
   const [transportadoras, setTransportadoras] = useState<number[]>([]);
   const [aceitaRetirada, setAceitaRetirada] = useState(true);
+  const [linkCopiado, setLinkCopiado] = useState(false);
+
+  // ── Link público da loja (vanity URL) ────────────────────────────────────
+  const slug = profile?.slug ?? null;
+  const urlLoja = slug ? `kolecta.com.br/${slug}` : null;
+  const copiarLink = async () => {
+    if (!slug) return;
+    try {
+      await navigator.clipboard.writeText(`https://kolecta.com.br/${slug}`);
+      setLinkCopiado(true);
+      toast({ title: 'Link copiado!', description: 'Cole na bio do Instagram, no WhatsApp, onde quiser.' });
+      setTimeout(() => setLinkCopiado(false), 2000);
+    } catch {
+      toast({ title: 'Não deu pra copiar', description: 'Copie o link manualmente.', variant: 'destructive' });
+    }
+  };
 
   useEffect(() => {
     if (!profile) return;
@@ -398,8 +414,39 @@ export default function SellerSettingsPage() {
         </div>
         <div className="space-y-1.5">
           <Label>Nome da loja</Label>
-          <Input value={store.storeName} onChange={(e) => setStore(s => ({ ...s, storeName: e.target.value }))} />
+          <Input
+            value={store.storeName}
+            onChange={(e) => setStore(s => ({ ...s, storeName: e.target.value }))}
+            placeholder="Ex: Escala Miniaturas"
+          />
+          <p className="text-xs text-muted-foreground">
+            É o nome que aparece nos seus anúncios para os compradores. Sem ele, mostramos seu nome de usuário.
+          </p>
         </div>
+
+        {urlLoja && (
+          <div className="space-y-1.5">
+            <Label>Link da sua loja</Label>
+            <div className="flex items-center gap-2">
+              <div className="flex h-10 flex-1 items-center rounded-md border border-input bg-muted/40 px-3 font-mono text-sm text-foreground">
+                {urlLoja}
+              </div>
+              <Button type="button" variant="outline" onClick={copiarLink} className="shrink-0">
+                {linkCopiado
+                  ? <><Check className="mr-1.5 h-4 w-4 text-green-600" /> Copiado</>
+                  : <><Copy className="mr-1.5 h-4 w-4" /> Copiar</>}
+              </Button>
+              <Button asChild type="button" variant="ghost" size="icon" className="shrink-0" title="Abrir loja">
+                <a href={`https://${urlLoja}`} target="_blank" rel="noopener noreferrer">
+                  <ExternalLink className="h-4 w-4" />
+                </a>
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Sua vitrine pública. Divulgue esse link e mande os clientes direto pra sua loja na Kolecta.
+            </p>
+          </div>
+        )}
         <div className="space-y-1.5">
           <Label>Descrição da loja</Label>
           <Textarea

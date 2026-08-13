@@ -5,6 +5,7 @@ import {
   novidades,
   leiloes,
   lojas,
+  recomendados,
   vitrinesPorCategoria,
   contagemPorCategoria,
   parseImages,
@@ -221,6 +222,40 @@ describe('destaques: rotação por semente', () => {
       item({ id: 'caro', sellerId: 'v2', priceInCents: 90000 }),
     ];
     expect(destaques(acervo, 10)[0].id).toBe('caro');
+  });
+});
+
+describe('recomendados', () => {
+  const acervo = [
+    ...Array.from({ length: 8 }, (_, i) => item({ id: `cat-a-${i}`, categoryId: 'a', sellerId: `v${i % 3}` })),
+    ...Array.from({ length: 8 }, (_, i) => item({ id: `cat-b-${i}`, categoryId: 'b', sellerId: `v${i % 3}` })),
+  ];
+  const atual = { id: 'cat-a-0', categoryId: 'a', sellerId: 'v0' };
+
+  it('não inclui o próprio anúncio', () => {
+    const ids = recomendados(acervo, atual).map((l) => l.id);
+    expect(ids).not.toContain('cat-a-0');
+  });
+
+  it('a mesma categoria vem primeiro (relevância)', () => {
+    const primeiros = recomendados(acervo, atual, { quantos: 6 }).slice(0, 5);
+    expect(primeiros.every((l) => l.categoryId === 'a')).toBe(true);
+  });
+
+  it('anúncios DIFERENTES mostram conjuntos diferentes (não fica fixo)', () => {
+    const a = recomendados(acervo, { id: 'cat-a-0', categoryId: 'a', sellerId: 'v0' }).map((l) => l.id);
+    const b = recomendados(acervo, { id: 'cat-a-1', categoryId: 'a', sellerId: 'v1' }).map((l) => l.id);
+    expect(a).not.toEqual(b);
+  });
+
+  it('mesmo anúncio é estável durante a visita', () => {
+    const a = recomendados(acervo, atual).map((l) => l.id);
+    const b = recomendados(acervo, atual).map((l) => l.id);
+    expect(a).toEqual(b);
+  });
+
+  it('respeita o limite pedido', () => {
+    expect(recomendados(acervo, atual, { quantos: 5 })).toHaveLength(5);
   });
 });
 

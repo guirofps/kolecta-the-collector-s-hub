@@ -170,7 +170,7 @@ export default function ProductCard({ product, className = '' }: ProductCardProp
             cards e a consulta acontece uma vez só por vendedor. */}
         <div className="mt-2.5 flex items-center gap-1.5 border-t border-border pt-2.5">
           <Link
-            to={`/vendedor/${product.seller.slug}`}
+            to={product.seller.storeSlug ? `/${product.seller.storeSlug}` : `/vendedor/${product.seller.slug}`}
             className="min-w-0 truncate text-[11px] text-muted-foreground transition-colors hover:text-foreground"
           >
             {product.seller.name}

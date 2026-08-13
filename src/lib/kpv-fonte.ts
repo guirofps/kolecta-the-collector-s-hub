@@ -41,6 +41,9 @@ const MARCAS_TIRAGEM_PEQUENA = [
 export function fonteRecomendada(id: IdentidadeKPV): FonteKPV {
   if (id.variante !== 'regular') return 'ebay';
   if (MARCAS_TIRAGEM_PEQUENA.includes(id.marca)) return 'ebay';
+  // Funko: o ML BR tem o produto no catálogo mas quase sem anúncio ativo (deu
+  // "0 preços" na coleta), enquanto o eBay é o maior mercado de Funko do mundo.
+  if (id.marca === 'Funko') return 'ebay';
   return 'mercado-livre';
 }
 
@@ -62,6 +65,9 @@ const SO_1_64 = [
 /** Escala que a marca permite assumir quando a fonte não declara. */
 export function escalaPresumida(marca: string | null | undefined): string | null {
   const m = normalizarMarca(marca).marca;
+  // Funko não tem escala: 'unica' é o sentinela que faz os dois lados baterem
+  // (senão a guarda de escala reprovaria todo Funko por "não presumível").
+  if (m === 'Funko') return 'unica';
   return m && SO_1_64.includes(m) ? '1:64' : null;
 }
 
