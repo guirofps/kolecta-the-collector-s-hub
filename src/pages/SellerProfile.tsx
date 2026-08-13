@@ -4,6 +4,7 @@ import { useParams, Link } from 'react-router-dom';
 import { ShieldCheck, MapPin, Star, MessageSquare, Heart, Search } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import Layout from '@/components/layout/Layout';
+import SEO from '@/components/SEO';
 import ProductCard from '@/components/ProductCard';
 import LoadingSkeleton from '@/components/LoadingSkeleton';
 import { Card, CardContent } from '@/components/ui/card';
@@ -167,6 +168,11 @@ export default function SellerProfilePage() {
 
   return (
     <Layout>
+      <SEO
+        title={`${seller.name || 'Loja'} · Loja na Kolecta`}
+        description={`Confira os anúncios de ${seller.name || 'esta loja'} na Kolecta, o marketplace dos colecionadores. Compre com segurança.`}
+        canonicalPath={`/vendedor/${slug}`}
+      />
       <div className="container mx-auto px-4 py-8 space-y-8">
         {/* ─── Header ─── */}
         <div className="flex flex-col sm:flex-row gap-6 items-start">

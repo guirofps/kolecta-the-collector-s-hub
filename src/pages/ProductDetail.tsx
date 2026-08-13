@@ -14,6 +14,7 @@ import VerificationBadge from '@/components/VerificationBadge';
 import { FounderBadgeFor } from '@/components/FounderBadge';
 import { onlyPublic } from '@/lib/listing-visibility';
 import { recomendados } from '@/lib/home-sections';
+import SEO from '@/components/SEO';
 import { LIMITE_CATALOGO } from '@/lib/catalogo';
 import ProductDescription from '@/components/ProductDescription';
 import ProductGallery from '@/components/ProductGallery';
@@ -223,6 +224,42 @@ export default function ProductDetail() {
   const images = parseImages(listing.images);
   const details = buildDetails(listing);
   const cartProduct = listingToCartProduct(listing);
+
+  // ── SEO: título/descrição/canônica únicos + Product JSON-LD (resultado rico) ──
+  const descricaoSeo =
+    (listing.description ?? '').replace(/\s+/g, ' ').trim().slice(0, 160) ||
+    `${listing.title} à venda na Kolecta, o marketplace dos colecionadores.`;
+  const precoReais =
+    listing.priceInCents != null ? (listing.priceInCents / 100).toFixed(2) : undefined;
+  const imagensHttp = images.filter((u) => u.startsWith('http'));
+  const produtoJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: listing.title,
+    ...(imagensHttp.length ? { image: imagensHttp } : {}),
+    description: descricaoSeo,
+    ...(listing.brand ? { brand: { '@type': 'Brand', name: listing.brand } } : {}),
+    ...(precoReais
+      ? {
+          offers: {
+            '@type': 'Offer',
+            price: precoReais,
+            priceCurrency: 'BRL',
+            availability:
+              listing.status === 'active'
+                ? 'https://schema.org/InStock'
+                : 'https://schema.org/OutOfStock',
+            itemCondition: (listing.condition ?? '').startsWith('novo')
+              ? 'https://schema.org/NewCondition'
+              : 'https://schema.org/UsedCondition',
+            url: `https://kolecta.com.br/produto/${listing.id}`,
+            ...(listing.sellerName
+              ? { seller: { '@type': 'Organization', name: listing.sellerName } }
+              : {}),
+          },
+        }
+      : {}),
+  };
   const priceInBRL = listing.priceInCents != null ? listing.priceInCents / 100 : null;
   const isAvailable = listing.status === 'active';
 
@@ -246,6 +283,13 @@ export default function ProductDetail() {
 
   return (
     <Layout>
+      <SEO
+        title={listing.title}
+        description={descricaoSeo}
+        canonicalPath={`/produto/${listing.id}`}
+        image={imagensHttp[0]}
+        jsonLd={produtoJsonLd}
+      />
       <div className="container mx-auto px-4 py-6">
 
         {/* Breadcrumb */}

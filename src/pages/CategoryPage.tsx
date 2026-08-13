@@ -3,6 +3,7 @@ import { CategoryIcon } from '@/components/CategoryIcon';
 import { useParams, Navigate, Link } from 'react-router-dom';
 import { SlidersHorizontal } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
+import SEO from '@/components/SEO';
 import ProductCard from '@/components/ProductCard';
 import { useListings, useCategories } from '@/hooks/use-api';
 import { Button } from '@/components/ui/button';
@@ -312,6 +313,13 @@ export default function CategoryPage() {
 
   return (
     <Layout>
+      {category && (
+        <SEO
+          title={`${category.name} · Colecionáveis`}
+          description={`${category.name} na Kolecta: ${category.description}. Compre e venda com segurança no marketplace dos colecionadores.`}
+          canonicalPath={`/categoria/${category.slug}`}
+        />
+      )}
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center gap-3 mb-5">
           <CategoryIcon slug={emAcessorios ? 'acessorios' : category.slug} size={32} />

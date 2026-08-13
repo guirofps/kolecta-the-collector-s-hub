@@ -11,6 +11,7 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import DevUserSwitcher from "./components/DevUserSwitcher";
 import ConsentSync from "./components/ConsentSync";
 import AvisoPagamentoModal from "./components/AvisoPagamentoModal";
+import { HelmetProvider } from "react-helmet-async";
 import { AuthProvider } from "./contexts/AuthContext";
 import { CLERK_ENABLED } from "./lib/clerk";
 import Index from "./pages/Index";
@@ -102,6 +103,7 @@ const showDevUserSwitcher =
   isLovablePreview;
 
 const App = () => (
+  <HelmetProvider>
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
     <CartProvider>
@@ -228,6 +230,7 @@ const App = () => (
     </CartProvider>
     </AuthProvider>
   </QueryClientProvider>
+  </HelmetProvider>
 );
 
 export default App;
