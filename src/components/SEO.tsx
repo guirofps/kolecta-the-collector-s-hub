@@ -1,4 +1,4 @@
-import { Helmet } from 'react-helmet-async';
+import { useEffect } from 'react';
 
 const SITE = 'https://kolecta.com.br';
 
@@ -16,11 +16,34 @@ interface SEOProps {
   jsonLd?: Record<string, unknown> | Record<string, unknown>[];
 }
 
+function upsertMeta(attr: 'name' | 'property', key: string, content: string) {
+  let el = document.head.querySelector<HTMLMetaElement>(`meta[${attr}="${key}"]`);
+  if (!el) {
+    el = document.createElement('meta');
+    el.setAttribute(attr, key);
+    document.head.appendChild(el);
+  }
+  el.setAttribute('content', content);
+}
+
+function upsertLink(rel: string, href: string) {
+  let el = document.head.querySelector<HTMLLinkElement>(`link[rel="${rel}"]`);
+  if (!el) {
+    el = document.createElement('link');
+    el.setAttribute('rel', rel);
+    document.head.appendChild(el);
+  }
+  el.setAttribute('href', href);
+}
+
 /**
- * Meta por página para SEO. O SPA servia o MESMO `<head>` em toda URL (mesmo
- * título e descrição em milhares de páginas), o que é péssimo para ranquear.
- * Aqui cada página declara título, descrição, canônica e JSON-LD próprios; o
- * Googlebot lê depois de renderizar. `react-helmet-async` cuida da hidratação.
+ * Meta por página para SEO, escrita DIRETO no `<head>` via efeito.
+ *
+ * O SPA servia o MESMO `<head>` em toda URL (mesmo título/descrição em milhares
+ * de páginas), o que é péssimo para ranquear. `react-helmet-async` foi tentado e
+ * simplesmente não injetava client-side (nenhum marcador no head), então aqui a
+ * manipulação é direta: 100% previsível, sem lib. O Googlebot lê depois de
+ * renderizar. A home mantém os defaults do `index.html`.
  */
 export default function SEO({
   title,
@@ -30,25 +53,45 @@ export default function SEO({
   noindex,
   jsonLd,
 }: SEOProps) {
-  const fullTitle = title.includes('Kolecta') ? title : `${title} · Kolecta`;
-  const url = canonicalPath ? SITE + canonicalPath : undefined;
+  const jsonLdStr = jsonLd ? JSON.stringify(jsonLd) : '';
 
-  return (
-    <Helmet>
-      <title>{fullTitle}</title>
-      {description && <meta name="description" content={description} />}
-      {url && <link rel="canonical" href={url} />}
-      {noindex && <meta name="robots" content="noindex,follow" />}
+  useEffect(() => {
+    const fullTitle = title.includes('Kolecta') ? title : `${title} · Kolecta`;
+    document.title = fullTitle;
+    upsertMeta('property', 'og:title', fullTitle);
 
-      <meta property="og:title" content={fullTitle} />
-      {description && <meta property="og:description" content={description} />}
-      {url && <meta property="og:url" content={url} />}
-      {image && <meta property="og:image" content={image} />}
-      {image && <meta name="twitter:image" content={image} />}
+    if (description) {
+      upsertMeta('name', 'description', description);
+      upsertMeta('property', 'og:description', description);
+    }
+    const url = canonicalPath ? SITE + canonicalPath : undefined;
+    if (url) {
+      upsertLink('canonical', url);
+      upsertMeta('property', 'og:url', url);
+    }
+    if (image) {
+      upsertMeta('property', 'og:image', image);
+      upsertMeta('name', 'twitter:image', image);
+    }
+    if (noindex) upsertMeta('name', 'robots', 'noindex,follow');
 
-      {jsonLd && (
-        <script type="application/ld+json">{JSON.stringify(jsonLd)}</script>
-      )}
-    </Helmet>
-  );
+    // JSON-LD num script dedicado e marcado, recriado a cada página.
+    document.getElementById('seo-jsonld')?.remove();
+    if (jsonLdStr) {
+      const s = document.createElement('script');
+      s.type = 'application/ld+json';
+      s.id = 'seo-jsonld';
+      s.textContent = jsonLdStr;
+      document.head.appendChild(s);
+    }
+
+    return () => {
+      // Sai da página: remove o que é específico dela. Título/description/canonical
+      // são sobrescritos pela próxima página (ou ficam os defaults na home).
+      document.getElementById('seo-jsonld')?.remove();
+      if (noindex) document.head.querySelector('meta[name="robots"]')?.remove();
+    };
+  }, [title, description, canonicalPath, image, noindex, jsonLdStr]);
+
+  return null;
 }
