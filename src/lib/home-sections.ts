@@ -42,6 +42,7 @@ export function toProduct(l: Listing): Product {
       id: l.sellerId,
       name: l.sellerName || 'Vendedor Kolecta',
       slug: l.sellerId,
+      storeSlug: l.sellerSlug ?? null,
       avatar: '/placeholder.svg',
       verified: true,
       rating: 5,

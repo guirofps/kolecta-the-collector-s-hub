@@ -20,7 +20,10 @@ export interface Category {
 export interface Seller {
   id: string;
   name: string;
+  /** Identificador do vendedor (== id). Chave de agrupamento no carrinho/checkout. */
   slug: string;
+  /** URL amigável da loja (kolecta.com.br/<storeSlug>). Null em lojas sem slug. */
+  storeSlug?: string | null;
   avatar: string;
   verified: boolean;
   rating: number;

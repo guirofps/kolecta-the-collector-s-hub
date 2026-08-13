@@ -80,6 +80,7 @@ function listingToCartProduct(listing: Listing) {
       id: listing.sellerId,
       name: listing.sellerName || 'Vendedor Kolecta',
       slug: listing.sellerId,
+      storeSlug: listing.sellerSlug ?? null,
       avatar: '/placeholder.svg',
       verified: false,
       rating: 0,

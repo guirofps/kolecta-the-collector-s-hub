@@ -1155,6 +1155,8 @@ export interface SellerProfile {
 
 export interface SellerSelfProfile {
   storeName: string | null;
+  /** URL amigável da loja (kolecta.com.br/<slug>), gerada do nome da loja. */
+  slug: string | null;
   avatarUrl: string | null;
   bio: string | null;
   city: string | null;
@@ -1617,6 +1619,8 @@ export interface Listing {
   id: string;
   sellerId: string;
   sellerName?: string | null;
+  /** Slug público da loja do vendedor (vanity URL). Null em lojas antigas. */
+  sellerSlug?: string | null;
   categoryId: string | null;
   title: string;
   description: string | null;
