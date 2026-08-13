@@ -5,6 +5,7 @@ import {
   COVER_OVERLAY_MAX,
   COVER_OVERLAY_MIN,
   capaSegura,
+  variacaoDaCapaPadrao,
 } from '@/lib/capa-loja';
 import type { StoreCoverData } from '@/lib/api';
 
@@ -47,9 +48,47 @@ describe('capaSegura', () => {
     expect(r?.overlay).toBe(COVER_OVERLAY_DEFAULT);
   });
 
+  it('sem capa própria, quem desenha é a capa padrão (não é buraco)', () => {
+    // capaSegura devolve null, e é o StoreCover que troca isso pela CapaPadrao.
+    // O contrato importa: null aqui significa "use a padrão", não "não mostre".
+    expect(capaSegura(null)).toBeNull();
+  });
+
   it('valor não numérico não vira NaN no estilo', () => {
     const r = capaSegura({ url: 'x', focalY: NaN, overlay: NaN });
     expect(Number.isFinite(r!.focalY)).toBe(true);
     expect(Number.isFinite(r!.overlay)).toBe(true);
+  });
+});
+
+describe('variacaoDaCapaPadrao', () => {
+  // Estável é o ponto: a mesma loja precisa ter sempre a mesma capa padrão, em
+  // qualquer sessão e qualquer aparelho. Se variasse, a loja "mudaria de cara"
+  // a cada F5.
+  it('é estável para a mesma loja', () => {
+    expect(variacaoDaCapaPadrao('roda-rara')).toEqual(variacaoDaCapaPadrao('roda-rara'));
+  });
+
+  it('difere entre lojas', () => {
+    const a = variacaoDaCapaPadrao('roda-rara');
+    const b = variacaoDaCapaPadrao('culture-tcg');
+    expect(a).not.toEqual(b);
+  });
+
+  it('sem seed, cai no centro', () => {
+    expect(variacaoDaCapaPadrao()).toEqual({ brilhoX: 50, angulo: 115 });
+    expect(variacaoDaCapaPadrao(null)).toEqual({ brilhoX: 50, angulo: 115 });
+  });
+
+  // A faixa é estreita de propósito: variação é para as lojas não parecerem a
+  // mesma página, não para alguma sair torta ou com o brilho fora da tela.
+  it('nunca sai da faixa segura', () => {
+    for (const seed of ['a', 'zz', 'loja-do-daniel', '123', 'x'.repeat(80), 'ç~é']) {
+      const { brilhoX, angulo } = variacaoDaCapaPadrao(seed);
+      expect(brilhoX).toBeGreaterThanOrEqual(20);
+      expect(brilhoX).toBeLessThanOrEqual(80);
+      expect(angulo).toBeGreaterThanOrEqual(95);
+      expect(angulo).toBeLessThanOrEqual(145);
+    }
   });
 });

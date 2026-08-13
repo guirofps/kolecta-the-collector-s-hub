@@ -35,3 +35,30 @@ function limitar(valor: number, min: number, max: number): number {
   if (!Number.isFinite(valor)) return min;
   return Math.min(max, Math.max(min, Math.round(valor)));
 }
+
+/**
+ * Variação da capa PADRÃO (a de quem ainda não subiu a sua).
+ *
+ * Toda loja sem capa própria mostrando exatamente o mesmo banner traria de volta
+ * o problema que a capa veio resolver: visitar três lojas e sentir que é a mesma
+ * página. Aqui o id da loja vira um deslocamento do brilho e uma inclinação do
+ * gradiente — estável (a mesma loja é sempre igual, inclusive entre sessões e
+ * dispositivos) e dentro de uma faixa estreita, para nenhuma sair feia.
+ *
+ * Sem `seed` (prévia nas Configurações, por exemplo), cai no centro.
+ */
+export function variacaoDaCapaPadrao(seed?: string | null): {
+  brilhoX: number;
+  angulo: number;
+} {
+  if (!seed) return { brilhoX: 50, angulo: 115 };
+
+  // Soma simples dos códigos: não precisa ser hash bom, precisa ser estável.
+  let n = 0;
+  for (let i = 0; i < seed.length; i++) n = (n + seed.charCodeAt(i) * (i + 1)) % 997;
+
+  return {
+    brilhoX: 20 + (n % 61), // 20% a 80% da largura
+    angulo: 95 + (n % 51), // 95° a 145°
+  };
+}

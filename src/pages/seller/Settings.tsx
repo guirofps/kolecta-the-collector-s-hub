@@ -240,31 +240,23 @@ export default function SellerSettingsPage() {
       <div>
         <Label>Capa da loja</Label>
         <p className="text-xs text-muted-foreground mt-1">
-          A faixa no topo da sua página. Use uma imagem larga — ela é cortada em
-          formato panorâmico.
+          {capa.url
+            ? 'A faixa no topo da sua página. Use uma imagem larga — ela é cortada em formato panorâmico.'
+            : 'Sua loja está com a capa padrão da Kolecta. Suba a sua para ela ficar com a cara da sua marca — de preferência uma imagem larga, porque a faixa é panorâmica.'}
         </p>
       </div>
 
-      {/* Prévia: é o mesmo componente que a loja usa, com o nome por cima, para
-          o vendedor ver o resultado de verdade e não uma aproximação. */}
+      {/* Prévia: é o mesmo componente que a loja usa (inclusive a capa padrão,
+          quando ainda não há a própria), com o nome por cima — assim o vendedor
+          vê o resultado de verdade e não uma aproximação. */}
       <div className="relative overflow-hidden rounded-lg border border-border">
-        {capa.url ? (
-          <StoreCover cover={capa} />
-        ) : (
-          <div className="aspect-[16/5] bg-muted flex items-center justify-center">
-            <p className="text-xs text-muted-foreground px-4 text-center">
-              Sem capa. Sua loja aparece com o cabeçalho padrão.
-            </p>
-          </div>
-        )}
-        {capa.url && (
-          <div className="absolute bottom-0 left-0 right-0 p-3 sm:p-4 flex items-center gap-2">
-            <div className="h-9 w-9 rounded-full bg-primary/20 border border-primary shrink-0" />
-            <span className="font-heading text-base sm:text-lg font-extrabold italic uppercase text-white drop-shadow">
-              {store.storeName || profile?.account.name || 'Sua loja'}
-            </span>
-          </div>
-        )}
+        <StoreCover cover={capa.url ? capa : null} seed={profile?.slug} />
+        <div className="absolute bottom-0 left-0 right-0 p-3 sm:p-4 flex items-center gap-2">
+          <div className="h-9 w-9 rounded-full bg-primary/20 border border-primary shrink-0" />
+          <span className="font-heading text-base sm:text-lg font-extrabold italic uppercase text-white drop-shadow">
+            {store.storeName || profile?.account.name || 'Sua loja'}
+          </span>
+        </div>
       </div>
 
       <input

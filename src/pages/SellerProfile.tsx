@@ -22,7 +22,6 @@ import { api } from '@/lib/api';
 import { onlyPublicNaLoja } from '@/lib/listing-visibility';
 import { toProduct } from '@/lib/home-sections';
 import StoreCover from '@/components/loja/StoreCover';
-import { capaSegura } from '@/lib/capa-loja';
 import { separarDestaques } from '@/lib/destaques-loja';
 import { ESCALAS_MINIATURA, normalizarEscala } from '@/lib/marcas';
 
@@ -199,10 +198,10 @@ export default function SellerProfilePage() {
   const description = seller.bio || 'Vendedor na plataforma Kolecta.';
   const memberSince = new Date(seller.createdAt).getFullYear();
 
-  // Capa da loja. Quando existe, o cabeçalho sobe por cima dela e vira vidro —
-  // é o único jeito de a foto do vendedor aparecer sem engolir o nome da loja.
-  // Sem capa, a página fica exatamente como sempre foi.
-  const capa = capaSegura(seller.cover);
+  // Toda loja tem faixa no topo: a do vendedor, ou a capa padrão da Kolecta
+  // (desenhada em CSS, ver `CapaPadrao`). Por isso o cabeçalho sempre sobe por
+  // cima dela e sempre é de vidro — é o que deixa a imagem aparecer sem engolir
+  // o nome da loja.
 
   // ─── Destaques ───
   // Saem de `publicProducts`, e não de uma consulta própria, para herdar o mesmo
@@ -240,24 +239,15 @@ export default function SellerProfilePage() {
         canonicalPath={seller.slug ? `/${seller.slug}` : `/vendedor/${id}`}
       />
 
-      {/* A capa sai do container de propósito: banner é de borda a borda. */}
-      <StoreCover cover={seller.cover} />
+      {/* A capa sai do container de propósito: banner é de borda a borda. A
+          `seed` dá à capa padrão uma variação estável por loja. */}
+      <StoreCover cover={seller.cover} seed={seller.slug || id} />
 
-      <div
-        className={
-          capa
-            ? 'container mx-auto px-4 pb-8 space-y-8 relative z-10 -mt-14 sm:-mt-16'
-            : 'container mx-auto px-4 py-8 space-y-8'
-        }
-      >
+      <div className="container mx-auto px-4 pb-8 space-y-8 relative z-10 -mt-14 sm:-mt-16">
         {/* ─── Header ─── */}
-        {/* Com capa, o cabeçalho é um painel de vidro que invade a faixa: a foto
-            continua visível através dele e o texto ganha fundo próprio. */}
-        <div
-          className={`flex flex-col sm:flex-row gap-6 items-start ${
-            capa ? 'glass-panel rounded-xl p-5 sm:p-6' : ''
-          }`}
-        >
+        {/* O cabeçalho é um painel de vidro que invade a faixa: a imagem continua
+            visível através dele e o texto ganha fundo próprio. */}
+        <div className="flex flex-col sm:flex-row gap-6 items-start glass-panel rounded-xl p-5 sm:p-6">
           <Avatar className="h-24 w-24 border-2 border-primary shrink-0">
             {seller.avatarUrl && <AvatarImage src={seller.avatarUrl} alt={seller.name || 'Vendedor'} />}
             <AvatarFallback className="bg-primary/10 text-primary font-heading text-2xl font-bold">
