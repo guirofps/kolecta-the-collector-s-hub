@@ -20,6 +20,9 @@ import { useCategories } from '@/hooks/use-api';
 import { api } from '@/lib/api';
 import { onlyPublicNaLoja } from '@/lib/listing-visibility';
 import { toProduct } from '@/lib/home-sections';
+import StoreCover from '@/components/loja/StoreCover';
+import { capaSegura } from '@/lib/capa-loja';
+import { separarDestaques } from '@/lib/destaques-loja';
 import { ESCALAS_MINIATURA, normalizarEscala } from '@/lib/marcas';
 
 // O parse defensivo de `images` (F32) agora vem de `parseImages`, dentro de
@@ -165,11 +168,59 @@ export default function SellerProfilePage() {
   const description = seller.bio || 'Vendedor na plataforma Kolecta.';
   const memberSince = new Date(seller.createdAt).getFullYear();
 
+  // Capa da loja. Quando existe, o cabeçalho sobe por cima dela e vira vidro —
+  // é o único jeito de a foto do vendedor aparecer sem engolir o nome da loja.
+  // Sem capa, a página fica exatamente como sempre foi.
+  const capa = capaSegura(seller.cover);
+
+  // ─── Destaques ───
+  // Saem de `publicProducts`, e não de uma consulta própria, para herdar o mesmo
+  // filtro de visibilidade: anúncio em moderação não pode vazar para a faixa
+  // depois de ter sido destacado. As regras (some ao filtrar, não duplica na
+  // grade) estão em `separarDestaques`.
+  const filtrando =
+    !!searchQuery || categoryFilter !== 'all' || scaleFilter !== 'all' || sortBy !== 'recent';
+  const {
+    destaques,
+    grade: produtosDaGrade,
+    mostrarFaixa: mostrarDestaques,
+  } = separarDestaques(publicProducts, filteredProducts, filtrando);
+
+  /** Card da loja: o mesmo conversor da home, com o nome e o selo do vendedor. */
+  const paraCard = (product: (typeof publicProducts)[number]) =>
+    ({
+      // `toProduct` é o mesmo conversor da home e da categoria.
+      //
+      // Aqui havia um mapeamento próprio que não convertia os campos do leilão:
+      // `startingBidInCents` nunca virava `startingBid`, então o card caía no
+      // `|| 0` e anunciava "R$ 0,00". Passava despercebido porque leilão nenhum
+      // chegava a aparecer nesta tela — o endpoint não mandava os dados do leilão.
+      ...toProduct(product),
+      // O perfil sabe o nome e o selo da loja; o conversor genérico não.
+      // F32: sem id/slug o card apontava para "/vendedor/undefined".
+      seller: { name: seller.name, slug: slug, id: slug, verified: !!seller.isVerified },
+    }) as unknown as import('@/lib/mock-data').Product;
+
   return (
     <Layout>
-      <div className="container mx-auto px-4 py-8 space-y-8">
+      {/* A capa sai do container de propósito: banner é de borda a borda. */}
+      <StoreCover cover={seller.cover} />
+
+      <div
+        className={
+          capa
+            ? 'container mx-auto px-4 pb-8 space-y-8 relative z-10 -mt-14 sm:-mt-16'
+            : 'container mx-auto px-4 py-8 space-y-8'
+        }
+      >
         {/* ─── Header ─── */}
-        <div className="flex flex-col sm:flex-row gap-6 items-start">
+        {/* Com capa, o cabeçalho é um painel de vidro que invade a faixa: a foto
+            continua visível através dele e o texto ganha fundo próprio. */}
+        <div
+          className={`flex flex-col sm:flex-row gap-6 items-start ${
+            capa ? 'glass-panel rounded-xl p-5 sm:p-6' : ''
+          }`}
+        >
           <Avatar className="h-24 w-24 border-2 border-primary shrink-0">
             {seller.avatarUrl && <AvatarImage src={seller.avatarUrl} alt={seller.name || 'Vendedor'} />}
             <AvatarFallback className="bg-primary/10 text-primary font-heading text-2xl font-bold">
@@ -274,6 +325,27 @@ export default function SellerProfilePage() {
 
           {/* ── Listings Tab ── */}
           <TabsContent value="listings" className="space-y-4">
+            {/* ── Destaques da loja ──
+                Os poucos itens que o vendedor fixou, sempre no topo da loja e
+                fora da paginação. Vem antes da barra de busca de propósito: é a
+                vitrine dele, não um resultado de filtro. */}
+            {mostrarDestaques && (
+              <section className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Star className="h-4 w-4 fill-primary text-primary" />
+                  <h2 className="font-heading text-lg font-bold uppercase italic">
+                    Destaques da loja
+                  </h2>
+                </div>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  {destaques.map((product) => (
+                    <ProductCard key={`destaque-${product.id}`} product={paraCard(product)} />
+                  ))}
+                </div>
+                <Separator className="!mt-6" />
+              </section>
+            )}
+
             <div className="flex flex-col sm:flex-row gap-3">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -325,26 +397,17 @@ export default function SellerProfilePage() {
 
             {loadingListings ? (
               <LoadingSkeleton count={6} />
-            ) : filteredProducts.length > 0 ? (
+            ) : produtosDaGrade.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredProducts.map((product) => {
-                  // `toProduct` é o mesmo conversor da home e da categoria.
-                  //
-                  // Aqui havia um mapeamento próprio que não convertia os campos
-                  // do leilão: `startingBidInCents` nunca virava `startingBid`,
-                  // então o card caía no `|| 0` e anunciava "R$ 0,00". Passava
-                  // despercebido porque leilão nenhum chegava a aparecer nesta
-                  // tela — o endpoint não mandava os dados do leilão.
-                  const mapped = {
-                    ...toProduct(product),
-                    // O perfil sabe o nome e o selo da loja; o conversor genérico não.
-                    // F32: sem id/slug o card apontava para "/vendedor/undefined".
-                    seller: { name: seller.name, slug: slug, id: slug, verified: !!seller.isVerified },
-                  } as unknown as import('@/lib/mock-data').Product;
-                  return <ProductCard key={product.id} product={mapped} />;
-                })}
+                {produtosDaGrade.map((product) => (
+                  <ProductCard key={product.id} product={paraCard(product)} />
+                ))}
               </div>
-            ) : (
+            ) : mostrarDestaques ? null : (
+              // Quando a grade está vazia porque a loja inteira cabe nos
+              // destaques (3 anúncios, os 3 fixados), não se mostra nada aqui:
+              // repetir os cards seria duplicar, e "nenhum anúncio encontrado"
+              // seria mentira com a faixa cheia logo acima.
               <div className="text-center py-12">
                 <Search className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
                 <p className="text-muted-foreground">Nenhum anúncio encontrado</p>

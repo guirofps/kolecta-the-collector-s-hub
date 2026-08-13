@@ -1,16 +1,19 @@
 import { useState } from 'react';
 import { Reorder } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
-import { PlusCircle, Search, MoreHorizontal, Eye, Pencil, Pause, Play, Trash2, Loader2, Sparkles, Rocket, Copy, Package, SearchX, Upload, Gavel, GripVertical, Check, ArrowUpDown, ListChecks } from 'lucide-react';
+import { PlusCircle, Search, MoreHorizontal, Eye, Pencil, Pause, Play, Trash2, Loader2, Sparkles, Rocket, Copy, Package, SearchX, Upload, Gavel, GripVertical, Check, ArrowUpDown, ListChecks, Pin, PinOff } from 'lucide-react';
 import SellerLayout from '@/components/layout/SellerLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { formatBRL, conditionLabel } from '@/lib/mock-data';
 import { isListingFeatured } from '@/lib/api';
-import { useMyListings, useDeleteListing, useTogglePauseListing, usePublishListing, useMyFounder, useUseFounderCredit, useIsFounderActive, useColocarEmLeilao, useReorderListings } from '@/hooks/use-api';
+import { useMyListings, useDeleteListing, useTogglePauseListing, usePublishListing, useMyFounder, useUseFounderCredit, useIsFounderActive, useColocarEmLeilao, useReorderListings, useDestacarListings } from '@/hooks/use-api';
 import type { Listing } from '@/lib/api';
 import { ordenarPorPosicao } from '@/lib/ordenar-vitrine';
+import {
+  MAX_DESTAQUES, alternarDestaque, destaquesAtivos, estaDestacado,
+} from '@/lib/destaques-loja';
 import EmptyState from '@/components/EmptyState';
 import RejectionNotice from '@/components/RejectionNotice';
 import { isOpenRoute } from '@/components/LaunchGate';
@@ -75,6 +78,7 @@ export default function SellerListings() {
   const publishMutation = usePublishListing();
   const { data: founder } = useMyFounder();
   const useCreditMutation = useUseFounderCredit();
+  const destacarMutation = useDestacarListings();
   // Fundador ativo com créditos disponíveis pode destacar anúncios ativos.
   const creditsAvailable = founder?.credits?.available ?? 0;
   // Só depois da seleção (25/07). Ver useIsFounderActive.
@@ -96,6 +100,36 @@ export default function SellerListings() {
   // reordenação, já na ordem que o público vê (posição, depois data).
   const ativos = ordenarPorPosicao((myProducts || []).filter((p) => p.status === 'active'));
   const podeReordenar = ativos.length >= 2;
+
+  // ── Destaques da loja ──
+  // Os fixados que valem hoje. Item destacado que foi pausado ou vendido mantém
+  // a marca (volta destacado se reativar) mas não ocupa vaga — senão o vendedor
+  // veria "4/4" contando itens que a loja nem mostra.
+  const idsDestacados = destaquesAtivos(myProducts || []).map((p) => p.id);
+  const noMaximoDeDestaques = idsDestacados.length >= MAX_DESTAQUES;
+
+  /** Fixa ou tira o anúncio da faixa de destaques da loja. */
+  const alternarNaLoja = (product: Listing) => {
+    const nova = alternarDestaque(idsDestacados, product.id);
+    if (!nova) {
+      toast.error(`Você já tem ${MAX_DESTAQUES} destaques`, {
+        description: 'Tire um da lista para colocar este no lugar.',
+      });
+      return;
+    }
+    const fixando = nova.length > idsDestacados.length;
+    destacarMutation.mutate(nova, {
+      onSuccess: () =>
+        toast.success(
+          fixando ? 'Fixado nos destaques da loja' : 'Removido dos destaques',
+          {
+            description: fixando
+              ? 'Ele aparece no topo da sua página, antes dos outros anúncios.'
+              : undefined,
+          },
+        ),
+    });
+  };
 
   /**
    * Duplicar: grava uma cópia do anúncio como rascunho e abre o wizard já
@@ -309,6 +343,11 @@ export default function SellerListings() {
                             <Sparkles className="h-3 w-3" /> Em destaque
                           </Badge>
                         )}
+                        {estaDestacado(product) && product.status === 'active' && (
+                          <Badge variant="secondary" className="text-[10px] shrink-0 gap-1">
+                            <Pin className="h-3 w-3" /> Destaque da loja
+                          </Badge>
+                        )}
                       </div>
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                         <span>{product.brand || 'Sem marca'}</span>
@@ -400,6 +439,30 @@ export default function SellerListings() {
                             onClick={() => navigate(`/painel/anuncios/${product.id}/editar`)}
                           >
                             <Pencil className="h-3.5 w-3.5" /> Corrigir e reenviar
+                          </DropdownMenuItem>
+                        )}
+                        {/* Fixar no topo da LOJA. Fica junto do "Destacar (usar
+                            1 crédito)" logo abaixo, e por isso os dois nomes
+                            precisam ser diferentes: aquele é destaque de
+                            plataforma (vitrine geral, consome crédito, expira),
+                            este é a faixa da página do próprio vendedor, de
+                            graça e sem prazo. */}
+                        {product.status === 'active' && (
+                          <DropdownMenuItem
+                            className="gap-2 text-sm"
+                            disabled={
+                              destacarMutation.isPending ||
+                              (!estaDestacado(product) && noMaximoDeDestaques)
+                            }
+                            onClick={() => alternarNaLoja(product)}
+                          >
+                            {estaDestacado(product) ? (
+                              <><PinOff className="h-3.5 w-3.5" /> Tirar dos destaques da loja</>
+                            ) : noMaximoDeDestaques ? (
+                              <><Pin className="h-3.5 w-3.5" /> Destaques da loja ({MAX_DESTAQUES}/{MAX_DESTAQUES})</>
+                            ) : (
+                              <><Pin className="h-3.5 w-3.5" /> Fixar nos destaques da loja</>
+                            )}
                           </DropdownMenuItem>
                         )}
                         {canFeature && product.status === 'active' && !isListingFeatured(product) && (
@@ -539,7 +602,8 @@ function ReorderVitrine({ ativos, onSair }: { ativos: Listing[]; onSair: () => v
     <div>
       <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-border bg-card/40 p-3">
         <p className="text-sm text-muted-foreground">
-          Arraste pela alça para ordenar. O topo aparece primeiro na sua página.
+          Arraste pela alça para ordenar. O topo aparece primeiro na sua página —
+          depois dos destaques, que vêm sempre na frente.
           {reorder.isPending && <span className="ml-2 text-primary">salvando…</span>}
         </p>
         <Button variant="kolecta" size="sm" onClick={onSair}>
@@ -575,7 +639,17 @@ function ReorderItem({ listing, onSoltar }: { listing: Listing; onSoltar: () => 
         )}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium">{listing.title}</p>
+        <div className="flex items-center gap-2">
+          <p className="truncate text-sm font-medium">{listing.title}</p>
+          {/* Destaque pula na frente de toda esta ordem. Sem a marca aqui, o
+              vendedor arrastaria um item para o topo e não entenderia por que
+              outro continua aparecendo antes na loja. */}
+          {estaDestacado(listing) && (
+            <Badge variant="secondary" className="shrink-0 gap-1 text-[10px]">
+              <Pin className="h-3 w-3" /> Destaque
+            </Badge>
+          )}
+        </div>
         <p className="text-xs text-muted-foreground">{formatBRL((listing.priceInCents || 0) / 100)}</p>
       </div>
     </Reorder.Item>

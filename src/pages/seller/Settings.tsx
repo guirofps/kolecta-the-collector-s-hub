@@ -15,9 +15,14 @@ import {
 } from '@/components/ui/select';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Slider } from '@/components/ui/slider';
+import StoreCover from '@/components/loja/StoreCover';
+import {
+  COVER_FOCAL_DEFAULT, COVER_OVERLAY_DEFAULT, COVER_OVERLAY_MAX, COVER_OVERLAY_MIN,
+} from '@/lib/capa-loja';
 import {
   User, ShieldCheck, Bell, Lock, KeyRound, Camera, Loader2, Trash2, Truck,
-  AlertTriangle,
+  AlertTriangle, Image as ImageIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -31,9 +36,13 @@ import {
   useUpdateNotificationPrefs,
   useUpdateSellerShipping,
   useUploadImage,
+  useUploadCapa,
 } from '@/hooks/use-api';
 
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024; // igual ao limite do /api/media/upload
+// A capa é uma imagem larga (panorâmica), e o servidor aceita até 15 MB. 8 MB
+// dá folga para foto de celular sem virar um upload eterno em 4G.
+const MAX_CAPA_BYTES = 8 * 1024 * 1024;
 
 const notifTypes = [
   { key: 'newOrder', label: 'Novo pedido recebido' },
@@ -70,6 +79,7 @@ export default function SellerSettingsPage() {
 
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const capaInputRef = useRef<HTMLInputElement>(null);
 
   const { data: profile, isLoading } = useSellerSelfProfile();
   const updateProfile = useUpdateSellerProfile();
@@ -77,10 +87,20 @@ export default function SellerSettingsPage() {
   const updateNotifs = useUpdateNotificationPrefs();
   const updateShipping = useUpdateSellerShipping();
   const uploadImage = useUploadImage();
+  const uploadCapa = useUploadCapa();
 
   // ── Form states (inicializados quando o perfil carrega) ──────────────────
   const [store, setStore] = useState({
     storeName: '', avatarUrl: '', bio: '', city: '', state: '', website: '',
+  });
+  // Capa da loja. Fora do `store` de propósito: o botão "Salvar perfil" manda o
+  // `store` inteiro, e a capa salva sozinha (enviar imagem já tem efeito, como
+  // a foto). Misturar faria um "Salvar perfil" desfazer um ajuste de capa ainda
+  // não salvo, e vice-versa.
+  const [capa, setCapa] = useState({
+    url: '',
+    focalY: COVER_FOCAL_DEFAULT,
+    overlay: COVER_OVERLAY_DEFAULT,
   });
   const [policies, setPoliciesState] = useState({
     shipping: '', returns: '', payment: '', acceptOffers: false, maxDiscountPercent: 0,
@@ -101,6 +121,11 @@ export default function SellerSettingsPage() {
       city: profile.city ?? '',
       state: profile.state ?? '',
       website: profile.website ?? '',
+    });
+    setCapa({
+      url: profile.cover?.url ?? '',
+      focalY: profile.cover?.focalY ?? COVER_FOCAL_DEFAULT,
+      overlay: profile.cover?.overlay ?? COVER_OVERLAY_DEFAULT,
     });
     setPoliciesState({
       shipping: profile.policies.shipping ?? '',
@@ -152,12 +177,161 @@ export default function SellerSettingsPage() {
     }
   };
 
+  // ── Capa da loja ─────────────────────────────────────────────────────────
+  //
+  // Salva sozinha, sem depender do "Salvar perfil": enviar uma imagem e mexer
+  // no enquadramento são ações com efeito imediato, como a foto da loja.
+  const salvarCapa = (patch: Partial<typeof capa>) => {
+    const novo = { ...capa, ...patch };
+    setCapa(novo);
+    updateProfile.mutate({
+      coverUrl: novo.url,
+      coverFocalY: novo.focalY,
+      coverOverlay: novo.overlay,
+    });
+  };
+
+  const handleCapaSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast({ title: 'Arquivo inválido', description: 'Envie uma imagem (JPG, PNG ou WebP).', variant: 'destructive' });
+      return;
+    }
+    if (file.size > MAX_CAPA_BYTES) {
+      toast({ title: 'Imagem muito grande', description: 'O limite é 8 MB.', variant: 'destructive' });
+      return;
+    }
+
+    try {
+      const { url } = await uploadCapa.mutateAsync(file);
+      salvarCapa({ url });
+    } catch (err) {
+      toast({
+        title: 'Não foi possível enviar a capa',
+        description: err instanceof Error ? err.message : 'Tente novamente.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   /* ─── Section Renderers ─── */
+
+  const renderCapa = () => (
+    <div className="space-y-3">
+      <div>
+        <Label>Capa da loja</Label>
+        <p className="text-xs text-muted-foreground mt-1">
+          A faixa no topo da sua página. Use uma imagem larga — ela é cortada em
+          formato panorâmico.
+        </p>
+      </div>
+
+      {/* Prévia: é o mesmo componente que a loja usa, com o nome por cima, para
+          o vendedor ver o resultado de verdade e não uma aproximação. */}
+      <div className="relative overflow-hidden rounded-lg border border-border">
+        {capa.url ? (
+          <StoreCover cover={capa} />
+        ) : (
+          <div className="aspect-[16/5] bg-muted flex items-center justify-center">
+            <p className="text-xs text-muted-foreground px-4 text-center">
+              Sem capa. Sua loja aparece com o cabeçalho padrão.
+            </p>
+          </div>
+        )}
+        {capa.url && (
+          <div className="absolute bottom-0 left-0 right-0 p-3 sm:p-4 flex items-center gap-2">
+            <div className="h-9 w-9 rounded-full bg-primary/20 border border-primary shrink-0" />
+            <span className="font-heading text-base sm:text-lg font-extrabold italic uppercase text-white drop-shadow">
+              {store.storeName || profile?.account.name || 'Sua loja'}
+            </span>
+          </div>
+        )}
+      </div>
+
+      <input
+        ref={capaInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleCapaSelect}
+      />
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={uploadCapa.isPending || updateProfile.isPending}
+          onClick={() => capaInputRef.current?.click()}
+        >
+          {uploadCapa.isPending
+            ? <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            : <ImageIcon className="h-4 w-4 mr-2" />}
+          {capa.url ? 'Trocar capa' : 'Enviar capa'}
+        </Button>
+        {capa.url && (
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={uploadCapa.isPending || updateProfile.isPending}
+            onClick={() => salvarCapa({ url: '' })}
+          >
+            <Trash2 className="h-4 w-4 mr-2" /> Remover
+          </Button>
+        )}
+      </div>
+
+      {capa.url && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 pt-1">
+          <div className="space-y-2">
+            <Label className="text-xs">Enquadramento</Label>
+            <Slider
+              value={[capa.focalY]}
+              min={0}
+              max={100}
+              step={1}
+              onValueChange={([v]) => setCapa((c) => ({ ...c, focalY: v }))}
+              onValueCommit={([v]) => salvarCapa({ focalY: v })}
+            />
+            <p className="text-xs text-muted-foreground">
+              Escolhe que parte da imagem fica visível — do topo à base.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-xs">Escurecer imagem — {capa.overlay}%</Label>
+            <Slider
+              value={[capa.overlay]}
+              min={COVER_OVERLAY_MIN}
+              max={COVER_OVERLAY_MAX}
+              step={1}
+              onValueChange={([v]) => setCapa((c) => ({ ...c, overlay: v }))}
+              onValueCommit={([v]) => salvarCapa({ overlay: v })}
+            />
+            {/* O piso não é escolha de estilo: o nome da loja e os botões ficam
+                em cima da capa, e sem um mínimo de véu a imagem clara apaga os
+                dois. Por isso o slider começa em COVER_OVERLAY_MIN. */}
+            <p className="text-xs text-muted-foreground">
+              O mínimo existe para o nome da sua loja continuar legível sobre a
+              imagem.
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 
   const renderProfile = () => (
     <Card className="bg-gradient-card">
       <CardHeader><CardTitle className="font-heading">Perfil da loja</CardTitle></CardHeader>
       <CardContent className="space-y-5">
+        {/* A capa vem antes da foto porque é assim que a loja aparece: faixa no
+            topo, foto por baixo. */}
+        {renderCapa()}
+
+        <Separator />
+
         <div className="flex items-center gap-4">
           <Avatar className="h-[120px] w-[120px]">
             {store.avatarUrl && (

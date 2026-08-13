@@ -14,6 +14,7 @@ import { lerCatalogo, guardarCatalogo } from '@/lib/catalogo-cache';
 import { CLERK_ENABLED } from '@/lib/clerk';
 import { COMMISSION_RATE } from '@/lib/fees';
 import { comprimirImagem } from '@/lib/comprimir-imagem';
+import { CAPA_LADO_MAXIMO } from '@/lib/capa-loja';
 
 /**
  * Token do Clerk, sem derrubar a tela quando o Clerk não está montado.
@@ -536,6 +537,38 @@ export function useReorderListings() {
     onError: (err: Error) => {
       toast({
         title: 'Não foi possível salvar a ordem',
+        description: err.message,
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
+/**
+ * Fixa/desfixa os destaques da loja.
+ *
+ * Manda a lista COMPLETA (o backend substitui o conjunto inteiro), então quem
+ * chama monta a lista nova a partir da atual. Tem toast de sucesso, ao
+ * contrário do reorder: destacar é uma decisão pontual, e o vendedor precisa da
+ * confirmação de que a faixa da loja dele mudou.
+ */
+export function useDestacarListings() {
+  const queryClient = useQueryClient();
+  const { getToken } = useAuth();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (ids: string[]) => {
+      const token = await getToken();
+      return api.listings.destacar(token || '', ids);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['my-listings'] });
+      queryClient.invalidateQueries({ queryKey: ['sellerListings'] });
+    },
+    onError: (err: Error) => {
+      toast({
+        title: 'Não foi possível mudar os destaques',
         description: err.message,
         variant: 'destructive',
       });
@@ -2233,6 +2266,26 @@ export function useUploadImage() {
       // limite do servidor ("Multipart: Unexpected end of form"). Se não couber
       // comprimir, sobe o original (ver lib/comprimir-imagem).
       const enviavel = await comprimirImagem(file);
+      return api.media.upload(token || '', enviavel);
+    },
+  });
+}
+
+/**
+ * Upload da CAPA da loja. Igual ao de cima, com um lado máximo maior.
+ *
+ * Hook separado em vez de um parâmetro no `useUploadImage`: aquele é chamado em
+ * quatro telas com `mutateAsync(file)`, e mudar a assinatura por causa de uma
+ * quinta trocaria um risco real por uma economia de dez linhas. A capa é uma
+ * imagem só, subindo de um lugar só.
+ */
+export function useUploadCapa() {
+  const { getToken } = useAuth();
+
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const token = await getToken();
+      const enviavel = await comprimirImagem(file, CAPA_LADO_MAXIMO);
       return api.media.upload(token || '', enviavel);
     },
   });

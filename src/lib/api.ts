@@ -190,6 +190,20 @@ export const api = {
         token,
       }).then(r => r.data),
 
+    // Destaques da loja: manda a lista COMPLETA dos anúncios fixados no topo
+    // (não é "adicione este"); lista vazia limpa a faixa. No máximo
+    // MAX_DESTAQUES, e o backend recusa o lote inteiro se algum id não for de
+    // anúncio ativo do próprio vendedor.
+    //
+    // A ordem do array não importa: na faixa vale a mesma `position` do
+    // arrastar-para-reordenar.
+    destacar: (token: string, ids: string[]) =>
+      request<{ data: { ok: boolean } }>('/api/listings/destaques', {
+        method: 'PATCH',
+        body: JSON.stringify({ ids }),
+        token,
+      }).then(r => r.data),
+
     remove: (token: string, id: string) =>
       request<void>(`/api/listings/${id}`, { method: 'DELETE', token }),
 
@@ -1123,12 +1137,28 @@ export interface PaginationMeta {
   totalPages: number;
 }
 
+/**
+ * Capa (banner) da loja, já resolvida pelo backend.
+ *
+ * `overlay` vem com o piso de legibilidade aplicado — o front reaplica mesmo
+ * assim (ver `capaSegura`), porque o nome da loja fica em cima da imagem e uma
+ * resposta velha em cache não pode apagá-lo.
+ */
+export interface StoreCoverData {
+  url: string;
+  /** 0 = topo da imagem, 100 = base. Recorte vertical do banner. */
+  focalY: number;
+  /** Escurecimento em %, entre COVER_OVERLAY_MIN e COVER_OVERLAY_MAX. */
+  overlay: number;
+}
+
 export interface SellerProfile {
   id: string;
   name: string | null;
   email: string;
   bio: string | null;
   avatarUrl: string | null;
+  cover: StoreCoverData | null;
   isVerified: boolean | null;
   createdAt: string;
   totalActiveListings: number;
@@ -1140,6 +1170,7 @@ export interface SellerProfile {
 export interface SellerSelfProfile {
   storeName: string | null;
   avatarUrl: string | null;
+  cover: StoreCoverData | null;
   bio: string | null;
   city: string | null;
   state: string | null;
@@ -1336,6 +1367,12 @@ export interface UpdateSellerProfileBody {
   storeName?: string;
   /** URL da foto da loja; string vazia remove. */
   avatarUrl?: string;
+  /** URL da capa (banner); string vazia remove. Só aceita imagem do nosso R2. */
+  coverUrl?: string;
+  /** Recorte vertical da capa: 0 = topo, 100 = base. */
+  coverFocalY?: number;
+  /** Escurecimento da capa em %. O backend recusa abaixo do piso. */
+  coverOverlay?: number;
   bio?: string;
   city?: string;
   state?: string;
@@ -1662,6 +1699,10 @@ export interface Listing {
   // Ordem escolhida pelo vendedor para a vitrine da loja (menor = mais acima).
   // null = ainda não ordenado. Só a página do vendedor usa isto.
   position?: number | null;
+  // Destaque da LOJA: ISO de quando o vendedor fixou este anúncio no topo da
+  // página dele. null = não destacado. Não confundir com `featuredUntil` acima,
+  // que é destaque de plataforma (crédito de fundador) e expira.
+  storePinnedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }

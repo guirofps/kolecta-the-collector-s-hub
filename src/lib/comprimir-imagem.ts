@@ -12,7 +12,9 @@
 // Regra de ouro: NUNCA piorar. Qualquer erro, ou resultado maior que o
 // original, devolve o arquivo como veio. Compressão é um extra, não um risco.
 
-/** Maior lado (px) que uma foto de anúncio precisa ter. */
+/** Maior lado (px) que uma foto de anúncio precisa ter.
+ *  A capa da loja pede mais (ver `CAPA_LADO_MAXIMO`): ela ocupa a largura
+ *  inteira da tela, e 1600 embaça em monitor grande. */
 export const LADO_MAXIMO = 1600;
 /** Qualidade do JPEG reexportado. 0.82 mantém foto boa e corta muito peso. */
 export const QUALIDADE = 0.82;
@@ -89,12 +91,15 @@ async function decodificar(file: File): Promise<{ largura: number; altura: numbe
  * Devolve uma versão leve da imagem para upload, ou o próprio arquivo se não
  * couber comprimir ou se algo falhar. Nunca lança.
  */
-export async function comprimirImagem(file: File): Promise<File> {
+export async function comprimirImagem(
+  file: File,
+  ladoMax = LADO_MAXIMO,
+): Promise<File> {
   if (!deveComprimir(file)) return file;
 
   try {
     const fonte = await decodificar(file);
-    const { largura, altura } = dimensaoAlvo(fonte.largura, fonte.altura);
+    const { largura, altura } = dimensaoAlvo(fonte.largura, fonte.altura, ladoMax);
 
     const canvas = document.createElement('canvas');
     canvas.width = largura;
