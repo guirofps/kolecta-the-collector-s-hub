@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "sitemap": "node scripts/gerar-sitemap.mjs",
+    "prebuild": "node scripts/gerar-sitemap.mjs",
     "build": "npm run typecheck && vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
