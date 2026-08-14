@@ -1317,6 +1317,29 @@ export function useWithdrawals() {
   return { query, requestMutation };
 }
 
+// ── useWithdrawalLimits ────────────────────────────────────────────────────
+
+/**
+ * Quanto o vendedor consegue sacar de verdade.
+ *
+ * `enabled` para consultar só quando o diálogo de saque abre: o backend
+ * consulta o saldo real na Pagar.me, então não é chamada para rodar a cada
+ * carregamento da página. `staleTime: 0` porque um saque muda o número.
+ */
+export function useWithdrawalLimits(enabled: boolean) {
+  const { getToken } = useAuth();
+
+  return useQuery({
+    queryKey: ['withdrawals', 'limits'],
+    queryFn: async () => {
+      const token = await getToken();
+      return api.withdrawals.getLimits(token!);
+    },
+    enabled,
+    staleTime: 0,
+  });
+}
+
 // ── useDeposit ─────────────────────────────────────────────────────────────
 
 export function useDeposit() {

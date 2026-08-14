@@ -29,7 +29,7 @@ import { useToast } from '@/hooks/use-toast';
 import { formatBRL } from '@/lib/currency';
 import { montarExtrato } from '@/lib/order-breakdown';
 import { commissionLabel } from '@/lib/fees';
-import { useWallet, useWithdrawals, useWalletDeposit, useSellerOrders, useRecipient } from '@/hooks/use-api';
+import { useWallet, useWithdrawals, useWithdrawalLimits, useWalletDeposit, useSellerOrders, useRecipient } from '@/hooks/use-api';
 import { isValidCpf } from '@/lib/cpf';
 import type { Order } from '@/lib/api';
 
@@ -243,6 +243,26 @@ export default function SellerFinancialPage() {
     recipientReady: statusQuery.data?.canWithdraw ?? false,
   };
 
+  // ── Limites reais do saque ─────────────────────────────
+  //
+  // O máximo NÃO é `summary.available`. A Pagar.me cobra uma taxa fixa por
+  // saque, debitada por cima do valor pedido, então pedir o saldo cheio é
+  // pedir mais do que existe — e a transferência é recusada. Quem sabe o
+  // número certo é o backend, que conhece a taxa e consulta o saldo real do
+  // recebedor. Só consultamos com o diálogo aberto.
+  const { data: limits, isLoading: limitsLoading } = useWithdrawalLimits(withdrawOpen);
+
+  const feeReais = (limits?.feeInCents ?? 0) / 100;
+  const minReais = (limits?.minInCents ?? 5000) / 100;
+  const maxReais = (limits?.maxWithdrawableInCents ?? 0) / 100;
+  const amountReais = parseAmount(withdrawAmount);
+  const totalDebitReais = amountReais > 0 ? amountReais + feeReais : 0;
+
+  // Saldo entre o mínimo e o mínimo+taxa: nenhum valor é aceito. Sem dizer
+  // isso, o vendedor tenta valores no chute até desistir — foi o que
+  // aconteceu na noite de 13/08.
+  const belowMinimum = !limitsLoading && !!limits && maxReais < minReais;
+
   // ── Withdraw dialog helpers ────────────────────────────
 
   function handleWithdrawAmountChange(val: string) {
@@ -256,13 +276,18 @@ export default function SellerFinancialPage() {
 
   function handleConfirmWithdraw() {
     const amount = parseAmount(withdrawAmount);
-    const minAmount = 50; // R$50,00 — igual ao backend
-    if (amount < minAmount) {
-      toast({ title: 'Valor mínimo', description: `O valor mínimo para saque é R$ ${minAmount},00.`, variant: 'destructive' });
+    if (amount < minReais) {
+      toast({ title: 'Valor mínimo', description: `O valor mínimo para saque é ${formatBRL(minReais)}.`, variant: 'destructive' });
       return;
     }
-    if (amount > summary.available) {
-      toast({ title: 'Saldo insuficiente', description: `O valor máximo disponível é ${formatBRL(summary.available)}.`, variant: 'destructive' });
+    // O teto é o máximo REAL (saldo − taxa), não o saldo: a taxa da Pagar.me
+    // sai por cima do valor pedido, então pedir o saldo cheio sempre falha.
+    if (amount > maxReais) {
+      toast({
+        title: 'Acima do disponível',
+        description: `Com a taxa de ${formatBRL(feeReais)}, o máximo que você consegue sacar agora é ${formatBRL(maxReais)}.`,
+        variant: 'destructive',
+      });
       return;
     }
     const amountInCents = Math.round(amount * 100);
@@ -647,7 +672,8 @@ export default function SellerFinancialPage() {
                       <TableHeader>
                         <TableRow>
                           <TableHead>Data da solicitação</TableHead>
-                          <TableHead className="text-right">Valor</TableHead>
+                          <TableHead className="text-right">Valor recebido</TableHead>
+                          <TableHead className="text-right">Taxa</TableHead>
                           <TableHead>Status</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -661,7 +687,12 @@ export default function SellerFinancialPage() {
                           return (
                             <TableRow key={w.id}>
                               <TableCell className="text-sm">{new Date(w.createdAt).toLocaleDateString('pt-BR')}</TableCell>
-                              <TableCell className="text-right font-heading font-bold">{(w.amountInCents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                              <TableCell className="text-right font-heading font-bold">{formatBRL(w.amountInCents / 100)}</TableCell>
+                              {/* Saques anteriores a 13/08/2026 têm taxa 0: naquela
+                                  época ela não passava pela carteira. */}
+                              <TableCell className="text-right text-sm text-muted-foreground">
+                                {w.feeInCents ? formatBRL(w.feeInCents / 100) : '—'}
+                              </TableCell>
                               <TableCell><Badge variant="outline" className={statusCfg.cls}>{statusCfg.label}</Badge></TableCell>
                             </TableRow>
                           );
@@ -688,24 +719,85 @@ export default function SellerFinancialPage() {
 
           <div className="space-y-5 py-2">
             <div className="rounded-lg bg-kolecta-gold/10 border border-kolecta-gold/30 p-4 text-center">
-              <p className="text-xs text-muted-foreground mb-1">Saldo disponível</p>
-              <p className="font-heading text-3xl font-bold text-kolecta-gold">{formatBRL(summary.available)}</p>
+              <p className="text-xs text-muted-foreground mb-1">Disponível para saque</p>
+              {limitsLoading ? (
+                <Skeleton className="mx-auto h-9 w-40" />
+              ) : (
+                <p className="font-heading text-3xl font-bold text-kolecta-gold">{formatBRL(maxReais)}</p>
+              )}
+              {/* O saldo e o máximo são números diferentes por causa da taxa.
+                  Mostrar só um dos dois faz a diferença parecer dinheiro sumido. */}
+              {!limitsLoading && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Saldo de {formatBRL(summary.available)} menos a taxa de {formatBRL(feeReais)}
+                </p>
+              )}
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="withdraw-amount">Valor do saque</Label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">R$</span>
-                <Input
-                  id="withdraw-amount"
-                  className="pl-9"
-                  placeholder="0,00"
-                  value={withdrawAmount}
-                  onChange={(e) => handleWithdrawAmountChange(e.target.value)}
-                />
+            {belowMinimum ? (
+              <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4">
+                <p className="text-sm font-medium text-destructive">Saldo ainda insuficiente para sacar</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Para sacar é preciso ter pelo menos {formatBRL(minReais + feeReais)}: o mínimo de{' '}
+                  {formatBRL(minReais)} mais a taxa de {formatBRL(feeReais)}. Hoje você tem{' '}
+                  {formatBRL(summary.available)}.
+                  {summary.pending > 0 && ` Outros ${formatBRL(summary.pending)} estão retidos e liberam ao fim das 48h.`}
+                </p>
               </div>
-              <p className="text-xs text-muted-foreground">Mínimo R$ 50,00 · Máximo {formatBRL(summary.available)}</p>
-            </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="withdraw-amount">Valor do saque</Label>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-auto px-2 py-0.5 text-xs text-kolecta-gold hover:text-kolecta-gold"
+                    disabled={limitsLoading || maxReais <= 0}
+                    onClick={() => setWithdrawAmount(maxReais.toFixed(2).replace('.', ','))}
+                  >
+                    Sacar tudo
+                  </Button>
+                </div>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">R$</span>
+                  <Input
+                    id="withdraw-amount"
+                    className="pl-9"
+                    placeholder="0,00"
+                    value={withdrawAmount}
+                    onChange={(e) => handleWithdrawAmountChange(e.target.value)}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Mínimo {formatBRL(minReais)} · Máximo {formatBRL(maxReais)}
+                </p>
+              </div>
+            )}
+
+            {/* Quebra de valores antes de confirmar: a taxa não pode aparecer
+                só depois, no extrato. */}
+            {!belowMinimum && amountReais > 0 && (
+              <div className="space-y-1.5 rounded-lg border border-border bg-muted/50 px-4 py-3 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Valor do saque</span>
+                  <span>{formatBRL(amountReais)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Taxa de transferência</span>
+                  <span>{formatBRL(feeReais)}</span>
+                </div>
+                <Separator className="my-1.5" />
+                <div className="flex justify-between font-medium">
+                  <span>Total debitado</span>
+                  <span>{formatBRL(totalDebitReais)}</span>
+                </div>
+                <div className="flex justify-between font-medium text-kolecta-gold">
+                  <span>Você recebe</span>
+                  <span>{formatBRL(amountReais)}</span>
+                </div>
+              </div>
+            )}
 
             <Separator />
 
@@ -736,7 +828,7 @@ export default function SellerFinancialPage() {
               variant="kolecta"
               className="glow-primary"
               onClick={handleConfirmWithdraw}
-              disabled={requestMutation.isPending}
+              disabled={requestMutation.isPending || limitsLoading || belowMinimum}
             >
               {requestMutation.isPending ? 'Processando...' : 'Confirmar saque'}
             </Button>

@@ -761,6 +761,10 @@ export const api = {
     getMyWithdrawals: (token: string) =>
       request<{ data: Withdrawal[] }>('/api/withdrawals/me', { token }).then(r => r.data),
 
+    /** Mínimo, taxa e máximo REAL — o front não tem como calcular isso sozinho. */
+    getLimits: (token: string) =>
+      request<{ data: WithdrawalLimits }>('/api/withdrawals/limits', { token }).then(r => r.data),
+
     request: (token: string, amountInCents: number) =>
       request<{ data: Withdrawal }>('/api/withdrawals', {
         method: 'POST',
@@ -1626,10 +1630,33 @@ export interface CreateAddressPayload {
   isDefault?: boolean;
 }
 
+/**
+ * Limites do saque, calculados no backend.
+ *
+ * O máximo NÃO é o saldo da carteira: a Pagar.me cobra uma taxa fixa por saque
+ * que sai por cima do valor pedido. Enquanto o front usava o saldo como teto,
+ * "sacar tudo" falhava sempre — o pedido excedia o que existia na Pagar.me.
+ */
+export interface WithdrawalLimits {
+  /** Saldo disponível da carteira. */
+  balanceInCents: number;
+  /** Vendas em retenção (48h) — não sacável ainda. */
+  pendingInCents: number;
+  /** Taxa fixa da Pagar.me por saque. */
+  feeInCents: number;
+  minInCents: number;
+  /** O teto que de fato funciona: saldo − taxa. É este que a tela deve usar. */
+  maxWithdrawableInCents: number;
+  canWithdraw: boolean;
+  limitSource: 'wallet' | 'pagarme';
+}
+
 export interface Withdrawal {
   id: string;
   userId: string;
   amountInCents: number;
+  /** Taxa cobrada neste saque. Total debitado = amountInCents + feeInCents. */
+  feeInCents?: number;
   status: 'processing' | 'paid' | 'failed';
   stripePayoutId?: string;
   failureReason?: string;
