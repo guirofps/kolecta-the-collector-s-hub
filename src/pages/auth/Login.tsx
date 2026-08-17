@@ -1,5 +1,6 @@
 import { SignIn } from '@clerk/clerk-react';
 import Layout from '@/components/layout/Layout';
+import InAppBrowserAviso from '@/components/InAppBrowserAviso';
 
 export default function LoginPage() {
   return (
@@ -10,6 +11,8 @@ export default function LoginPage() {
             <h1 className="font-heading text-3xl font-extrabold italic uppercase">Entrar</h1>
             <p className="text-sm text-muted-foreground mt-2">Acesse sua conta Kolecta</p>
           </div>
+          {/* Navegador embutido (Instagram/etc.): login pelo Clerk trava aqui. */}
+          <InAppBrowserAviso />
           <SignIn
             path="/entrar"
             routing="path"

@@ -1,4 +1,4 @@
-import { createContext, useContext, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { useMyProfile } from '@/hooks/use-api';
 import { CLERK_ENABLED } from '@/lib/clerk';
@@ -102,6 +102,20 @@ function ClerkAuthProvider({ children }: { children: ReactNode }) {
   const { isSignedIn, user: clerkUser, isLoaded: clerkLoaded } = useUser();
   const { data: profile, isLoading: profileLoading } = useMyProfile();
 
+  // Rede de segurança: o app inteiro fica atrás do spinner do LaunchGate
+  // enquanto o Clerk não carrega. Em navegadores EMBUTIDOS (Instagram, Facebook,
+  // TikTok), o Clerk às vezes NUNCA inicializa (o webview bloqueia storage/
+  // cookies), e o `isLoaded` fica preso em false — o site inteiro trava num
+  // spinner infinito, foi o que a galera do Instagram relatou. Passado o prazo,
+  // seguimos como deslogado: o app renderiza e o usuário pelo menos navega (e vê
+  // o aviso pra abrir no navegador de verdade, em vez de olhar pra um spinner).
+  const [clerkTimeout, setClerkTimeout] = useState(false);
+  useEffect(() => {
+    if (clerkLoaded) return;
+    const id = setTimeout(() => setClerkTimeout(true), 8000);
+    return () => clearTimeout(id);
+  }, [clerkLoaded]);
+
   // Construir o user a partir do Clerk + backend
   const user: AuthUser = {
     id: clerkUser?.id ?? '',
@@ -113,7 +127,8 @@ function ClerkAuthProvider({ children }: { children: ReactNode }) {
   };
 
   const isAuthenticated = !!isSignedIn;
-  const isLoading = !clerkLoaded || (isAuthenticated && profileLoading);
+  const isLoading =
+    (!clerkLoaded && !clerkTimeout) || (isAuthenticated && profileLoading);
 
   const hasRole = (role: Role) => {
     // admin tem acesso a tudo; user tem acesso a tudo exceto admin
