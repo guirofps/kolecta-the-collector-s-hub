@@ -202,6 +202,8 @@ export default function SellerOrderDetailPage() {
           : 'Aguardando entrega';
 
   const listing = order.listing;
+  // Unidades do pedido: 1 em peça única, N com estoque. O card mostrava "x1" fixo.
+  const qtd = Math.max(1, order.quantity ?? 1);
 
   return (
     <SellerLayout>
@@ -232,10 +234,16 @@ export default function SellerOrderDetailPage() {
                     {listing?.condition && <Badge variant="secondary" className="text-[10px] mt-1">{listing.condition}</Badge>}
                   </div>
                   <div className="text-right text-sm">
-                    <p className="text-muted-foreground">x1</p>
-                    {/* Preço do ITEM. Antes mostrava o total do pedido, então o
-                        frete aparecia como se fosse parte do preço da peça. */}
+                    <p className="text-muted-foreground">x{qtd}</p>
+                    {/* Preço do ITEM (todas as unidades). Antes mostrava o total
+                        do pedido, então o frete aparecia como se fosse parte do
+                        preço da peça. */}
                     <p className="font-medium">{formatBRL(extrato.itemInCents / 100)}</p>
+                    {qtd > 1 && (
+                      <p className="text-xs text-muted-foreground">
+                        {formatBRL(extrato.itemInCents / 100 / qtd)} cada
+                      </p>
+                    )}
                   </div>
                 </div>
                 <Separator className="opacity-50" />

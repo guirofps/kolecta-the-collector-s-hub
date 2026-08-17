@@ -1525,6 +1525,8 @@ export interface Order {
   listingId: string;
   status: OrderStatus;
   totalInCents: number;
+  /** Unidades compradas neste pedido. Ausente/1 em pedidos de peça única. */
+  quantity?: number | null;
   // 'shipping' = envio via transportadora | 'pickup' = retirada em mãos.
   // Decide quem confirma a entrega: na retirada é o vendedor (botão); no envio é
   // o rastreio ou o comprador.

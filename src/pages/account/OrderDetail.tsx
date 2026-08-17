@@ -161,6 +161,9 @@ export default function OrderDetailPage() {
             </div>
             <div className="flex-1">
               <h3 className="text-sm font-medium text-foreground">{order.listing?.title ?? 'Item'}</h3>
+              {(order.quantity ?? 1) > 1 && (
+                <p className="text-xs text-muted-foreground mt-1">Quantidade: {order.quantity}</p>
+              )}
               <p className="font-heading text-lg font-bold text-foreground mt-2">{formatBRL(order.totalInCents / 100)}</p>
             </div>
           </div>
