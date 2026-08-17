@@ -45,3 +45,6 @@ emails/preview/
 
 # KPV: dados coletados das fontes externas ficam so na maquina
 scripts/kpv/dados/
+
+# MCP local (contém tokens/segredos — nunca versionar)
+.mcp.json
