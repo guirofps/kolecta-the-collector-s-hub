@@ -226,6 +226,32 @@ export default function BulkImportPage() {
           </div>
         </div>
 
+        {/* Como funciona: o passo a passo mora aqui, na tela onde a pessoa age.
+            Página de tutorial separada quase ninguém abre. */}
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="p-4">
+            <p className="mb-3 text-sm font-medium">Como funciona, em 4 passos</p>
+            <ol className="space-y-2.5">
+              {[
+                <>Baixe o modelo e preencha <strong>uma linha por produto</strong> (título, categoria, preço, peso e medidas). A foto é opcional aqui.</>,
+                <>Opcional, mas recomendado: preencha o <strong>SKU</strong> de cada produto e nomeie as fotos com ele, tipo <code className="rounded bg-muted px-1 text-primary">SKU-1.jpg</code>, <code className="rounded bg-muted px-1 text-primary">SKU-2.jpg</code>. Assim elas encaixam sozinhas depois.</>,
+                <>Envie a planilha. A gente <strong>confere tudo antes</strong> de criar. Quem vier sem foto fica como rascunho.</>,
+                <>Na tela seguinte, <strong>solte todas as fotos de uma vez</strong>: nós hospedamos e casamos por SKU. O que não casar, você encaixa tocando. Depois é só enviar para análise.</>,
+              ].map((texto, i) => (
+                <li key={i} className="flex gap-3 text-xs text-muted-foreground">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">
+                    {i + 1}
+                  </span>
+                  <span className="leading-relaxed">{texto}</span>
+                </li>
+              ))}
+            </ol>
+            <p className="mt-3 rounded-md bg-background/60 p-2.5 text-[11px] text-muted-foreground">
+              Você <strong>não precisa hospedar as fotos</strong> em lugar nenhum, nós cuidamos disso. E não precisa usar SKU: sem ele, você encaixa as fotos na mão, é rápido.
+            </p>
+          </CardContent>
+        </Card>
+
         {/* Modelo */}
         <Card>
           <CardContent className="pt-4 pb-4">
