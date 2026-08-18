@@ -34,6 +34,7 @@ import { api } from '@/lib/api';
 import type { Listing } from '@/lib/api';
 import { useListing, useListings } from '@/hooks/use-api';
 import { trackEvent } from '@/lib/analytics';
+import { metaTrack } from '@/lib/meta-pixel';
 import { useMutation } from '@tanstack/react-query';
 import { useAuth } from '@clerk/clerk-react';
 import { useToast } from '@/hooks/use-toast';
@@ -193,7 +194,17 @@ export default function ProductDetail() {
 
   // Track view quando o listing carregar
   useEffect(() => {
-    if (listing) trackEvent('view_product', { id: listing.id, type: listing.type });
+    if (!listing) return;
+    trackEvent('view_product', { id: listing.id, type: listing.type });
+    // ViewContent do Meta Pixel: topo do funil de compra (retargeting de quem
+    // viu o produto e otimização da campanha). content_ids casa com o Purchase.
+    metaTrack('ViewContent', {
+      content_type: 'product',
+      content_ids: [listing.id],
+      content_name: listing.title,
+      value: listing.priceInCents != null ? listing.priceInCents / 100 : undefined,
+      currency: 'BRL',
+    });
   }, [listing]);
 
   // ── Loading state ────────────────────────────────────────────────────────

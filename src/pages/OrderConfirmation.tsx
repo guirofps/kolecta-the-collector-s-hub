@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { CheckCircle, Package, ArrowRight, Loader2, Clock, XCircle } from 'lucide-react';
 import { formatBRL } from '@/lib/mock-data';
 import { trackEvent } from '@/lib/analytics';
+import { metaTrackPurchaseOnce } from '@/lib/meta-pixel';
 
 // F18: rótulo legível do status (antes exibia "paid"/"processing" cru).
 const STATUS_LABELS: Record<string, string> = {
@@ -36,9 +37,21 @@ export default function OrderConfirmation() {
   const isFailed = order?.status === 'cancelled';
 
   useEffect(() => {
-    if (orderId && order && order.status !== 'pending') {
-      trackEvent('purchase_complete', { orderId });
-    }
+    if (!orderId || !order) return;
+    // Só conta como venda o pedido de fato PAGO: 'pending' ainda não pagou e
+    // 'cancelled' falhou (antes qualquer não-pendente contava, inflando a
+    // conversão com pagamento que não aconteceu).
+    const pago = order.status !== 'pending' && order.status !== 'cancelled';
+    if (!pago) return;
+    trackEvent('purchase_complete', { orderId });
+    // Purchase do Meta Pixel: é o que a campanha de compra otimiza e atribui ao
+    // anúncio. Valor e moeda vão junto para o Meta calcular o ROAS.
+    metaTrackPurchaseOnce(orderId, {
+      value: order.totalInCents / 100,
+      currency: 'BRL',
+      content_type: 'product',
+      content_ids: order.listingId ? [order.listingId] : undefined,
+    });
   }, [orderId, order]);
 
   if (!orderId) {

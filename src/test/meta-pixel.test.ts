@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { metaTrack, metaTrackCustom, metaTrackSignupOnce, isCadastroRecente } from '@/lib/meta-pixel';
+import { metaTrack, metaTrackCustom, metaTrackSignupOnce, metaTrackPurchaseOnce, isCadastroRecente } from '@/lib/meta-pixel';
 
 describe('meta-pixel', () => {
   beforeEach(() => {
@@ -66,6 +66,35 @@ describe('meta-pixel', () => {
 
     it('ignora id vazio', () => {
       metaTrackSignupOnce('');
+      expect(fbq()).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('metaTrackPurchaseOnce', () => {
+    it('dispara Purchase com valor e moeda', () => {
+      metaTrackPurchaseOnce('order_1', { value: 149.9, currency: 'BRL' });
+      expect(fbq()).toHaveBeenCalledWith('track', 'Purchase', {
+        value: 149.9,
+        currency: 'BRL',
+      });
+    });
+
+    it('não redispara para o mesmo pedido (polling do PIX)', () => {
+      metaTrackPurchaseOnce('order_1', { value: 10, currency: 'BRL' });
+      fbq().mockClear();
+      metaTrackPurchaseOnce('order_1', { value: 10, currency: 'BRL' });
+      expect(fbq()).not.toHaveBeenCalled();
+    });
+
+    it('conta pedidos diferentes', () => {
+      metaTrackPurchaseOnce('order_1', { value: 10, currency: 'BRL' });
+      fbq().mockClear();
+      metaTrackPurchaseOnce('order_2', { value: 20, currency: 'BRL' });
+      expect(fbq()).toHaveBeenCalled();
+    });
+
+    it('ignora orderId vazio', () => {
+      metaTrackPurchaseOnce('', { value: 1, currency: 'BRL' });
       expect(fbq()).not.toHaveBeenCalled();
     });
   });

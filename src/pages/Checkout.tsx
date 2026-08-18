@@ -4,6 +4,7 @@ import { Shield, MapPin, Truck, CreditCard, QrCode, ChevronRight, Loader2, Alert
 import Layout from '@/components/layout/Layout';
 import { useCart, CartItem } from '@/contexts/CartContext';
 import { trackEvent } from '@/lib/analytics';
+import { metaTrack } from '@/lib/meta-pixel';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -137,7 +138,16 @@ export default function CheckoutPage() {
   // Funil de tráfego: etapa "iniciou checkout" (só uma vez, ao abrir a tela com
   // itens). Ver lib/analytics.
   useEffect(() => {
-    if (items.length > 0) trackEvent('checkout_start', { itens: items.length, total: totalPrice });
+    if (items.length > 0) {
+      trackEvent('checkout_start', { itens: items.length, total: totalPrice });
+      // Funil do Meta Pixel: etapa anterior ao Purchase, ajuda a campanha a achar
+      // quem tem intenção de compra mesmo quando a venda não fecha na hora.
+      metaTrack('InitiateCheckout', {
+        value: totalPrice,
+        currency: 'BRL',
+        num_items: items.length,
+      });
+    }
     // Uma vez por montagem: itens no carrinho não mudam o "iniciou".
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

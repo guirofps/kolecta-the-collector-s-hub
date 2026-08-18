@@ -68,3 +68,27 @@ export function metaTrackSignupOnce(userId: string) {
   metaTrack('CompleteRegistration', { content_name: 'Cadastro Kolecta' });
   metaTrack('Lead', { content_name: 'Candidato a Membro Fundador' });
 }
+
+// ── Guarda de compra ──────────────────────────────────────────────────────
+// Purchase é O evento que as campanhas de compra otimizam. Ele conta UMA vez
+// por pedido: a página de confirmação faz polling do PIX e re-renderiza a cada
+// checagem, então sem trava o mesmo pedido dispararia Purchase várias vezes e
+// inflaria o ROAS na cara do anunciante.
+const PURCHASE_KEY = 'kolecta_pixel_purchases';
+
+export function metaTrackPurchaseOnce(
+  orderId: string,
+  data: Record<string, unknown>,
+) {
+  if (!orderId) return;
+  try {
+    const brutos = localStorage.getItem(PURCHASE_KEY);
+    const vistos: string[] = brutos ? JSON.parse(brutos) : [];
+    if (vistos.includes(orderId)) return;
+    // Guarda os últimos 100 para a lista não crescer sem fim.
+    localStorage.setItem(PURCHASE_KEY, JSON.stringify([...vistos, orderId].slice(-100)));
+  } catch {
+    // localStorage bloqueado: dispara mesmo assim (contar 2x é melhor que 0x).
+  }
+  metaTrack('Purchase', data);
+}
