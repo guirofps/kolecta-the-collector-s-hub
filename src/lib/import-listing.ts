@@ -61,9 +61,9 @@ export const COLUNAS: ColunaModelo[] = [
     exemplo: '149.90',
   },
   {
-    chave: 'images', titulo: 'Fotos (URLs)', obrigatoria: true,
-    ajuda: `De ${MIN_PHOTOS} a ${MAX_PHOTOS} URLs separadas por vírgula`,
-    exemplo: 'https://site.com/1.jpg, https://site.com/2.jpg, https://site.com/3.jpg',
+    chave: 'images', titulo: 'Fotos (opcional)', obrigatoria: false,
+    ajuda: `Deixe em branco e anexe as fotos depois de importar. Ou cole até ${MAX_PHOTOS} URLs separadas por vírgula`,
+    exemplo: '',
   },
   {
     chave: 'brand', titulo: 'Marca / Fabricante', obrigatoria: false,
@@ -297,10 +297,12 @@ export function validarLinha(
     add('price', 'Preço inválido ou zerado. Ex: 149.90');
   }
 
+  // Foto é OPCIONAL: a planilha carrega os dados, e as fotos são anexadas depois,
+  // num passo visual (a Kolecta hospeda). Sem foto, o anúncio nasce como rascunho
+  // ("falta foto"). Quem preferir passar URLs prontas ainda pode, respeitando o
+  // máximo. Espelha a regra do backend em import-rules.ts.
   const fotos = lerFotos(val('images'));
-  if (fotos.length < MIN_PHOTOS) {
-    add('images', `Envie de ${MIN_PHOTOS} a ${MAX_PHOTOS} URLs de foto (encontrei ${fotos.length})`);
-  } else if (fotos.length > MAX_PHOTOS) {
+  if (fotos.length > MAX_PHOTOS) {
     add('images', `Máximo de ${MAX_PHOTOS} fotos (encontrei ${fotos.length})`);
   }
 

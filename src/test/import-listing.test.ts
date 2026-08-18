@@ -35,7 +35,9 @@ describe('modelo da planilha', () => {
 
   it('marca como obrigatório o que trava a publicação', () => {
     const obrig = COLUNAS.filter((c) => c.obrigatoria).map((c) => c.chave);
-    for (const k of ['title', 'category', 'condition', 'description', 'price', 'images', 'weight_grams']) {
+    // Foto NÃO está aqui: é anexada depois de importar (passo visual), então a
+    // planilha carrega só os dados. Sem foto, o anúncio nasce como rascunho.
+    for (const k of ['title', 'category', 'condition', 'description', 'price', 'weight_grams']) {
       expect(obrig, `${k} deveria ser obrigatório`).toContain(k);
     }
   });
@@ -110,15 +112,15 @@ describe('validação da linha', () => {
     expect(e.find((x) => x.campo === 'condition')!.mensagem).toContain('novo-lacrado');
   });
 
-  it('exige o mínimo de fotos', () => {
-    const e = errosDe({ images: 'https://s.com/1.jpg' });
-    expect(e.some((x) => x.campo === 'images')).toBe(true);
+  // Foto é OPCIONAL: a planilha carrega os dados e o vendedor anexa as fotos
+  // depois de importar. Linha sem foto não é erro.
+  it('foto é opcional: linha sem foto não erra', () => {
+    const e = errosDe({ images: '' });
+    expect(e.some((x) => x.campo === 'images')).toBe(false);
   });
 
-  // O mínimo é 2 (lib/photos). Duas fotos passam, uma não: fixa o limite para
-  // que voltar a exigir 3 quebre aqui em vez de na mão do vendedor.
-  it('aceita duas fotos, que é o mínimo de hoje', () => {
-    const e = errosDe({ images: 'https://s.com/1.jpg, https://s.com/2.jpg' });
+  it('aceita foto por URL quando informada (fluxo antigo)', () => {
+    const e = errosDe({ images: 'https://s.com/1.jpg' });
     expect(e.some((x) => x.campo === 'images')).toBe(false);
   });
 

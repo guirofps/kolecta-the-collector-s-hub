@@ -59,6 +59,7 @@ import SellerMessagesPage from "./pages/seller/Messages";
 import SellerSettingsPage from "./pages/seller/Settings";
 import SellerMediaPage from "./pages/seller/Media";
 import BulkImportPage from "./pages/seller/BulkImport";
+import BulkPhotosPage from "./pages/seller/BulkPhotos";
 import IntegrationsPage from "./pages/seller/Integrations";
 import BlingImportPage from "./pages/seller/BlingImport";
 import CompletarAnunciosPage from "./pages/seller/CompletarAnuncios";
@@ -200,6 +201,7 @@ const App = () => (
             <Route path="/painel/configuracoes" element={<ProtectedRoute><SellerSettingsPage /></ProtectedRoute>} />
             <Route path="/painel/midia" element={<ProtectedRoute><SellerMediaPage /></ProtectedRoute>} />
             <Route path="/painel/importar" element={<ProtectedRoute><BulkImportPage /></ProtectedRoute>} />
+            <Route path="/painel/anuncios/fotos" element={<ProtectedRoute><BulkPhotosPage /></ProtectedRoute>} />
 
             {/* Admin — requireAuth + role admin */}
             <Route path="/admin" element={<ProtectedRoute role="admin"><AdminOverview /></ProtectedRoute>} />

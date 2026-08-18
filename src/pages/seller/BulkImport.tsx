@@ -86,18 +86,23 @@ function ProgressCard({ job }: { job: ImportJob }) {
         )}
 
         {job.status !== 'processing' && job.processedRows > 0 && (
-          <div className="flex items-center gap-2 text-sm text-green-400 bg-green-500/10 rounded-lg p-3">
+          <div className="flex items-center gap-2 rounded-lg bg-green-500/10 p-3 text-sm text-green-400">
             <CheckCircle2 className="h-4 w-4 shrink-0" />
-            {job.processedRows} anúncio(s) criado(s) com status <strong>Em Análise</strong>.
+            {job.processedRows} anúncio(s) importado(s). Quem veio sem foto ficou como <strong>rascunho</strong>, esperando as imagens.
           </div>
         )}
 
         {job.status !== 'processing' && (
-          <div className="flex gap-2 pt-1">
-            <Button variant="kolecta" asChild>
+          <div className="flex flex-wrap gap-2 pt-1">
+            {job.processedRows > 0 && (
+              <Button variant="kolecta" asChild>
+                <Link to="/painel/anuncios/fotos">Anexar as fotos agora</Link>
+              </Button>
+            )}
+            <Button variant="outline" asChild>
               <Link to="/painel/anuncios">Ver meus anúncios</Link>
             </Button>
-            <Button variant="outline" onClick={() => window.location.reload()}>
+            <Button variant="ghost" onClick={() => window.location.reload()}>
               Nova importação
             </Button>
           </div>
