@@ -36,6 +36,13 @@ describe('qual fonte usar', () => {
   it('Funko vai para o eBay: o ML BR tem o catálogo mas quase sem preço', () => {
     expect(fonteRecomendada(id('Funko Pop Sylvanas 990', 'Funko'))).toBe('ebay');
   });
+
+  it('canal premium (RLC / Mattel Creations) vai para o eBay', () => {
+    // O ML BR não tem esses exclusivos e casa com o regular do mesmo carro: o
+    // "Mattel Creations Daniel Arsham Porsche 911" virou "Eroded Mustang".
+    expect(fonteRecomendada(id('Hot Wheels RLC Red Line Club Nissan Skyline GT-R R34', 'Hot Wheels'))).toBe('ebay');
+    expect(fonteRecomendada(id('Mattel Creations Hot Wheels Daniel Arsham 1973 Porsche 911', 'Hot Wheels'))).toBe('ebay');
+  });
 });
 
 describe('o porteiro — casos reais que o piloto errou', () => {
@@ -46,6 +53,22 @@ describe('o porteiro — casos reais que o piloto errou', () => {
     const v = candidatoServe(nosso, ml);
     expect(v.serve).toBe(false);
     expect(v.motivo).toMatch(/variante/);
+  });
+
+  it('RECUSA quando o código de coleção difere (Mini GT #718 vs #1089)', () => {
+    // "nissan gt r35" sozinho dava 75% de sobreposição; o #NNNN do Mini GT é o
+    // desempate. O LB Works R35 #718 casou com o Nismo #1089 sem esta guarda.
+    const nosso = id('MINI GT 1:64 LB WORKS NISSAN GT-R R35 SD5 #718', 'Mini GT');
+    const ml = id('Mini GT Nissan GT-R Nismo R35 #1089', 'Mini GT');
+    const v = candidatoServe(nosso, ml);
+    expect(v.serve).toBe(false);
+    expect(v.motivo).toMatch(/[có]digo/);
+  });
+
+  it('código IGUAL não atrapalha o casamento certo', () => {
+    const nosso = id('Mini GT Nissan Skyline GT-R R34 #718', 'Mini GT');
+    const ml = id('Mini GT 1:64 Nissan Skyline GTR R34 V-Spec #718 Azul', 'Mini GT');
+    expect(candidatoServe(nosso, ml).serve).toBe(true);
   });
 
   it('RECUSA escala diferente', () => {

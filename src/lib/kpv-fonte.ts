@@ -44,8 +44,24 @@ export function fonteRecomendada(id: IdentidadeKPV): FonteKPV {
   // Funko: o ML BR tem o produto no catálogo mas quase sem anúncio ativo (deu
   // "0 preços" na coleta), enquanto o eBay é o maior mercado de Funko do mundo.
   if (id.marca === 'Funko') return 'ebay';
+  // Canais premium de colecionador (Red Line Club, Mattel Creations): tiragem
+  // limitada, vendidos direto pela fabricante; o ML BR não tem e casa com o
+  // REGULAR do mesmo carro. Foi o que aconteceu com o "Mattel Creations Daniel
+  // Arsham 1973 Porsche 911", que o ML casou com um "Eroded Mustang". Vão pro
+  // eBay, onde o mercado desses exclusivos de fato existe.
+  if (RE_CANAL_EXCLUSIVO.test(id.linha ?? '') || RE_CANAL_EXCLUSIVO.test(id.modelo ?? '')) {
+    return 'ebay';
+  }
   return 'mercado-livre';
 }
+
+/**
+ * Canal premium de colecionador que o ML BR não cobre bem. "creations" sozinho
+ * entra porque a normalização da identidade tira "Mattel" e sobra só ela no
+ * modelo ("creations daniel arsham..."); no catálogo de diecast "creations" é
+ * sempre a série Mattel Creations.
+ */
+const RE_CANAL_EXCLUSIVO = /\b(red\s*line\s*club|rlc|creations)\b/i;
 
 /**
  * Marcas que, na prática, só fabricam 1:64.
@@ -105,6 +121,15 @@ export function candidatoServe(nossa: IdentidadeKPV, candidato: IdentidadeKPV): 
   // 3) Marca. O ML registrou um Mini GT como "Multimatic".
   if (normalizarMarca(nossa.marca).marca !== normalizarMarca(candidato.marca).marca) {
     return { serve: false, motivo: `marca diferente (${nossa.marca} vs ${candidato.marca})` };
+  }
+
+  // 3b) Código de catálogo, quando os DOIS lados declaram. O "#NNNN" do Mini GT
+  //     (e os códigos de fábrica de Kaido/Tarmac/Inno) é numeração de coleção de
+  //     verdade: código diferente = peça diferente, mesmo com modelo parecido. O
+  //     "LB Works R35 SD5 #718" casou com o "Nissan GT-R Nismo #1089" porque
+  //     "nissan gt r35" sozinho já dava 75% de sobreposição; o código separa.
+  if (nossa.codigo && candidato.codigo && nossa.codigo !== candidato.codigo) {
+    return { serve: false, motivo: `código diferente (${nossa.codigo} vs ${candidato.codigo})` };
   }
 
   // 4) Linha, quando os dois lados declaram. Um "Porsche 911 GT3 RS Then and
