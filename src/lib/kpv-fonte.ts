@@ -171,6 +171,22 @@ export function candidatoServe(nossa: IdentidadeKPV, candidato: IdentidadeKPV): 
     return { serve: false, motivo: `só ${comuns} palavra em comum no modelo` };
   }
 
+  // 6b) Palavra distintiva em conflito. Mesma base do carro, mas CADA lado tem
+  //     uma palavra que o outro não tem, e é ela que separa a peça: "porsche 911
+  //     RSR" vs "911 Rallye", "720S Spider GULF 2024" vs "720S 2019". A 75% de
+  //     sobreposição passava pela regra 5. Como a semelhança, olha o modelo E o
+  //     modelo+linha, e só reprova quando OS DOIS conflitam — se um jeito
+  //     concilia, é provável que seja o mesmo carro descrito diferente.
+  if (
+    modelosConflitam(nossa.modelo, candidato.modelo)
+    && modelosConflitam(modeloMaisLinha, candidato.modelo)
+  ) {
+    return {
+      serve: false,
+      motivo: `modelo diverge numa palavra distintiva (${nossa.modelo} vs ${candidato.modelo})`,
+    };
+  }
+
   // 7) Conjunto vs peça única. Um kit "F-100 transportando um Bronco" casou com
   //    um "M2 Hauler Fanta F-100": mesmo veículo principal, produtos
   //    diferentes. Conjunto só compara com conjunto.
@@ -215,6 +231,41 @@ export function semelhancaModelo(a: string, b: string): number {
   // Divide pelo MENOR conjunto: o nome do ML costuma ser mais longo (traz cor,
   // código e loja), e Jaccard puro punia o par certo por isso.
   return comuns / Math.min(A.size, B.size);
+}
+
+/**
+ * A mesma palavra, tokenizada diferente? Um token é PREFIXO ou SUFIXO do outro:
+ * "gt" de "gtr" (gt-r), "hurac" de "huracan" (o split por acento), "r34" de
+ * "bnr34" (chassi). NÃO casa substring no meio da palavra — senão "rs" (de "GT3
+ * RS") sumiria dentro de "po**rs**che" e o conflito real passaria batido.
+ */
+function mesmaRaiz(t: string, u: string): boolean {
+  return t === u || t.startsWith(u) || u.startsWith(t) || t.endsWith(u) || u.endsWith(t);
+}
+
+/**
+ * Exclusivas REAIS de X perante Y: tokens de X sem correspondente em Y (nem a
+ * mesma palavra tokenizada diferente). Sem isso, o desempate reprovaria o par
+ * certo por "gt" vs "gtr".
+ */
+function exclusivasReais(X: Set<string>, Y: Set<string>): string[] {
+  const ys = [...Y];
+  return [...X].filter((t) => !ys.some((u) => mesmaRaiz(t, u)));
+}
+
+/**
+ * Os dois modelos DISCORDAM numa palavra distintiva?
+ *
+ * Compartilham a base (o carro) mas CADA UM tem uma palavra que o outro não tem:
+ * "porsche 911 rsr" vs "porsche 911 rallye", "720s spider gulf 2024" vs "720s
+ * spider 2019". São peças/edições diferentes, mesmo com 75% de sobreposição.
+ *
+ * Diferente de um lado só mais descritivo ("911 rsr" vs "911 rsr gulf racing"):
+ * ali só o candidato tem palavra a mais, não há conflito, e o par passa.
+ */
+export function modelosConflitam(a: string, b: string): boolean {
+  const A = tokens(a), B = tokens(b);
+  return exclusivasReais(A, B).length > 0 && exclusivasReais(B, A).length > 0;
 }
 
 // ─── Preço em dólar → real ───────────────────────────────────────────────────

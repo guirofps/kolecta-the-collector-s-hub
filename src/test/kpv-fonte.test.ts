@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
-  fonteRecomendada, candidatoServe, semelhancaModelo, converterDeDolar, escalaPresumida,
+  fonteRecomendada, candidatoServe, semelhancaModelo, modelosConflitam,
+  converterDeDolar, escalaPresumida,
 } from '@/lib/kpv-fonte';
 import { identidadeDe, CONDICAO_BASE } from '@/lib/kpv-identidade';
 
@@ -140,6 +141,44 @@ describe('o porteiro — casos reais que o piloto errou', () => {
     const ml = id('Carrinho Hot Wheels McLaren Solus 2023', 'Hot Wheels');
     const v = candidatoServe(nosso, ml);
     expect(v.serve).toBe(false);
+  });
+
+  it('RECUSA modelo que diverge numa palavra distintiva (Matchbox 911 RSR vs Rallye)', () => {
+    // Do lote real de ML: "Collectors 2023 Porsche 911 RSR" casou com o "911
+    // Rallye" (R$98). "porsche 911" sozinho dava 75% e passava pela regra 5.
+    const nosso = id('Matchbox Collectors 2023 Porsche 911 RSR', 'Matchbox');
+    const ml = id('Matchbox Collectors 2023 Porsche 911 Rallye', 'Matchbox');
+    const v = candidatoServe(nosso, ml);
+    expect(v.serve).toBe(false);
+    expect(v.motivo).toMatch(/distintiv|modelo/);
+  });
+
+  it('RECUSA quando ano E livery divergem (720S GULF 2024 vs 2019)', () => {
+    const nosso = id('Matchbox Collectors 2024 McLaren 720S Spider Gulf', 'Matchbox');
+    const ml = id('Matchbox 2019 McLaren 720S Spider', 'Matchbox');
+    expect(candidatoServe(nosso, ml).serve).toBe(false);
+  });
+
+  it('RECUSA variantes de trim diferentes (Camaro SS vs ZL1, GT3 RS vs Touring)', () => {
+    expect(candidatoServe(
+      id('Hot Wheels Chevrolet Camaro SS', 'Hot Wheels'),
+      id('Hot Wheels Chevrolet Camaro ZL1', 'Hot Wheels'),
+    ).serve).toBe(false);
+    expect(candidatoServe(
+      id('Hot Wheels Porsche 911 GT3 RS', 'Hot Wheels'),
+      id('Hot Wheels Porsche 911 GT3 Touring', 'Hot Wheels'),
+    ).serve).toBe(false);
+  });
+
+  it('NÃO reprova o mesmo carro descrito diferente (gt-r/gtr, acento, um lado mais descritivo)', () => {
+    // O crítico: os dois lados têm token "exclusivo" (gt vs gtr, e v-spec), mas
+    // é a MESMA peça. Substring absorve gt⊂gtr; v-spec é só descrição a mais.
+    expect(modelosConflitam('nissan skyline gt-r r34', 'nissan skyline gtr r34 v-spec')).toBe(false);
+    expect(modelosConflitam('lamborghini huracan', 'lamborghini huracán')).toBe(false);
+    expect(modelosConflitam('ferrari 365 gtb4 competizione', 'ferrari 365 gtb4 competizione jbc19 vermelho')).toBe(false);
+    // E os conflitos reais dão true na função pura:
+    expect(modelosConflitam('porsche 911 rsr', 'porsche 911 rallye')).toBe(true);
+    expect(modelosConflitam('nissan gt r r35 sd5', 'nissan gt r r35 nismo')).toBe(true);
   });
 
   it('ACEITA o par que é de fato a mesma peça', () => {
