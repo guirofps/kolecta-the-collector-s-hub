@@ -48,10 +48,19 @@ export const kolectaClerkAppearance = {
     // ── Trigger (avatar no header) ──
     userButtonAvatarBox: 'ring-2 ring-primary/40',
     // ── Dropdown popover ──
-    userButtonPopoverCard: 'bg-card border border-border shadow-xl',
+    // A cor do texto vai por CLASSE (text-foreground), não pelo variables.colorText:
+    // o Clerk captura o `variables` no init e não reavalia na troca de tema, então
+    // quem carregava no claro e alternava pro escuro ficava com o texto preto sobre
+    // o card escuro (invisível). A classe Tailwind re-resolve o token sozinha.
+    userButtonPopoverCard: 'bg-card border border-border shadow-xl text-foreground',
+    userButtonPopoverMain: 'bg-card text-foreground',
     userButtonPopoverActionButton: 'text-foreground hover:bg-accent/30',
-    userButtonPopoverActionButtonText: 'font-body',
+    userButtonPopoverActionButtonText: 'font-body text-foreground',
     userButtonPopoverActionButtonIcon: 'text-primary',
+    userButtonPopoverFooter: 'bg-card',
+    // Nome e e-mail no topo do popover.
+    userPreviewMainIdentifier: 'text-foreground',
+    userPreviewSecondaryIdentifier: 'text-muted-foreground',
     // ── Card (SignIn/SignUp e modal "Manage account") ──
     card: 'bg-card border border-border',
     // O rodapé "Não possui conta?" vinha numa faixa clara fixa; força o token.

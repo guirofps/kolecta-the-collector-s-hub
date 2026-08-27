@@ -236,3 +236,24 @@
     }
   }
 }
+
+/* ── Rede de segurança do popover do Clerk (UserButton) ──────────────────────
+   O appearance colore por classe, mas o Clerk tem estilo interno com cor
+   explícita no texto que às vezes vence. Aqui forçamos o token do tema (que
+   re-resolve sozinho no claro/escuro) nas classes semânticas ESTÁVEIS do Clerk
+   (cl-*, não cl-internal-*). Corrige o texto preto sobre card escuro. */
+.cl-userButtonPopoverCard,
+.cl-userButtonPopoverMain,
+.cl-userButtonPopoverActionButton,
+.cl-userButtonPopoverActionButton__text,
+.cl-userButtonPopoverActionButtonText,
+.cl-userPreviewMainIdentifier {
+  color: hsl(var(--card-foreground)) !important;
+}
+.cl-userButtonPopoverActionButtonIcon,
+.cl-userButtonPopoverActionButtonIcon__text {
+  color: hsl(var(--primary)) !important;
+}
+.cl-userPreviewSecondaryIdentifier {
+  color: hsl(var(--muted-foreground)) !important;
+}
