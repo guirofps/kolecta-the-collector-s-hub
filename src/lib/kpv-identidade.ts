@@ -396,6 +396,22 @@ const RE_FUNKO_CHASE = /\bchase\b/i;
 const RE_FUNKO_ESPECIAL =
   /\b(glow|gitd|flocked|flocado|metallic|met[áa]lic[oa]|diamond|diamante|nycc|sdcc|eccc|c2e2|funko\s*shop|convention\s*exclusive)\b/i;
 
+/**
+ * Funko vende MUITO mais que a figure Pop: pôster emoldurado ("Movie Poster"),
+ * camiseta ("Pop! Tees"), pin, chaveiro, caneca, mochila, pelúcia. Outro produto,
+ * outro preço, não compara com a figure. O "Pinocchio & Jiminy #008" casou com um
+ * "Funko Pop! Movie Poster with Case" a R$1.047. NÃO inclui "Moment"/"Deluxe"/
+ * "Bitty" de propósito: aqueles ainda são figures (linhas diferentes), e o número
+ * do Funko separa.
+ */
+const RE_FUNKO_NAO_FIGURE =
+  /\b(movie\s*poster|pop!?\s*tees?|t-?shirts?|camisetas?|key\s*?chain|keychain|chaveiro|backpack|mochila|plush|pel[úu]cia|caneca|\bmug\b|\bpin\b|pins?\b)\b/i;
+
+/** É um produto Funko que NÃO é a figure Pop (pôster, camiseta, chaveiro...). */
+export function ehFunkoNaoFigure(titulo: string | null | undefined): boolean {
+  return RE_FUNKO_NAO_FIGURE.test(titulo ?? '');
+}
+
 /** Variante do Funko: chase, especial (glow/flocked/convenção) ou comum. */
 export function detectarVarianteFunko(titulo: string | null | undefined): Variante {
   const t = titulo ?? '';
@@ -421,6 +437,10 @@ export function motivoNaoComparavel(a: AnuncioParaKPV): string | null {
   if (ehLote(titulo)) return 'é lote ou pack, não peça única';
   // Em Funko, franquia (Marvel/Batman/...) é o personagem, não motivo de excluir.
   if (!ehFunko(marca) && ehFranquia(titulo)) return 'é veículo de franquia, tem mercado próprio';
+  // Funko que não é figure (pôster, camiseta, chaveiro): outro produto, outro preço.
+  if (ehFunko(marca) && ehFunkoNaoFigure(titulo)) {
+    return 'é outro produto Funko (pôster/camiseta/chaveiro), não a figure Pop';
+  }
   if (ehAberto(titulo)) return 'peça solta/aberta, e o KPV compara só novo-lacrado';
   if (ehCustomizado(titulo)) return 'é peça customizada ou card de arte, não item de fábrica';
   // A marca pode vir do título quando o campo falha. Isso importa dos dois

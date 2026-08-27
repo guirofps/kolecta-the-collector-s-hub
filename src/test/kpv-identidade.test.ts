@@ -75,6 +75,16 @@ describe('Funko — identidade por categoria', () => {
     expect(extrairCodigoFunko('Funko Pop Iron Man mark 5')).toBeNull();
   });
 
+  it('exclui produto Funko que não é a figure (pôster, camiseta, chaveiro)', () => {
+    // O "Pinocchio & Jiminy #008" casou com um "Funko Movie Poster with Case" a
+    // R$1.047. Outro produto, outro mercado, não compara com a figure.
+    expect(motivoNaoComparavel(funko('Funko Pop! Movie Poster with Case Disney Pinocchio'))).toMatch(/outro produto Funko/);
+    expect(motivoNaoComparavel(funko('Funko Pop! Tees Batman T-Shirt 01'))).toMatch(/outro produto Funko/);
+    expect(motivoNaoComparavel(funko('Funko Keychain Superman'))).toMatch(/outro produto Funko/);
+    // A figure normal continua entrando (e "Pinocchio" não dispara o "pin").
+    expect(motivoNaoComparavel(funko('Funko Pop! Disney Pinocchio & Jiminy 008'))).toBeNull();
+  });
+
   it('diecast NÃO é afetado: franquia continua excluída', () => {
     expect(motivoNaoComparavel(novo('Hot Wheels X-Men X-Jet', 'Hot Wheels'))).toMatch(/franquia/);
   });
