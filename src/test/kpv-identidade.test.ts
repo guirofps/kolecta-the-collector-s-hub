@@ -75,6 +75,15 @@ describe('Funko — identidade por categoria', () => {
     expect(extrairCodigoFunko('Funko Pop Iron Man mark 5')).toBeNull();
   });
 
+  it('exclui modelo vago (só ano ou escala), mas mantém código de modelo real', () => {
+    // O volume do eBay trouxe "Hot Wheels 2026" e "1 64" virando selo. Ano/escala
+    // sozinhos não identificam peça. Mas F40 (Ferrari F40) e GT500 são modelo.
+    expect(motivoNaoComparavel({ title: 'Hot Wheels 2026', brand: 'Hot Wheels', condition: CONDICAO_BASE })).toMatch(/vago/);
+    expect(motivoNaoComparavel({ title: 'Hot Wheels 1 64', brand: 'Hot Wheels', condition: CONDICAO_BASE })).toMatch(/vago/);
+    expect(motivoNaoComparavel({ title: 'Hot Wheels Ferrari F40', brand: 'Hot Wheels', condition: CONDICAO_BASE })).toBeNull();
+    expect(motivoNaoComparavel({ title: 'Hot Wheels Mustang Shelby GT500', brand: 'Hot Wheels', condition: CONDICAO_BASE })).toBeNull();
+  });
+
   it('exclui produto Funko que não é a figure (pôster, camiseta, chaveiro)', () => {
     // O "Pinocchio & Jiminy #008" casou com um "Funko Movie Poster with Case" a
     // R$1.047. Outro produto, outro mercado, não compara com a figure.

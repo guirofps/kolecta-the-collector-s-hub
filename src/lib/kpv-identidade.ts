@@ -448,8 +448,25 @@ export function motivoNaoComparavel(a: AnuncioParaKPV): string | null {
   // "Marca", e exigir o campo derrubava 11 de 45 candidatos no piloto, antes
   // mesmo de olhar escala ou modelo.
   if (!marca) return 'marca fora da lista canônica';
-  if (!extrairModelo(titulo, a.brand, a.line)) return 'não sobrou modelo depois de limpar o título';
+  const modelo = extrairModelo(titulo, a.brand, a.line);
+  if (!modelo) return 'não sobrou modelo depois de limpar o título';
+  // Modelo que sobrou só como ANO ("2026") ou ESCALA ("1 64") não identifica peça
+  // nenhuma e vira selo em cima de qualquer coisa (o "Hot Wheels 2026" casava com
+  // qualquer HW de 2026). NÃO pega código real de modelo ("F40", "GT500"): esses
+  // têm letra e não são ano/escala puros.
+  if (modeloEhVago(modelo)) return 'modelo vago (só ano ou escala), não identifica a peça';
   return null;
+}
+
+const RE_SO_ANO = /^(?:19|20)\d{2}$/;
+/** "1 64", "1:64", "1/64", "164" — escala travestida de modelo. */
+const RE_SO_ESCALA = /^1\s*[:/.]?\s*\d{2,3}$/;
+
+/** Modelo que não identifica peça: só ano ou só escala. F40/GT500 passam. */
+export function modeloEhVago(modelo: string | null | undefined): boolean {
+  const m = String(modelo ?? '').trim();
+  if (!m) return true;
+  return RE_SO_ANO.test(m) || RE_SO_ESCALA.test(m);
 }
 
 /** Identidade do anúncio, ou null quando ele não é comparável. */
