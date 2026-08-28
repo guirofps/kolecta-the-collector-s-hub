@@ -22,6 +22,7 @@ import { api } from '@/lib/api';
 import { onlyPublicNaLoja } from '@/lib/listing-visibility';
 import { toProduct } from '@/lib/home-sections';
 import StoreCover from '@/components/loja/StoreCover';
+import StoreSocials from '@/components/loja/StoreSocials';
 import { separarDestaques } from '@/lib/destaques-loja';
 import { ESCALAS_MINIATURA, normalizarEscala } from '@/lib/marcas';
 
@@ -283,6 +284,12 @@ export default function SellerProfilePage() {
                 Brasil
               </span>
             </div>
+
+            {/* Fica ACIMA do "Membro desde" e abaixo das estatísticas: é a
+                primeira dobra, em cima da capa, que é onde o visitante já está
+                olhando para descobrir de quem é a loja. Sem nenhuma rede
+                preenchida o componente devolve null e nada ocupa este espaço. */}
+            <StoreSocials social={seller.social} />
 
             <p className="text-xs text-muted-foreground mb-3">Membro desde {memberSince}</p>
 

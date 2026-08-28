@@ -1169,6 +1169,24 @@ export interface StoreCoverData {
   overlay: number;
 }
 
+/**
+ * Redes sociais da loja, já resolvidas pelo backend.
+ *
+ * Cada campo é a URL PRONTA para o `href`, ou `null` quando o vendedor não
+ * preencheu aquela rede — cada ícone é independente. O bloco inteiro vem `null`
+ * quando não há nenhuma, e nesse caso a fileira não é desenhada.
+ *
+ * O front nunca monta estas URLs: o backend valida o domínio contra uma
+ * allowlist e devolve `null` para o que não passar, inclusive para valor
+ * inválido já gravado no banco. Montar aqui contornaria essa checagem.
+ */
+export interface StoreSocialData {
+  tiktok: string | null;
+  instagram: string | null;
+  youtube: string | null;
+  website: string | null;
+}
+
 export interface SellerProfile {
   id: string;
   name: string | null;
@@ -1176,6 +1194,7 @@ export interface SellerProfile {
   bio: string | null;
   avatarUrl: string | null;
   cover: StoreCoverData | null;
+  social: StoreSocialData | null;
   isVerified: boolean | null;
   /** Nome da loja e URL amigável (kolecta.com.br/<slug>), quando definidos. */
   storeName?: string | null;
@@ -1193,6 +1212,19 @@ export interface SellerSelfProfile {
   slug: string | null;
   avatarUrl: string | null;
   cover: StoreCoverData | null;
+  /** URLs prontas, para a prévia. `null` quando nenhuma rede foi preenchida. */
+  social: StoreSocialData | null;
+  /**
+   * O que o vendedor DIGITOU (`@loja`, `c/canal`), não a URL montada. É o que
+   * volta para dentro do `<input>` quando ele reabre as Configurações — ver a
+   * URL inteira num campo onde se digitou `@loja` seria desconcertante.
+   */
+  socialRaw: {
+    tiktok: string | null;
+    instagram: string | null;
+    youtube: string | null;
+    website: string | null;
+  };
   bio: string | null;
   city: string | null;
   state: string | null;
@@ -1395,6 +1427,14 @@ export interface UpdateSellerProfileBody {
   coverFocalY?: number;
   /** Escurecimento da capa em %. O backend recusa abaixo do piso. */
   coverOverlay?: number;
+  /**
+   * Redes sociais: `@handle`, o handle solto ou a URL inteira — o backend
+   * normaliza os três para a mesma coisa. String vazia remove. Link que não for
+   * daquela rede volta 400, para o vendedor ver o erro na hora.
+   */
+  socialTiktok?: string;
+  socialInstagram?: string;
+  socialYoutube?: string;
   bio?: string;
   city?: string;
   state?: string;

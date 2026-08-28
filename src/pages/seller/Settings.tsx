@@ -23,7 +23,12 @@ import {
 import {
   User, ShieldCheck, Bell, Lock, KeyRound, Camera, Loader2, Trash2, Truck,
   AlertTriangle, Copy, Check, ExternalLink, Image as ImageIcon,
+  Instagram, Youtube, Globe,
 } from 'lucide-react';
+// O TikTok não existe no lucide — vem do nosso componente, junto do ícone que a
+// própria loja usa, para os dois nunca divergirem.
+import { TiktokIcon } from '@/components/loja/StoreSocials';
+import { urlDaRedeFront, urlDeWebsiteFront } from '@/lib/redes-sociais';
 import { cn } from '@/lib/utils';
 import {
   marcadasNaTela, alternarTransportadora, semCoberturaNacional,
@@ -90,8 +95,12 @@ export default function SellerSettingsPage() {
   const uploadCapa = useUploadCapa();
 
   // ── Form states (inicializados quando o perfil carrega) ──────────────────
+  // As redes vivem DENTRO do `store`, e não fora como a capa: são texto
+  // digitado, não upload. Salvar a cada tecla mandaria um request por caractere,
+  // e a capa só salva sozinha porque enviar uma imagem já é um ato em si.
   const [store, setStore] = useState({
     storeName: '', avatarUrl: '', bio: '', city: '', state: '', website: '',
+    socialTiktok: '', socialInstagram: '', socialYoutube: '',
   });
   // Capa da loja. Fora do `store` de propósito: o botão "Salvar perfil" manda o
   // `store` inteiro, e a capa salva sozinha (enviar imagem já tem efeito, como
@@ -137,6 +146,12 @@ export default function SellerSettingsPage() {
       city: profile.city ?? '',
       state: profile.state ?? '',
       website: profile.website ?? '',
+      // `socialRaw`, e não `social`: o vendedor digitou "@loja" e é "@loja" que
+      // precisa reaparecer no campo — devolver a URL montada faria o valor dele
+      // mudar sozinho a cada vez que ele abrisse a tela.
+      socialTiktok: profile.socialRaw?.tiktok ?? '',
+      socialInstagram: profile.socialRaw?.instagram ?? '',
+      socialYoutube: profile.socialRaw?.youtube ?? '',
     });
     setCapa({
       url: profile.cover?.url ?? '',
@@ -330,6 +345,90 @@ export default function SellerSettingsPage() {
     </div>
   );
 
+  // ── Redes sociais ────────────────────────────────────────────────────────
+  //
+  // Cada campo é independente: preencheu, o ícone aparece na loja; não
+  // preencheu, ele não existe. A prévia embaixo do input mostra o link que vai
+  // sair ANTES de salvar — é o que evita o vendedor descobrir dias depois que o
+  // que ele colou não virou ícone nenhum.
+  const REDES_DO_FORM = [
+    { campo: 'socialInstagram', rede: 'instagram', nome: 'Instagram', Icone: Instagram, exemplo: '@sualoja' },
+    { campo: 'socialTiktok', rede: 'tiktok', nome: 'TikTok', Icone: TiktokIcon, exemplo: '@sualoja' },
+    { campo: 'socialYoutube', rede: 'youtube', nome: 'YouTube', Icone: Youtube, exemplo: '@seucanal' },
+  ] as const;
+
+  const renderRedes = () => (
+    <div className="space-y-4">
+      <div>
+        <Label>Redes sociais</Label>
+        <p className="text-xs text-muted-foreground mt-1">
+          O ícone só aparece na sua loja se o campo estiver preenchido. Pode colar
+          o <span className="text-foreground">@usuário</span> ou o link inteiro —
+          dá no mesmo.
+        </p>
+      </div>
+
+      {REDES_DO_FORM.map(({ campo, rede, nome, Icone, exemplo }) => {
+        const valor = store[campo];
+        const url = urlDaRedeFront(rede, valor);
+        const invalido = valor.trim().length > 0 && !url;
+
+        return (
+          <div key={campo} className="space-y-1.5">
+            <Label className="text-xs flex items-center gap-1.5">
+              <Icone className="h-3.5 w-3.5" aria-hidden="true" />
+              {nome}
+            </Label>
+            <Input
+              value={valor}
+              placeholder={`${exemplo} ou o link completo`}
+              aria-invalid={invalido || undefined}
+              onChange={(e) => setStore(s => ({ ...s, [campo]: e.target.value }))}
+            />
+            {url && (
+              <p className="text-xs text-muted-foreground truncate">
+                Vai levar para <span className="text-foreground">{url}</span>
+              </p>
+            )}
+            {invalido && (
+              <p className="text-xs text-destructive">
+                Isso não parece um link do {nome}. Use o @usuário ou o endereço do
+                seu perfil no {nome}.
+              </p>
+            )}
+          </div>
+        );
+      })}
+
+      {/* O site fica aqui junto, e não lá embaixo perdido entre cidade e estado:
+          ele é o quarto ícone da mesma fileira. Ele já existia e já era salvo —
+          o que mudou é que agora ele APARECE na loja. */}
+      <div className="space-y-1.5">
+        <Label className="text-xs flex items-center gap-1.5">
+          <Globe className="h-3.5 w-3.5" aria-hidden="true" />
+          Site ou portfólio
+        </Label>
+        <Input
+          value={store.website}
+          placeholder="sualoja.com.br"
+          onChange={(e) => setStore(s => ({ ...s, website: e.target.value }))}
+        />
+        {urlDeWebsiteFront(store.website) && (
+          <p className="text-xs text-muted-foreground truncate">
+            Vai levar para{' '}
+            <span className="text-foreground">{urlDeWebsiteFront(store.website)}</span>
+          </p>
+        )}
+      </div>
+    </div>
+  );
+
+  /** Algum campo de rede está preenchido mas não gera link? */
+  const redeInvalida = REDES_DO_FORM.some(({ campo, rede }) => {
+    const valor = store[campo];
+    return valor.trim().length > 0 && !urlDaRedeFront(rede, valor);
+  });
+
   const renderProfile = () => (
     <Card className="bg-gradient-card">
       <CardHeader><CardTitle className="font-heading">Perfil da loja</CardTitle></CardHeader>
@@ -337,6 +436,10 @@ export default function SellerSettingsPage() {
         {/* A capa vem antes da foto porque é assim que a loja aparece: faixa no
             topo, foto por baixo. */}
         {renderCapa()}
+
+        <Separator />
+
+        {renderRedes()}
 
         <Separator />
 
@@ -462,13 +565,12 @@ export default function SellerSettingsPage() {
             </Select>
           </div>
         </div>
-        <div className="space-y-1.5">
-          <Label>Site ou portfólio (opcional)</Label>
-          <Input value={store.website} onChange={(e) => setStore(s => ({ ...s, website: e.target.value }))} />
-        </div>
         <Button
           variant="kolecta"
-          disabled={updateProfile.isPending}
+          /* Trava com rede inválida: o backend recusaria de qualquer jeito, e
+             barrar aqui troca um 400 em toast por um erro embaixo do campo
+             errado, que é onde o vendedor pode consertar. */
+          disabled={updateProfile.isPending || redeInvalida}
           onClick={() => updateProfile.mutate(store)}
         >
           {updateProfile.isPending ? 'Salvando...' : 'Salvar perfil'}
