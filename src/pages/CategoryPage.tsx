@@ -228,6 +228,12 @@ export default function CategoryPage() {
       l.currentBidInCents != null ? l.currentBidInCents / 100 : undefined,
     bidsCount: l.bidsCount ?? 0,
     auctionEndsAt: l.endsAt ?? undefined,
+    // Selo do frete compartilhado. Vem calculado do backend (ver
+    // `Listing.shippingSubsidyMaxInCents`); aqui só troca centavos por reais.
+    shippingSubsidy:
+      l.shippingSubsidyMaxInCents != null
+        ? l.shippingSubsidyMaxInCents / 100
+        : undefined,
   }));
 
   // ─── Pílulas de filtro, montadas uma vez e reaproveitadas no desktop (inline)

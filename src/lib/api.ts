@@ -1015,7 +1015,19 @@ export const api = {
       length_cm?: number;
       quantity?: number;
     }) =>
-      request<{ options: ShippingQuoteOption[]; pickup?: boolean }>('/api/shipping/quote', {
+      request<{
+        options: ShippingQuoteOption[];
+        pickup?: boolean;
+        /**
+         * Frete compartilhado: quanto a Kolecta banca nesta rota, em centavos.
+         *
+         * Já vem ancorado na opção mais barata e é o MESMO número que o
+         * checkout vai aplicar ao criar o pedido — por isso a tela pode mostrá-lo
+         * sem recalcular nada. Ausente/0 = política desligada, item inelegível
+         * ou cotação que o servidor não conseguiu conferir.
+         */
+        subsidyInCents?: number;
+      }>('/api/shipping/quote', {
         method: 'POST',
         body: JSON.stringify(body),
       }),
@@ -1792,6 +1804,19 @@ export interface Listing {
   // página dele. null = não destacado. Não confundir com `featuredUntil` acima,
   // que é destaque de plataforma (crédito de fundador) e expira.
   storePinnedAt?: string | null;
+  /**
+   * Frete compartilhado: quanto a Kolecta paga do frete deste anúncio, no
+   * máximo. É o número do selo — *"a Kolecta paga até R$ 12,25 do seu frete"*.
+   *
+   * Vem PRONTO do backend, e é assim de propósito: a regra da política mora lá,
+   * e reimplementá-la aqui é como o front acabou mostrando 11% de comissão para
+   * fundador que paga 9% (ver `fees.ts`). O navegador só formata.
+   *
+   * `null`/ausente = não mostrar selo nenhum. É o caso da política desligada,
+   * do item abaixo do piso de elegibilidade e de todo leilão — lá a cobertura
+   * depende do valor do arremate, que só existe no fim.
+   */
+  shippingSubsidyMaxInCents?: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -2204,7 +2229,12 @@ export interface AdminFinancialTransaction {
   date: string;
   buyer: string;
   gross: number;
+  /** Comissão COBRADA — a que entra no split e no extrato do vendedor. */
   commission: number;
+  /** Frete que a Kolecta bancou neste pedido (frete compartilhado). */
+  shippingSubsidy?: number;
+  /** `commission − shippingSubsidy`. Só ela é receita de verdade. */
+  commissionNet?: number;
   commissionPct: number | null;
   net: number | null;
   status: string;
@@ -2250,6 +2280,15 @@ export interface AdminFinancial {
      *  depois que o backend novo sobe. */
     revenueSettled?: number;
     shippingPassThrough?: number;
+    /**
+     * Frete compartilhado: o que a Kolecta bancou no período.
+     *
+     * Já está DESCONTADO de `revenue` — vem à parte para o número explicar a
+     * própria queda. Sem esta linha o subsídio seria um buraco invisível no
+     * painel, que é exatamente como o frete inflou a receita em ~4× em 31/07,
+     * só que ao contrário.
+     */
+    shippingSubsidy?: number;
     volume: number;
     payouts: number;
     pendingWithdrawals: number;
@@ -2297,6 +2336,9 @@ export interface AdminOrderListItem {
   listingId: string | null;
   gross: number;
   commission: number;
+  /** Frete bancado pela Kolecta e a comissão que sobrou depois dele. */
+  shippingSubsidy?: number;
+  commissionNet?: number;
   net: number | null;
   status: string;
   paymentInstrument: string | null;
@@ -2311,9 +2353,15 @@ export interface AdminOrderDetail {
   status: string;
   totalInCents: number;
   shippingInCents: number | null;
+  /** Custo cheio da etiqueta e o que a Kolecta bancou (frete compartilhado). */
+  shippingCostInCents?: number | null;
+  shippingSubsidyInCents?: number | null;
   platformFeeInCents: number | null;
   sellerNetInCents: number | null;
+  /** Comissão COBRADA. É a que aparece no split e no extrato do vendedor. */
   commissionInCents: number;
+  /** O que sobrou da comissão depois de bancar o frete. Só ela é receita. */
+  commissionNetInCents?: number;
   freteInCents: number;
   paymentInstrument: string | null;
   installments: number | null;

@@ -71,7 +71,20 @@ export default function AdminOrderDetail() {
               <CardContent className="space-y-1.5 text-sm">
                 <Linha rotulo="Item" valor={brl(o.totalInCents - (o.shippingInCents ?? 0))} />
                 <Linha rotulo="Frete (pago pelo comprador)" valor={brl(o.shippingInCents)} />
+                {/* Frete compartilhado. Sem estas duas linhas, um pedido com
+                    frete grátis aparece como "Frete R$ 0,00" e a etiqueta que a
+                    Kolecta pagou some da tela — que é exatamente como o custo
+                    real do frete sumiu do painel antes. */}
+                {(o.shippingSubsidyInCents ?? 0) > 0 && (
+                  <>
+                    <Linha rotulo="Frete bancado pela Kolecta" valor={`- ${brl(o.shippingSubsidyInCents ?? 0)}`} classe="text-accent" />
+                    <Linha rotulo="Custo real da etiqueta" valor={brl(o.shippingCostInCents ?? o.shippingInCents)} classe="text-muted-foreground" />
+                  </>
+                )}
                 <Linha rotulo="Comissão Kolecta" valor={`- ${brl(o.commissionInCents)}`} classe="text-accent" />
+                {(o.shippingSubsidyInCents ?? 0) > 0 && o.commissionNetInCents != null && (
+                  <Linha rotulo="Comissão líquida (depois do frete)" valor={brl(o.commissionNetInCents)} classe="font-medium" />
+                )}
                 <div className="line-tech my-2" />
                 <Linha rotulo="Vendedor recebe (líquido)" valor={o.sellerNetInCents != null ? brl(o.sellerNetInCents) : '—'} classe="font-medium text-primary" />
                 <Linha rotulo="Total pago pelo comprador" valor={brl(o.totalInCents)} classe="font-medium" />

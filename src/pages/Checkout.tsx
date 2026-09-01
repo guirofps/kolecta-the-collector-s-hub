@@ -88,6 +88,21 @@ const PICKUP_OPTION: ShippingOption = {
   days: 'combinar com o vendedor',
 };
 
+/**
+ * Faixa de preço do carrinho, para o funil.
+ *
+ * Os cortes são os do estudo de viabilidade do frete compartilhado: abaixo de
+ * R$ 100 a política não alcança nada (é o grupo de controle, e sai de graça);
+ * R$ 100–197 é onde o subsídio cobre o frete parcialmente e onde cai o ticket
+ * médio real; acima de R$ 197 o frete costuma sair grátis.
+ */
+function faixaDePreco(totalEmReais: number): string {
+  if (totalEmReais < 100) return '<100';
+  if (totalEmReais < 197) return '100-197';
+  if (totalEmReais < 500) return '197-500';
+  return '500+';
+}
+
 function groupBySeller(items: CartItem[]) {
   const groups: Record<string, { sellerName: string; sellerSlug: string; sellerId: string; items: CartItem[] }> = {};
   for (const item of items) {
@@ -139,7 +154,21 @@ export default function CheckoutPage() {
   // itens). Ver lib/analytics.
   useEffect(() => {
     if (items.length > 0) {
-      trackEvent('checkout_start', { itens: items.length, total: totalPrice });
+      // A FAIXA DE PREÇO vai junto de propósito. O frete compartilhado só muda
+      // o comportamento de quem compra acima de R$ 100, e comparar essa faixa
+      // com a de baixo (que a regra exclui) é o único corte que o piloto
+      // permite. Sem gravar a faixa aqui, os 60 dias passam e o dado não
+      // existe — não dá para reconstruir depois de um checkout abandonado.
+      //
+      // O subsídio NÃO vem neste evento: ao montar a tela ainda não há CEP,
+      // logo não há cotação. E o custo não precisa de analytics — ele é
+      // determinístico e está em `orders.shipping_subsidy_in_cents`, que é
+      // fonte melhor do que evento de navegador.
+      trackEvent('checkout_start', {
+        itens: items.length,
+        total: totalPrice,
+        faixa: faixaDePreco(totalPrice),
+      });
       // Funil do Meta Pixel: etapa anterior ao Purchase, ajuda a campanha a achar
       // quem tem intenção de compra mesmo quando a venda não fecha na hora.
       metaTrack('InitiateCheckout', {
@@ -188,6 +217,10 @@ export default function CheckoutPage() {
   // mundo, inclusive vendedor de outro estado, que depois tinha que explicar ao
   // comprador que não dava. Vem junto da cotação, sem requisição extra.
   const [pickupPorVendedor, setPickupPorVendedor] = useState<Record<string, boolean>>({});
+  // Frete compartilhado: quanto a Kolecta banca, por vendedor, em centavos.
+  // Vem CALCULADO da cotação — é o mesmo número que o backend vai aplicar ao
+  // criar o pedido. A regra da política mora no servidor; aqui só se exibe.
+  const [subsidioPorVendedor, setSubsidioPorVendedor] = useState<Record<string, number>>({});
 
   // ── Validation ────────────────────────────────────────────────────────
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -246,7 +279,12 @@ export default function CheckoutPage() {
               days: `${o.delivery_time_days} dias úteis`,
               serviceId: typeof o.raw?.id === 'number' ? o.raw.id : undefined,
             }));
-            return { slug: g.sellerSlug, options: mapped, pickup: resp.pickup !== false };
+            return {
+              slug: g.sellerSlug,
+              options: mapped,
+              pickup: resp.pickup !== false,
+              subsidio: resp.subsidyInCents ?? 0,
+            };
           } catch (err) {
             // O motivo importa: "não encontramos esse CEP" é coisa que o
             // comprador conserta em cinco segundos; engolir tudo num
@@ -255,6 +293,7 @@ export default function CheckoutPage() {
               slug: g.sellerSlug,
               options: [] as ShippingOption[],
               pickup: true,
+              subsidio: 0,
               erro: err instanceof Error ? err.message : '',
             };
           }
@@ -263,17 +302,20 @@ export default function CheckoutPage() {
 
       const optionsBySlug: Record<string, ShippingOption[]> = {};
       const pickupBySlug: Record<string, boolean> = {};
+      const subsidioBySlug: Record<string, number> = {};
       const newSelected: Record<string, string> = {};
       let anyEmpty = false;
-      for (const { slug, options, pickup } of results) {
+      for (const { slug, options, pickup, subsidio } of results) {
         optionsBySlug[slug] = options;
         pickupBySlug[slug] = pickup;
+        subsidioBySlug[slug] = subsidio;
         if (options.length === 0) { anyEmpty = true; continue; }
         const cheapest = options.reduce((prev, curr) => (curr.price < prev.price ? curr : prev));
         newSelected[slug] = cheapest.id;
       }
       setShippingOptions(optionsBySlug);
       setPickupPorVendedor(pickupBySlug);
+      setSubsidioPorVendedor(subsidioBySlug);
       setSelectedShipping(prev => ({ ...prev, ...newSelected }));
       // Se nenhum vendedor retornou opções, sinaliza o erro visual de frete —
       // com o motivo, quando o backend soube dizer qual foi.
@@ -368,17 +410,36 @@ export default function CheckoutPage() {
   ];
 
   // Shipping totals
-  let shippingTotal = 0;
+  //
+  // `shippingCheio` é o preço da etiqueta; `shippingTotal` é o que o comprador
+  // paga depois do frete compartilhado. Os dois existem separados porque a tela
+  // mostra os dois — e porque é o valor CHEIO que vai no corpo do pedido (ver
+  // `handleCreateOrder`): o backend recota, aplica o subsídio ele mesmo e usa o
+  // número declarado só para conferir que ninguém será cobrado a mais do que
+  // apareceu aqui.
+  //
+  // Retirada em mãos não tem frete e portanto não tem subsídio.
+  let shippingCheio = 0;
+  let subsidyTotal = 0;
   let allShippingSelected = true;
   for (const group of groups) {
     const sel = selectedShipping[group.sellerSlug];
     if (!sel) { allShippingSelected = false; }
     else {
       const opt = optionsFor(group.sellerSlug).find(o => o.id === sel);
-      if (opt) shippingTotal += opt.price;
+      if (opt) {
+        shippingCheio += opt.price;
+        if (opt.id !== 'pickup') {
+          // O subsídio é ancorado na opção mais barata: quem escolhe uma
+          // transportadora cara paga a diferença inteira, e por isso o valor
+          // não acompanha a escolha. Nunca passa do frete da opção escolhida.
+          subsidyTotal += Math.min(subsidioPorVendedor[group.sellerSlug] ?? 0, opt.price);
+        }
+      }
       else allShippingSelected = false;
     }
   }
+  const shippingTotal = Math.max(0, shippingCheio - subsidyTotal);
   // shippingTotal está em centavos; totalPrice em reais → normaliza p/ reais.
   const grandTotal = totalPrice + shippingTotal / 100;
 
@@ -484,6 +545,12 @@ export default function CheckoutPage() {
     // Frete escolhido para ESTE vendedor (opt.price já está em centavos). Antes
     // não era enviado, então o comprador via o total com frete mas só o item
     // era cobrado.
+    //
+    // Vai o valor CHEIO da etiqueta, NÃO o já descontado do frete
+    // compartilhado. O backend recota, aplica o subsídio ele mesmo e usa este
+    // número apenas para conferir que ninguém será cobrado mais do que apareceu
+    // na tela. Mandar o valor subsidiado faria a conferência acusar o próprio
+    // desconto como aumento de preço e recusar a compra.
     const selectedShipId = selectedShipping[group.sellerSlug];
     const isPickup = selectedShipId === 'pickup';
     const shipOpt = optionsFor(group.sellerSlug).find(o => o.id === selectedShipId);
@@ -1031,8 +1098,34 @@ export default function CheckoutPage() {
 
                   <div className="flex justify-between text-sm font-body">
                     <span className="text-muted-foreground">Frete</span>
-                    <span className="transition-all duration-200">{allShippingSelected ? formatBRL(shippingTotal / 100) : 'a calcular'}</span>
+                    <span className="transition-all duration-200">
+                      {!allShippingSelected ? (
+                        'a calcular'
+                      ) : subsidyTotal > 0 ? (
+                        <>
+                          <span className="text-muted-foreground line-through mr-2">
+                            {formatBRL(shippingCheio / 100)}
+                          </span>
+                          {/* Frete zerado lê como "grátis" na cabeça do comprador;
+                              "R$ 0,00" não lê. É a mensagem que converte. */}
+                          <span className={shippingTotal === 0 ? 'font-bold text-primary' : ''}>
+                            {shippingTotal === 0 ? 'Grátis' : formatBRL(shippingTotal / 100)}
+                          </span>
+                        </>
+                      ) : (
+                        formatBRL(shippingTotal / 100)
+                      )}
+                    </span>
                   </div>
+
+                  {/* A linha que explica o desconto. Sem ela o frete riscado
+                      parece promoção da transportadora, e não da Kolecta. */}
+                  {allShippingSelected && subsidyTotal > 0 && (
+                    <div className="flex justify-between text-sm font-body">
+                      <span className="text-primary">A Kolecta paga do seu frete</span>
+                      <span className="text-primary">− {formatBRL(subsidyTotal / 100)}</span>
+                    </div>
+                  )}
 
                   <div className="line-tech" />
 

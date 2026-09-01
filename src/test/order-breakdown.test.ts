@@ -174,4 +174,56 @@ describe('montarExtrato', () => {
       }
     }
   });
+
+  /**
+   * Frete compartilhado: o extrato do VENDEDOR não muda.
+   *
+   * O subsídio sai inteiro da comissão da Kolecta — é a promessa da política, e
+   * é a que não pode quebrar. `shipping_in_cents` continua sendo o frete
+   * COBRADO do comprador, então o extrato lê os mesmos campos de sempre e
+   * fecha do mesmo jeito.
+   */
+  describe('pedido com frete subsidiado', () => {
+    // Item R$ 165,23, etiqueta R$ 13,76, a Kolecta bancou R$ 11,57.
+    // Comprador paga 165,23 + 2,19 = 167,42.
+    // Split da plataforma = comissão 18,18 + frete cobrado 2,19 = 20,37.
+    const ITEM = 16523;
+    const FRETE_COBRADO = 219;
+    const subsidiado = {
+      totalInCents: ITEM + FRETE_COBRADO,
+      shippingInCents: FRETE_COBRADO,
+      platformFeeInCents: 1818 + FRETE_COBRADO,
+      sellerNetInCents: ITEM - 1818,
+    };
+
+    it('o vendedor recebe item menos comissão, como sempre', () => {
+      const e = montarExtrato(subsidiado);
+      expect(e.itemInCents).toBe(ITEM);
+      expect(e.liquidoInCents).toBe(ITEM - 1818);
+    });
+
+    it('a comissão continua sendo 11% sobre o item, não um número estranho', () => {
+      const e = montarExtrato(subsidiado);
+      expect(e.detalhe).not.toBeNull();
+      expect(e.detalhe!.comissaoInCents).toBe(1818);
+      expect(e.detalhe!.taxaSobreItem).toBeCloseTo(0.11);
+    });
+
+    it('frete 100% grátis: o extrato não quebra e o líquido não muda', () => {
+      // A Kolecta cobriu os R$ 13,76 inteiros: o comprador paga só o item.
+      const gratis = {
+        totalInCents: ITEM,
+        shippingInCents: 0,
+        platformFeeInCents: 1818,
+        sellerNetInCents: ITEM - 1818,
+      };
+      const e = montarExtrato(gratis);
+      expect(e.itemInCents).toBe(ITEM);
+      expect(e.freteInCents).toBe(0);
+      expect(e.liquidoInCents).toBe(ITEM - 1818);
+      expect(e.detalhe!.comissaoInCents).toBe(1818);
+      // O que a Kolecta gastou de etiqueta não é desconto do vendedor.
+      expect(e.detalhe!.etiquetaInCents).toBe(0);
+    });
+  });
 });

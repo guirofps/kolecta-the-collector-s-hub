@@ -118,9 +118,15 @@ export default function AdminFinancial() {
               icon={DollarSign}
               valueClass="text-kolecta-gold"
               hint={
-                summary?.revenueSettled != null
-                  ? `Comissão de toda venda paga. ${formatBRL(summary.revenueSettled)} já finalizado (entrega confirmada).`
-                  : 'Comissão sobre as vendas pagas.'
+                // Com frete compartilhado a receita já vem LÍQUIDA do que a
+                // Kolecta bancou de frete. Dizer só "comissão" faria o número
+                // parecer ter caído sem motivo — e foi um campo mal explicado
+                // que inflou este painel em ~4× em 31/07.
+                (summary?.shippingSubsidy ?? 0) > 0
+                  ? `Comissão das vendas pagas, já descontados ${formatBRL(summary!.shippingSubsidy!)} de frete bancado pela Kolecta.`
+                  : summary?.revenueSettled != null
+                    ? `Comissão de toda venda paga. ${formatBRL(summary.revenueSettled)} já finalizado (entrega confirmada).`
+                    : 'Comissão sobre as vendas pagas.'
               }
             />
             <SummaryCard

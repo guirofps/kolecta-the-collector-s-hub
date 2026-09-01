@@ -76,6 +76,16 @@ export interface Product {
    * total. Usado para liberar a quantidade no carrinho.
    */
   stock?: number | null;
+  /**
+   * Frete compartilhado: quanto a Kolecta paga do frete deste anúncio, no
+   * máximo, em REAIS (como `price`).
+   *
+   * O número vem pronto do backend — a regra da política mora lá, e o front que
+   * reimplementa taxa é como o fundador acabou vendo 11% pagando 9%.
+   * `undefined` = sem selo: política desligada, item barato demais, ou leilão
+   * (onde a cobertura só é conhecida no fim).
+   */
+  shippingSubsidy?: number;
 }
 
 export interface Bid {

@@ -64,6 +64,10 @@ export function toProduct(l: Listing): Product {
     bidsCount: l.bidsCount ?? 0,
     auctionEndsAt: l.endsAt ?? undefined,
     auctionPaused: Boolean(l.auctionPausedAt),
+    shippingSubsidy:
+      l.shippingSubsidyMaxInCents != null
+        ? l.shippingSubsidyMaxInCents / 100
+        : undefined,
   } as Product;
 }
 

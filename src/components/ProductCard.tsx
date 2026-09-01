@@ -142,6 +142,19 @@ export default function ProductCard({ product, className = '' }: ProductCardProp
               {formatBRL(product.price || 0)}
             </span>
           )}
+
+          {/* Frete compartilhado.
+              O selo cabe aqui — e não só no checkout — porque o subsídio é uma
+              fração do PREÇO DO ITEM: não depende do CEP, que a listagem não
+              tem. "Até" é literal: o valor real é o menor entre isto e o frete,
+              então a frase nunca promete a mais.
+              Nunca aparece em leilão: lá a cobertura depende do arremate, e o
+              backend manda `null` de propósito. */}
+          {product.shippingSubsidy != null && product.shippingSubsidy > 0 && (
+            <p className="mt-1 text-[11px] font-medium text-primary">
+              A Kolecta paga até {formatBRL(product.shippingSubsidy)} do frete
+            </p>
+          )}
         </div>
 
         {/* Actions — `mt-auto` empurra para o rodapé, então os botões ficam na
