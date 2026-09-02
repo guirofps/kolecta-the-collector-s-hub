@@ -204,16 +204,36 @@ export default function AuctionDetail() {
 
               {/* ── Estados ── */}
               {ended ? (
-                isWinner ? (
+                /* Maior lance ABAIXO da reserva não é arremate: o leilão fecha
+                   sem venda, não nasce pedido e a retenção no cartão cai. Antes
+                   daqui esta tela dava o troféu "Você venceu este leilão!" a
+                   quem não venceu, e mandava para uma lista de pedidos vazia. */
+                isWinner && reserveNotMet ? (
+                  <div className="rounded-md bg-secondary/50 border border-border p-4 space-y-2">
+                    <p className="flex items-center gap-2 text-sm font-medium text-foreground">
+                      <AlertTriangle className="h-4 w-4 text-kolecta-gold" /> Encerrado sem venda
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Seu lance foi o maior, mas não alcançou o preço de reserva
+                      definido pelo vendedor. A peça não foi vendida e{' '}
+                      <strong className="text-foreground">nada foi cobrado de você</strong> —
+                      a retenção no seu cartão foi liberada.
+                    </p>
+                  </div>
+                ) : isWinner ? (
                   <div className="rounded-md bg-primary/10 border border-primary/30 p-4 space-y-3">
                     <p className="flex items-center gap-2 text-sm font-medium text-primary">
                       <Trophy className="h-4 w-4" /> Você venceu este leilão!
                     </p>
+                    {/* O fecho parou de capturar a pré-auth: o lance cobre só a
+                        peça, e o frete entra no MESMO total depois. Prometer
+                        "cobrança automática" fazia o vencedor esperar sentado
+                        enquanto o prazo do pedido corria. */}
                     <p className="text-xs text-muted-foreground">
-                      A cobrança é feita automaticamente no cartão que garantiu seu lance. Acompanhe em Meus Pedidos.
+                      Falta escolher a entrega e concluir o pagamento em Meus Pedidos — o total soma a peça e o frete.
                     </p>
                     <Button variant="kolecta" className="w-full" asChild>
-                      <Link to="/conta/pedidos">Ver meus pedidos</Link>
+                      <Link to="/conta/pedidos?tab=em-andamento">Escolher frete e pagar</Link>
                     </Button>
                   </div>
                 ) : (

@@ -8,16 +8,17 @@ import EmptyState from '@/components/EmptyState';
 import { useMyBids } from '@/hooks/use-api';
 import { MyBid } from '@/lib/api';
 import { formatBRL } from '@/lib/currency';
-import { Gavel, TrendingUp, TrendingDown, Clock, XCircle, CheckCircle2 } from 'lucide-react';
+import { Gavel, TrendingUp, TrendingDown, Clock, XCircle, CheckCircle2, ShieldAlert } from 'lucide-react';
 
-type BidStatus = 'leading' | 'outbid' | 'won_pending' | 'won_paid' | 'lost';
+export type BidStatus = 'leading' | 'outbid' | 'won_pending' | 'won_paid' | 'reserve_not_met' | 'lost';
 
 const statusConfig: Record<BidStatus, { label: string; icon: React.ElementType; color: string }> = {
-  leading:     { label: 'Liderando',            icon: TrendingUp,   color: 'text-primary bg-primary/10 border-primary/20' },
-  outbid:      { label: 'Você foi superado',     icon: TrendingDown, color: 'text-accent bg-accent/10 border-accent/20' },
-  won_pending: { label: 'Escolha o frete',       icon: Clock,        color: 'text-amber-500 bg-amber-500/10 border-amber-500/20' },
-  won_paid:    { label: 'Arrematado',            icon: CheckCircle2, color: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20' },
-  lost:        { label: 'Perdido',               icon: XCircle,      color: 'text-muted-foreground bg-secondary border-border' },
+  leading:         { label: 'Liderando',            icon: TrendingUp,   color: 'text-primary bg-primary/10 border-primary/20' },
+  outbid:          { label: 'Você foi superado',     icon: TrendingDown, color: 'text-accent bg-accent/10 border-accent/20' },
+  won_pending:     { label: 'Escolha o frete',       icon: Clock,        color: 'text-amber-500 bg-amber-500/10 border-amber-500/20' },
+  won_paid:        { label: 'Arrematado',            icon: CheckCircle2, color: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20' },
+  reserve_not_met: { label: 'Reserva não atingida',  icon: ShieldAlert,  color: 'text-muted-foreground bg-secondary border-border' },
+  lost:            { label: 'Perdido',               icon: XCircle,      color: 'text-muted-foreground bg-secondary border-border' },
 };
 
 
@@ -26,12 +27,23 @@ function getImages(raw: string | null): string[] {
   try { return JSON.parse(raw); } catch { return []; }
 }
 
-function getBidStatus(bid: MyBid): BidStatus {
+// Exportada para o teste medir a função DE VERDADE. `bidStatus.test.ts` já
+// existia, mas sobre uma cópia colada da versão antiga desta lógica — passava
+// verde sem tocar no que a tela executa, e foi assim que o caso 'released'
+// chegou em produção mostrando "Escolha o frete" a quem não arrematou.
+export function getBidStatus(bid: MyBid): BidStatus {
   // O status do LANCE manda quando existe: 'won' é arremate já pago e liquidado,
   // 'lost' é lance perdido ou vencedor que deixou o prazo vencer. Deduzir tudo
   // do status do LEILÃO fazia quem já tinha pago continuar vendo "aguardando".
   if (bid.status === 'won') return 'won_paid';
   if (bid.status === 'lost') return 'lost';
+
+  // 'released' = o leilão encerrou SEM venda porque o maior lance não alcançou o
+  // preço de reserva. Não nasce pedido e a retenção no cartão cai. Sem este
+  // caso o lance escapava para a dedução abaixo e, por ser o maior num leilão
+  // encerrado, virava `won_pending`: a tela dizia "Escolha o frete" e oferecia
+  // um botão que levava a uma lista de pedidos vazia.
+  if (bid.status === 'released') return 'reserve_not_met';
 
   // `findMyBids` retorna apenas o MAIOR lance do usuário por leilão, então
   // se ele bate o lance atual do leilão, este usuário é quem lidera/venceu.
@@ -59,6 +71,7 @@ export default function MyBidsPage() {
     outbid:      enriched.filter(b => b.bidStatus === 'outbid').length,
     won_pending: enriched.filter(b => b.bidStatus === 'won_pending').length,
     won_paid:    enriched.filter(b => b.bidStatus === 'won_paid').length,
+    reserve_not_met: enriched.filter(b => b.bidStatus === 'reserve_not_met').length,
     lost:        enriched.filter(b => b.bidStatus === 'lost').length,
   };
 
@@ -83,6 +96,7 @@ export default function MyBidsPage() {
             { value: 'outbid' as const,      label: `Superados (${counts.outbid})` },
             { value: 'won_pending' as const, label: `Aguardando você (${counts.won_pending})` },
             { value: 'won_paid' as const,    label: `Arrematados (${counts.won_paid})` },
+            { value: 'reserve_not_met' as const, label: `Sem venda (${counts.reserve_not_met})` },
             { value: 'lost' as const,        label: `Perdidos (${counts.lost})` },
           ].map((f) => (
             <Badge
@@ -124,6 +138,15 @@ export default function MyBidsPage() {
                         <span className="hidden sm:inline">·</span>
                         <span>Maior: <span className="text-foreground font-medium">{formatBRL(currentBid / 100)}</span></span>
                       </div>
+                      {/* Sem esta linha o comprador via só o selo e continuava
+                          esperando uma entrega: o lance foi o maior, mas ficou
+                          abaixo da reserva do vendedor e não houve venda. */}
+                      {bid.bidStatus === 'reserve_not_met' && (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Seu lance foi o maior, mas não alcançou o preço de reserva do vendedor.
+                          A peça não foi vendida e nada foi cobrado de você.
+                        </p>
+                      )}
                     </div>
                   </div>
 
