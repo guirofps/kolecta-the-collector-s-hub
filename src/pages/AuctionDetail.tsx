@@ -313,8 +313,8 @@ export default function AuctionDetail() {
                   <p className="flex items-start gap-2 text-sm text-muted-foreground">
                     <CreditCard className="h-4 w-4 shrink-0 mt-0.5" />
                     Os lances são garantidos por cartão de crédito. Salve um cartão
-                    no Financeiro para participar — o valor do lance fica retido
-                    (pré-autorizado) e só é cobrado se você vencer.
+                    no Financeiro para participar — na reta final do leilão o valor
+                    do seu lance fica reservado, e só é cobrado se você vencer.
                   </p>
                   <Button variant="kolecta" className="w-full" asChild>
                     <Link to="/conta/pagamentos">
@@ -359,9 +359,15 @@ export default function AuctionDetail() {
                       O lance precisa ser no mínimo {formatBRL(derived.minNext / 100)}.
                     </p>
                   )}
+                  {/* A reserva não nasce mais junto com o lance, e o texto não
+                      pode prometer que nasce. Uma pré-autorização vive ~7 dias e
+                      estes leilões vão a 30: reter no ato obrigava a renovar a
+                      reserva ao longo do leilão, uma autorização nova no cartão
+                      a cada emenda. Agora ela é feita uma vez, na reta final —
+                      até lá o limite fica livre. */}
                   <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                     <CreditCard className="h-3.5 w-3.5" />
-                    O valor fica retido no cartão •••• {savedCard.lastFour ?? '----'} até o fim do leilão. Você só é cobrado se vencer.
+                    Na reta final do leilão, o valor do seu lance fica reservado no cartão •••• {savedCard.lastFour ?? '----'}. Você só é cobrado se vencer.
                   </p>
                 </div>
               )}
