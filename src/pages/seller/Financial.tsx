@@ -29,6 +29,7 @@ import { useToast } from '@/hooks/use-toast';
 import { formatBRL } from '@/lib/currency';
 import { montarExtrato } from '@/lib/order-breakdown';
 import { commissionLabel } from '@/lib/fees';
+import { liquidacaoPendente, fmtDataCurta, DIAS_LIQUIDACAO_CARTAO } from '@/lib/liquidacao-cartao';
 import { useWallet, useWithdrawals, useWithdrawalLimits, useWalletDeposit, useSellerOrders, useRecipient } from '@/hooks/use-api';
 import { isValidCpf } from '@/lib/cpf';
 import type { Order } from '@/lib/api';
@@ -262,6 +263,18 @@ export default function SellerFinancialPage() {
   // isso, o vendedor tenta valores no chute até desistir — foi o que
   // aconteceu na noite de 13/08.
   const belowMinimum = !limitsLoading && !!limits && maxReais < minReais;
+
+  // ── De quem é o teto: da carteira ou da operadora? ─────
+  //
+  // `limitSource` já vinha do backend e a tela nunca lia. Sem ele, um bloqueio
+  // da operadora do cartão era explicado como falta de saldo na carteira, e o
+  // vendedor lia "é preciso ter R$ 53,67; hoje você tem R$ 748,53" — a frase que
+  // travou o Rock Wheels em 04/09 com o dinheiro inteiro na conta.
+  const travadoPelaOperadora =
+    !limitsLoading && !!limits && limits.limitSource === 'pagarme';
+
+  // Quanto do saldo disponível ainda está preso no prazo do cartão, e até quando.
+  const liquidacao = useMemo(() => liquidacaoPendente(saleOrders), [saleOrders]);
 
   // ── Withdraw dialog helpers ────────────────────────────
 
@@ -725,25 +738,69 @@ export default function SellerFinancialPage() {
               ) : (
                 <p className="font-heading text-3xl font-bold text-kolecta-gold">{formatBRL(maxReais)}</p>
               )}
-              {/* O saldo e o máximo são números diferentes por causa da taxa.
-                  Mostrar só um dos dois faz a diferença parecer dinheiro sumido. */}
+              {/* O saldo e o máximo são números diferentes, e o motivo muda: em
+                  regra é só a taxa; quando a operadora ainda não liquidou o
+                  cartão, é ela que dita o teto. Dizer "menos a taxa" nesse caso
+                  faz a diferença parecer dinheiro sumido. */}
               {!limitsLoading && (
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Saldo de {formatBRL(summary.available)} menos a taxa de {formatBRL(feeReais)}
+                  {travadoPelaOperadora ? (
+                    <>
+                      Sua carteira tem {formatBRL(summary.available)} — o restante ainda está
+                      liquidando na operadora do cartão
+                    </>
+                  ) : (
+                    <>Saldo de {formatBRL(summary.available)} menos a taxa de {formatBRL(feeReais)}</>
+                  )}
                 </p>
               )}
             </div>
 
             {belowMinimum ? (
-              <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4">
-                <p className="text-sm font-medium text-destructive">Saldo ainda insuficiente para sacar</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Para sacar é preciso ter pelo menos {formatBRL(minReais + feeReais)}: o mínimo de{' '}
-                  {formatBRL(minReais)} mais a taxa de {formatBRL(feeReais)}. Hoje você tem{' '}
-                  {formatBRL(summary.available)}.
-                  {summary.pending > 0 && ` Outros ${formatBRL(summary.pending)} estão retidos e liberam ao fim das 48h.`}
-                </p>
-              </div>
+              travadoPelaOperadora ? (
+                /* Bloqueio da OPERADORA: o dinheiro é dele e está na carteira, só
+                   não é transferível ainda. Nada aqui pode sugerir falta de saldo. */
+                <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
+                  <p className="text-sm font-medium text-amber-600 dark:text-amber-500">
+                    {liquidacao.vendas > 0
+                      ? 'Seu dinheiro está aguardando a liquidação do cartão'
+                      : 'A operadora ainda não liberou este saldo'}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Os {formatBRL(summary.available)} da sua carteira já são seus — não há nada
+                    perdido nem pendente da sua parte. O que falta é a operadora do cartão liberar o
+                    valor para transferência, o que leva até {DIAS_LIQUIDACAO_CARTAO} dias depois da
+                    compra.{' '}
+                    {liquidacao.proxima && (
+                      <>
+                        A próxima liberação é em{' '}
+                        <strong className="text-foreground">{fmtDataCurta(liquidacao.proxima)}</strong>
+                        {liquidacao.ultima &&
+                        liquidacao.ultima.getTime() !== liquidacao.proxima.getTime() ? (
+                          <>
+                            , e o total de {formatBRL(liquidacao.valor)} fica disponível até{' '}
+                            {fmtDataCurta(liquidacao.ultima)}.
+                          </>
+                        ) : (
+                          '.'
+                        )}{' '}
+                      </>
+                    )}
+                    Assim que liberar, o valor aparece aqui e o saque volta a funcionar sozinho.
+                  </p>
+                </div>
+              ) : (
+                /* Falta de saldo de VERDADE: a carteira não cobre mínimo + taxa. */
+                <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4">
+                  <p className="text-sm font-medium text-destructive">Saldo ainda insuficiente para sacar</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Para sacar é preciso ter pelo menos {formatBRL(minReais + feeReais)}: o mínimo de{' '}
+                    {formatBRL(minReais)} mais a taxa de {formatBRL(feeReais)}. Hoje você tem{' '}
+                    {formatBRL(summary.available)}.
+                    {summary.pending > 0 && ` Outros ${formatBRL(summary.pending)} estão retidos e liberam ao fim das 48h.`}
+                  </p>
+                </div>
+              )
             ) : (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
