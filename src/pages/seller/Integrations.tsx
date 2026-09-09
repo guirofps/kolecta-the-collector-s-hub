@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import {
   useBlingStatus, useBlingConnect, useBlingDisconnect, useBlingSincronizarEstoque,
+  useTinyStatus, useTinyConnect, useTinyDisconnect, useTinySincronizarEstoque,
 } from '@/hooks/use-api';
 import {
   CheckCircle2, XCircle, ExternalLink, Plug, PlugZap, PackageSearch,
@@ -23,20 +24,35 @@ export default function IntegrationsPage() {
   const disconnectMutation = useBlingDisconnect();
   const sincronizarEstoque = useBlingSincronizarEstoque();
 
-  // Feedback após callback OAuth
+  const { data: tinyStatus, isLoading: carregandoTiny } = useTinyStatus();
+  const tinyConnect = useTinyConnect();
+  const tinyDisconnect = useTinyDisconnect();
+  const tinySincronizar = useTinySincronizarEstoque();
+
+  // Feedback após callback OAuth (Bling e Tiny voltam pela mesma tela)
   useEffect(() => {
     const bling = searchParams.get('bling');
+    const tiny = searchParams.get('tiny');
     if (bling === 'success') {
       toast({ title: 'Bling conectado com sucesso!' });
       setSearchParams({});
     } else if (bling === 'error') {
       toast({ title: 'Erro ao conectar com Bling', description: 'Tente novamente.', variant: 'destructive' });
       setSearchParams({});
+    } else if (tiny === 'success') {
+      toast({ title: 'Tiny conectado com sucesso!' });
+      setSearchParams({});
+    } else if (tiny === 'error') {
+      toast({ title: 'Erro ao conectar com Tiny', description: 'Tente novamente.', variant: 'destructive' });
+      setSearchParams({});
     }
   }, [searchParams, setSearchParams, toast]);
 
   const isConnected = blingStatus?.connected && !blingStatus?.expired;
   const isExpired = blingStatus?.connected && blingStatus?.expired;
+
+  const tinyConectado = tinyStatus?.connected && !tinyStatus?.expired;
+  const tinyExpirado = tinyStatus?.connected && tinyStatus?.expired;
 
   return (
     <SellerLayout>
@@ -199,6 +215,136 @@ export default function IntegrationsPage() {
           </CardContent>
         </Card>
 
+        {/* Tiny (Olist) card — espelha o do Bling */}
+        <Card className="bg-gradient-card">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-[#00a868]/10 flex items-center justify-center">
+                  <span className="font-heading font-extrabold text-[#00a868] text-sm">T</span>
+                </div>
+                <div>
+                  <CardTitle className="font-heading text-base">Tiny ERP (Olist)</CardTitle>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Importa o catálogo e segue o estoque, igual ao Bling
+                  </p>
+                </div>
+              </div>
+
+              {carregandoTiny ? (
+                <Skeleton className="h-6 w-20 rounded-full" />
+              ) : tinyConectado ? (
+                <Badge className="bg-emerald-500/20 text-emerald-600 border-emerald-500/30 border text-xs gap-1">
+                  <CheckCircle2 className="h-3 w-3" /> Conectado
+                </Badge>
+              ) : tinyExpirado ? (
+                <Badge className="bg-amber-500/20 text-amber-600 border-amber-500/30 border text-xs gap-1">
+                  <XCircle className="h-3 w-3" /> Token expirado
+                </Badge>
+              ) : (
+                <Badge className="bg-secondary text-muted-foreground border border-border text-xs gap-1">
+                  <XCircle className="h-3 w-3" /> Desconectado
+                </Badge>
+              )}
+            </div>
+          </CardHeader>
+
+          <CardContent className="space-y-4">
+            <ul className="text-sm text-muted-foreground space-y-1.5">
+              <li className="flex items-center gap-2">
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                Importe seu catálogo do Tiny como anúncios, em lote
+              </li>
+              <li className="flex items-center gap-2">
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                Vendeu a peça em outro canal, o anúncio sai do ar sozinho
+              </li>
+            </ul>
+
+            <div className="flex items-center gap-3 pt-1">
+              {carregandoTiny ? (
+                <Skeleton className="h-9 w-36 rounded-md" />
+              ) : tinyConectado ? (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  disabled={tinyDisconnect.isPending}
+                  onClick={() => tinyDisconnect.mutate()}
+                >
+                  <Plug className="h-4 w-4 mr-1.5" />
+                  {tinyDisconnect.isPending ? 'Desconectando...' : 'Desconectar'}
+                </Button>
+              ) : (
+                <Button
+                  variant="kolecta"
+                  size="sm"
+                  disabled={tinyConnect.isPending}
+                  onClick={() => tinyConnect.mutate()}
+                >
+                  <PlugZap className="h-4 w-4 mr-1.5" />
+                  {tinyConnect.isPending
+                    ? 'Abrindo o Tiny...'
+                    : tinyExpirado ? 'Reconectar Tiny' : 'Conectar Tiny'}
+                </Button>
+              )}
+
+              <a
+                href="https://www.tiny.com.br"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
+              >
+                <ExternalLink className="h-3 w-3" />
+                tiny.com.br
+              </a>
+            </div>
+
+            {tinyConectado && (
+              <div className="space-y-3 border-t border-border pt-4">
+                <p className="text-xs text-muted-foreground">
+                  O estoque daqui acompanha o do seu Tiny de meia em meia hora.
+                </p>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button variant="outline-gold" size="sm" asChild>
+                    <Link to="/painel/anuncios/importar-tiny">
+                      <PackageSearch className="h-4 w-4 mr-1.5" />
+                      Importar catálogo do Tiny
+                    </Link>
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={tinySincronizar.isPending}
+                    onClick={() => tinySincronizar.mutate()}
+                  >
+                    {tinySincronizar.isPending
+                      ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                      : <RefreshCw className="h-4 w-4 mr-1.5" />}
+                    {tinySincronizar.isPending
+                      ? 'Conferindo o estoque...'
+                      : 'Sincronizar estoque agora'}
+                  </Button>
+                </div>
+
+                <p className="text-xs text-muted-foreground">
+                  {(tinyStatus?.anunciosVinculados ?? 0) > 0 ? (
+                    <>
+                      <strong className="text-foreground">
+                        {tinyStatus?.anunciosVinculados} anúncio(s)
+                      </strong>{' '}
+                      seguindo o estoque do seu Tiny.
+                    </>
+                  ) : (
+                    'Nenhum anúncio ligado ao Tiny ainda. Importe o catálogo para o estoque começar a ser seguido.'
+                  )}
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Placeholder para futuras integrações */}
         <Card className="bg-card border-border border-dashed opacity-50">
           <CardContent className="flex items-center gap-3 p-5">
@@ -207,7 +353,7 @@ export default function IntegrationsPage() {
             </div>
             <div>
               <p className="text-sm font-medium">Mais integrações em breve</p>
-              <p className="text-xs text-muted-foreground">Tiny ERP, Olist, Melhor Envio...</p>
+              <p className="text-xs text-muted-foreground">Melhor Envio, Nuvemshop...</p>
             </div>
           </CardContent>
         </Card>

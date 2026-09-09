@@ -906,6 +906,48 @@ export const api = {
       }).then(r => r.data),
   },
 
+  // ── Tiny (Olist ERP) ─────────────────────────────────────────────────────────
+  //
+  // Espelha o `bling` acima: mesma forma, host diferente. O segundo ERP do
+  // lojista, com o mesmo fluxo de conectar, importar e seguir estoque.
+
+  tiny: {
+    getStatus: (token: string) =>
+      request<{ data: TinyStatus }>('/api/tiny/status', { token }).then(r => r.data),
+
+    // Pega a URL de autorização e só DEPOIS navega (mesma lição do Bling:
+    // navegação de página não carrega o `Authorization`).
+    authorizeUrl: (token: string) =>
+      request<{ data: { url: string } }>('/api/tiny/authorize-url', { token })
+        .then(r => r.data.url),
+
+    disconnect: (token: string) =>
+      request<{ data: TinyStatus }>('/api/tiny/disconnect', { method: 'DELETE', token }).then(r => r.data),
+
+    /** Uma página do catálogo do Tiny do lojista. Listagem barata, sem peso nem GTIN. */
+    produtos: (token: string, pagina: number) =>
+      request<{ data: TinyCatalogoPagina }>(`/api/tiny/produtos?pagina=${pagina}`, { token })
+        .then(r => r.data),
+
+    /** O que falta em cada produto, SEM criar nada. */
+    conferir: (token: string, body: TinyImportBody) =>
+      request<{ data: TinyConferencia }>('/api/tiny/conferir', {
+        method: 'POST', body: JSON.stringify(body), token,
+      }).then(r => r.data),
+
+    /** Cria os anúncios dos que passam. Os que não passam voltam com o motivo. */
+    importar: (token: string, body: TinyImportBody) =>
+      request<{ data: TinyResultadoImport }>('/api/tiny/importar', {
+        method: 'POST', body: JSON.stringify(body), token,
+      }).then(r => r.data),
+
+    /** Puxa o saldo do ERP agora, sem esperar a rodada automática. */
+    sincronizarEstoque: (token: string) =>
+      request<{ data: TinyResultadoEstoque }>('/api/tiny/estoque/sincronizar', {
+        method: 'POST', token,
+      }).then(r => r.data),
+  },
+
   // ── Seller (self, autenticado) ───────────────────────────────────────────────
   sellerSelf: {
     getProfile: (token: string) =>
@@ -1369,6 +1411,70 @@ export interface BlingResultadoEstoque {
     estoque: number;
     motivo: 'saldo' | 'zerou' | 'voltou';
   }>;
+}
+
+// ── Tiny (Olist ERP): catálogo e importação ──────────────────────────────────
+// Espelha os tipos do Bling; a única diferença é `tinyProductId` no lugar de
+// `blingProductId`.
+
+export interface TinyProduto {
+  id: number;
+  nome: string;
+  sku: string | null;
+  precoEmReais: number | null;
+  estoque: number | null;
+  imagem: string | null;
+  ativo: boolean;
+}
+
+export interface TinyCatalogoPagina {
+  produtos: TinyProduto[];
+  pagina: number;
+  temMais: boolean;
+}
+
+export interface TinyImportBody {
+  ids: number[];
+  categoria: string;
+  condicao: string;
+  atributos?: Record<string, string>;
+}
+
+export interface TinyItemConferido {
+  tinyProductId: number;
+  titulo: string;
+  pendencias: string[];
+  jaImportado: boolean;
+  pronto: boolean;
+}
+
+export interface TinyConferencia {
+  itens: TinyItemConferido[];
+  resumo: { total: number; prontos: number; comPendencia: number; jaImportados: number };
+}
+
+export interface TinyResultadoImport {
+  criados: Array<{ tinyProductId: number; titulo: string; aviso?: string }>;
+  recusados: Array<{ tinyProductId: number; titulo: string; motivos: string[] }>;
+}
+
+export interface TinyResultadoEstoque {
+  anuncios: number;
+  consultados: number;
+  atualizados: number;
+  pausados: number;
+  reativados: number;
+  mudancas: Array<{
+    titulo: string;
+    estoque: number;
+    motivo: 'saldo' | 'zerou' | 'voltou';
+  }>;
+}
+
+export interface TinyStatus {
+  connected: boolean;
+  expired?: boolean;
+  anunciosVinculados?: number;
 }
 
 /** Etapas do rastreio. Marcos, não eventos cidade a cidade. */

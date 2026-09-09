@@ -2285,6 +2285,158 @@ export function useBlingDisconnect() {
   });
 }
 
+// ── Tiny (Olist ERP) Hooks ──────────────────────────────────────────────────
+// Espelham os do Bling: mesma forma, endpoints `api.tiny.*`.
+
+export function useTinyStatus() {
+  const { getToken } = useAuth();
+  return useQuery({
+    queryKey: ['tiny', 'status'],
+    queryFn: async () => {
+      const token = await getToken();
+      return api.tiny.getStatus(token!);
+    },
+    staleTime: 30_000,
+  });
+}
+
+/** Leva o lojista para a tela de autorização do Tiny. */
+export function useTinyConnect() {
+  const { getToken } = useAuth();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async () => {
+      const token = await getToken();
+      return api.tiny.authorizeUrl(token!);
+    },
+    onSuccess: (url) => {
+      window.location.href = url;
+    },
+    onError: (err: Error) => {
+      toast({
+        title: 'Não foi possível conectar ao Tiny',
+        description: err.message,
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
+/** Uma página do catálogo do Tiny. `enabled` para não buscar sem conexão. */
+export function useTinyProdutos(pagina: number, enabled: boolean) {
+  const { getToken } = useAuth();
+  return useQuery({
+    queryKey: ['tiny', 'produtos', pagina],
+    queryFn: async () => {
+      const token = await getToken();
+      return api.tiny.produtos(token || '', pagina);
+    },
+    enabled,
+    staleTime: 5 * 60_000,
+  });
+}
+
+/** Confere o lote sem criar nada. Sempre roda antes de importar. */
+export function useTinyConferir() {
+  const { getToken } = useAuth();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (body: import('@/lib/api').TinyImportBody) => {
+      const token = await getToken();
+      return api.tiny.conferir(token || '', body);
+    },
+    onError: (err: Error) => {
+      toast({ title: 'Não foi possível conferir', description: err.message, variant: 'destructive' });
+    },
+  });
+}
+
+export function useTinyImportar() {
+  const { getToken } = useAuth();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (body: import('@/lib/api').TinyImportBody) => {
+      const token = await getToken();
+      return api.tiny.importar(token || '', body);
+    },
+    onSuccess: (r) => {
+      queryClient.invalidateQueries({ queryKey: ['listings'] });
+      queryClient.invalidateQueries({ queryKey: ['my-listings'] });
+      toast({
+        title: `${r.criados.length} anúncio(s) criado(s)`,
+        description: r.recusados.length
+          ? `${r.recusados.length} ficaram de fora, veja o motivo na lista.`
+          : 'Todos entraram e estão em análise.',
+      });
+    },
+    onError: (err: Error) => {
+      toast({ title: 'Falha ao importar', description: err.message, variant: 'destructive' });
+    },
+  });
+}
+
+export function useTinySincronizarEstoque() {
+  const { getToken } = useAuth();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async () => {
+      const token = await getToken();
+      return api.tiny.sincronizarEstoque(token || '');
+    },
+    onSuccess: (r) => {
+      queryClient.invalidateQueries({ queryKey: ['my-listings'] });
+      queryClient.invalidateQueries({ queryKey: ['listings'] });
+      queryClient.invalidateQueries({ queryKey: ['tiny'] });
+
+      const partes = [
+        r.pausados > 0 ? `${r.pausados} saiu(saíram) do ar sem estoque` : null,
+        r.reativados > 0 ? `${r.reativados} voltou(voltaram) ao ar` : null,
+      ].filter(Boolean);
+
+      toast({
+        title:
+          r.atualizados > 0
+            ? `${r.atualizados} anúncio(s) atualizado(s)`
+            : 'Estoque já estava em dia',
+        description: partes.length
+          ? partes.join('. ') + '.'
+          : `${r.anuncios} anúncio(s) conferido(s) com o seu Tiny.`,
+      });
+    },
+    onError: (err: Error) => {
+      toast({
+        title: 'Não foi possível sincronizar o estoque',
+        description: err.message,
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
+export function useTinyDisconnect() {
+  const { getToken } = useAuth();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async () => {
+      const token = await getToken();
+      return api.tiny.disconnect(token!);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tiny'] });
+      toast({ title: 'Tiny desconectado.' });
+    },
+    onError: (err: Error) => {
+      toast({ title: 'Erro ao desconectar', description: err.message, variant: 'destructive' });
+    },
+  });
+}
+
 // ── useUploadImage ─────────────────────────────────────────────────────────
 
 /**

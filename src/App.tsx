@@ -62,6 +62,7 @@ import BulkImportPage from "./pages/seller/BulkImport";
 import BulkPhotosPage from "./pages/seller/BulkPhotos";
 import IntegrationsPage from "./pages/seller/Integrations";
 import BlingImportPage from "./pages/seller/BlingImport";
+import TinyImportPage from "./pages/seller/TinyImport";
 import CompletarAnunciosPage from "./pages/seller/CompletarAnuncios";
 import AdminOverview from "./pages/admin/Overview";
 import AdminListings from "./pages/admin/Listings";
@@ -192,6 +193,7 @@ const App = () => (
             <Route path="/painel/modo-lance" element={<ProtectedRoute><AuctionManagerPage /></ProtectedRoute>} />
             <Route path="/painel/integracoes" element={<ProtectedRoute><IntegrationsPage /></ProtectedRoute>} />
             <Route path="/painel/anuncios/importar-bling" element={<ProtectedRoute><BlingImportPage /></ProtectedRoute>} />
+            <Route path="/painel/anuncios/importar-tiny" element={<ProtectedRoute><TinyImportPage /></ProtectedRoute>} />
             <Route path="/painel/anuncios/completar" element={<ProtectedRoute><CompletarAnunciosPage /></ProtectedRoute>} />
             <Route path="/painel/financeiro" element={<ProtectedRoute><SellerFinancialPage /></ProtectedRoute>} />
             {/* Stripe Connect aposentado (migração p/ Pagar.me): redireciona ao recebedor. */}
