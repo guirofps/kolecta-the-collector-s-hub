@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Gavel, Clock, AlertCircle, Timer, Eye, X, RotateCcw, CheckCircle2 } from 'lucide-react';
-import { useSellerAuctions, useEndAuction } from '@/hooks/use-api';
+import { useSellerAuctions, useEndAuction, useAuctionBids } from '@/hooks/use-api';
 import type { AuctionWithListing } from '@/lib/api';
 import SellerLayout from '@/components/layout/SellerLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -36,6 +36,9 @@ interface AuctionBid {
 
 interface MockAuction {
   id: string;
+  /** Id do ANÚNCIO (listing), diferente do id do leilão. É por ele que a
+   *  edição busca; usar o id do leilão dava "Anúncio não encontrado". */
+  listingId: string;
   productName: string;
   productImage: string;
   status: AuctionStatus;
@@ -158,12 +161,19 @@ export default function AuctionManager() {
 
   const [tab, setTab] = useState('active');
   const [bidsDialog, setBidsDialog] = useState<MockAuction | null>(null);
+  // Lances reais do leilão aberto no diálogo. O `bids: []` do mapeamento era
+  // fixo e nunca era preenchido — a tabela vinha vazia mesmo com N lances.
+  const { data: lancesDoLeilao = [], isLoading: lancesLoading } = useAuctionBids(
+    bidsDialog?.id,
+    !!bidsDialog,
+  );
   const [closeDialog, setCloseDialog] = useState<AuctionWithListing | null>(null);
   const [closedPeriod, setClosedPeriod] = useState('all');
 
   // Mapeia dados da API para o shape usado pelos sub-componentes
   const auctions: MockAuction[] = useMemo(() => apiAuctions.map(a => ({
     id: a.id,
+    listingId: a.listingId,
     productName: a.title,
     productImage: (() => { try { return JSON.parse(a.images ?? '[]')[0] ?? '/placeholder.svg'; } catch { return '/placeholder.svg'; } })(),
     status: a.status === 'active' ? 'active' : 'closed',
@@ -333,33 +343,44 @@ export default function AuctionManager() {
                 <Badge variant="secondary">{bidsDialog.totalBids} lances</Badge>
                 <Countdown endsAt={bidsDialog.endsAt} />
               </div>
-              <div className="max-h-72 overflow-y-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-12">#</TableHead>
-                      <TableHead>Licitante</TableHead>
-                      <TableHead className="text-right">Valor</TableHead>
-                      <TableHead className="text-right">Data/Hora</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {[...bidsDialog.bids].sort((a, b) => b.amount - a.amount).map((bid, i) => (
-                      <TableRow key={bid.id}>
-                        <TableCell className="font-heading font-bold">{i + 1}</TableCell>
-                        <TableCell>
-                          {bid.bidderName}
-                          {i === 0 && <Badge className="ml-2 text-[10px] bg-[hsl(var(--kolecta-gold))] text-[hsl(var(--kolecta-carbon))]">Maior lance</Badge>}
-                        </TableCell>
-                        <TableCell className={`text-right font-heading font-bold ${i === 0 ? 'text-[hsl(var(--kolecta-gold))]' : ''}`}>
-                          {formatBRL(bid.amount)}
-                        </TableCell>
-                        <TableCell className="text-right text-xs text-muted-foreground">{formatDateTime(bid.createdAt)}</TableCell>
+              {lancesLoading ? (
+                <div className="space-y-2 py-2">
+                  {[0, 1, 2].map((i) => <Skeleton key={i} className="h-8 w-full" />)}
+                </div>
+              ) : lancesDoLeilao.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-6 text-center">
+                  Nenhum lance ainda.
+                </p>
+              ) : (
+                <div className="max-h-72 overflow-y-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-12">#</TableHead>
+                        <TableHead>Licitante</TableHead>
+                        <TableHead className="text-right">Valor</TableHead>
+                        <TableHead className="text-right">Data/Hora</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+                    </TableHeader>
+                    <TableBody>
+                      {/* Já vem ordenado do maior lance pro menor pelo backend. */}
+                      {lancesDoLeilao.map((bid, i) => (
+                        <TableRow key={bid.id}>
+                          <TableCell className="font-heading font-bold">{i + 1}</TableCell>
+                          <TableCell>
+                            {bid.bidderName}
+                            {i === 0 && <Badge className="ml-2 text-[10px] bg-[hsl(var(--kolecta-gold))] text-[hsl(var(--kolecta-carbon))]">Maior lance</Badge>}
+                          </TableCell>
+                          <TableCell className={`text-right font-heading font-bold ${i === 0 ? 'text-[hsl(var(--kolecta-gold))]' : ''}`}>
+                            {formatBRL(bid.amountInCents / 100)}
+                          </TableCell>
+                          <TableCell className="text-right text-xs text-muted-foreground">{formatDateTime(bid.createdAt)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
             </DialogContent>
           </Dialog>
         )}
@@ -458,7 +479,7 @@ function AuctionCard({
               <X className="h-3.5 w-3.5 mr-1" /> Encerrar agora
             </Button>
             <Button size="sm" variant="ghost" asChild>
-              <Link to={`/painel/anuncios/${a.id}/editar`}>Editar</Link>
+              <Link to={`/painel/anuncios/${a.listingId}/editar`}>Editar</Link>
             </Button>
           </div>
         </div>

@@ -414,6 +414,11 @@ export const api = {
     getSellerAuctions: (token: string) =>
       request<{ data: AuctionWithListing[] }>('/api/auctions/seller/mine', { token }).then(r => r.data),
 
+    /** Lista de lances de um leilão (só o dono). O painel mostrava o número mas
+     *  a tabela vinha vazia porque a lista nunca era buscada. */
+    getBids: (token: string, auctionId: string) =>
+      request<{ data: AuctionBidRow[] }>(`/api/auctions/${auctionId}/bids`, { token }).then(r => r.data),
+
     placeBid: (token: string, auctionId: string, amountInCents: number) =>
       request<{ data: Bid }>(`/api/auctions/${auctionId}/bids`, {
         method: 'POST',
@@ -2250,6 +2255,15 @@ export interface Bid {
   bidderId: string;
   amountInCents: number;
   createdAt: string;
+}
+
+/** Uma linha da lista de lances de um leilão (visão do dono). */
+export interface AuctionBidRow {
+  id: string;
+  bidderName: string;
+  amountInCents: number;
+  createdAt: string;
+  status: string | null;
 }
 
 export interface MyBid {

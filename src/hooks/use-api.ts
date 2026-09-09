@@ -1845,6 +1845,21 @@ export function useSellerAuctions() {
   });
 }
 
+/** Lista de lances de um leilão (só o dono vê). `enabled` para buscar apenas
+ *  quando o diálogo de lances está aberto. */
+export function useAuctionBids(auctionId: string | undefined, enabled: boolean) {
+  const { getToken } = useAuth();
+  return useQuery({
+    queryKey: ['auction', auctionId, 'bids'],
+    queryFn: async () => {
+      const token = await getToken();
+      return api.auctions.getBids(token!, auctionId!);
+    },
+    enabled: enabled && !!auctionId,
+    staleTime: 15_000,
+  });
+}
+
 export function usePlaceBid() {
   const { getToken } = useAuth();
   const queryClient = useQueryClient();
