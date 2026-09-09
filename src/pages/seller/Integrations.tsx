@@ -69,8 +69,8 @@ export default function IntegrationsPage() {
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-[#0066cc]/10 flex items-center justify-center">
-                  <span className="font-heading font-extrabold text-[#0066cc] text-sm">B</span>
+                <div className="h-10 w-16 rounded-lg bg-white flex items-center justify-center px-2 shrink-0 ring-1 ring-black/5">
+                  <img src="/logos/bling.svg" alt="Bling" className="h-5 w-auto" />
                 </div>
                 <div>
                   <CardTitle className="font-heading text-base">Bling ERP</CardTitle>
@@ -220,8 +220,8 @@ export default function IntegrationsPage() {
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-[#00a868]/10 flex items-center justify-center">
-                  <span className="font-heading font-extrabold text-[#00a868] text-sm">T</span>
+                <div className="h-10 w-16 rounded-lg bg-white flex items-center justify-center px-2 shrink-0 ring-1 ring-black/5">
+                  <img src="/logos/tiny-olist.svg" alt="Tiny (Olist)" className="h-5 w-auto" />
                 </div>
                 <div>
                   <CardTitle className="font-heading text-base">Tiny ERP (Olist)</CardTitle>
