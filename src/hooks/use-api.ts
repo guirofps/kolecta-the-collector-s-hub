@@ -2323,14 +2323,14 @@ export function useTinyConnect() {
   });
 }
 
-/** Uma página do catálogo do Tiny. `enabled` para não buscar sem conexão. */
-export function useTinyProdutos(pagina: number, enabled: boolean) {
+/** Uma página do catálogo do Tiny. `busca` filtra por nome; `enabled` evita buscar sem conexão. */
+export function useTinyProdutos(pagina: number, enabled: boolean, busca = '') {
   const { getToken } = useAuth();
   return useQuery({
-    queryKey: ['tiny', 'produtos', pagina],
+    queryKey: ['tiny', 'produtos', pagina, busca],
     queryFn: async () => {
       const token = await getToken();
-      return api.tiny.produtos(token || '', pagina);
+      return api.tiny.produtos(token || '', pagina, busca);
     },
     enabled,
     staleTime: 5 * 60_000,

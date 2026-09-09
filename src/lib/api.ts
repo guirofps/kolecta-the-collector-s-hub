@@ -924,10 +924,12 @@ export const api = {
     disconnect: (token: string) =>
       request<{ data: TinyStatus }>('/api/tiny/disconnect', { method: 'DELETE', token }).then(r => r.data),
 
-    /** Uma página do catálogo do Tiny do lojista. Listagem barata, sem peso nem GTIN. */
-    produtos: (token: string, pagina: number) =>
-      request<{ data: TinyCatalogoPagina }>(`/api/tiny/produtos?pagina=${pagina}`, { token })
-        .then(r => r.data),
+    /** Uma página do catálogo do Tiny do lojista. `busca` filtra por nome no ERP. */
+    produtos: (token: string, pagina: number, busca?: string) =>
+      request<{ data: TinyCatalogoPagina }>(
+        `/api/tiny/produtos?pagina=${pagina}${busca?.trim() ? `&busca=${encodeURIComponent(busca.trim())}` : ''}`,
+        { token },
+      ).then(r => r.data),
 
     /** O que falta em cada produto, SEM criar nada. */
     conferir: (token: string, body: TinyImportBody) =>

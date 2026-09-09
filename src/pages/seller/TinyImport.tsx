@@ -7,10 +7,10 @@
 // O Tiny não tem categoria da Kolecta nem condição do item, então esses dois
 // são escolhidos para o lote inteiro. O que a categoria exige e o ERP não
 // guarda (escala, personagem, jogo) aparece como pendência, produto a produto.
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  ArrowLeft, CheckCircle2, AlertTriangle, Loader2, PackageSearch, Plug, ListChecks,
+  ArrowLeft, CheckCircle2, AlertTriangle, Loader2, PackageSearch, Plug, ListChecks, Search,
 } from 'lucide-react';
 import SellerLayout from '@/components/layout/SellerLayout';
 import { Button } from '@/components/ui/button';
@@ -38,7 +38,20 @@ export default function TinyImportPage() {
   const conectado = !!status?.connected && !status?.expired;
 
   const [pagina, setPagina] = useState(1);
-  const { data: catalogo, isLoading: carregandoCatalogo } = useTinyProdutos(pagina, conectado);
+  // Busca por nome. Debounced pra não bater no Tiny a cada tecla, e volta pra
+  // página 1 quando o termo muda (senão o vendedor buscaria e cairia numa
+  // página vazia do resultado antigo). Retorno de founder: catálogo grande
+  // obrigava paginar tudo.
+  const [busca, setBusca] = useState('');
+  const [buscaDeb, setBuscaDeb] = useState('');
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setBuscaDeb(busca.trim());
+      setPagina(1);
+    }, 400);
+    return () => clearTimeout(t);
+  }, [busca]);
+  const { data: catalogo, isLoading: carregandoCatalogo } = useTinyProdutos(pagina, conectado, buscaDeb);
 
   const [marcados, setMarcados] = useState<number[]>([]);
   const [categoria, setCategoria] = useState('');
@@ -220,6 +233,16 @@ export default function TinyImportPage() {
             </div>
           </CardHeader>
           <CardContent className="space-y-3">
+            {/* Busca por nome, pra não paginar o catálogo inteiro atrás de uma peça. */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                placeholder="Buscar por nome do produto..."
+                className="pl-9"
+              />
+            </div>
             {carregandoCatalogo ? (
               <div className="space-y-2">
                 {[0, 1, 2].map((i) => <Skeleton key={i} className="h-14 w-full" />)}
