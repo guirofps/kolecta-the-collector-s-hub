@@ -2177,14 +2177,14 @@ export function useBlingConnect() {
   });
 }
 
-/** Uma página do catálogo do Bling. `enabled` para não buscar sem conexão. */
-export function useBlingProdutos(pagina: number, enabled: boolean) {
+/** Uma página do catálogo do Bling. `busca` filtra por nome; `enabled` evita buscar sem conexão. */
+export function useBlingProdutos(pagina: number, enabled: boolean, busca = '') {
   const { getToken } = useAuth();
   return useQuery({
-    queryKey: ['bling', 'produtos', pagina],
+    queryKey: ['bling', 'produtos', pagina, busca],
     queryFn: async () => {
       const token = await getToken();
-      return api.bling.produtos(token || '', pagina);
+      return api.bling.produtos(token || '', pagina, busca);
     },
     enabled,
     // O catálogo do ERP não muda a cada segundo, e cada busca custa uma
