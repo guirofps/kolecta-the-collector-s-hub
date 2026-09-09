@@ -597,8 +597,8 @@ export default function EditListing() {
               <div className="rounded-lg border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
                 O lance inicial e os parâmetros do leilão (duração, incremento e reserva)
                 são gerenciados na página de{' '}
-                <Link to="/painel/leiloes" className="text-primary underline underline-offset-2">
-                  leilões
+                <Link to="/painel/modo-lance" className="text-primary underline underline-offset-2">
+                  Modo Lance
                 </Link>
                 .
               </div>
