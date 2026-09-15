@@ -3,6 +3,7 @@ import { LayoutDashboard, Package, PlusCircle, ShoppingBag, Gavel, Wallet, Messa
 import Header from './Header';
 import LojaSemNomeAviso from '@/components/LojaSemNomeAviso';
 import RecebedorPendenteAviso from '@/components/RecebedorPendenteAviso';
+import { VacationBanner } from '@/components/seller/VacationMode';
 import { cn } from '@/lib/utils';
 
 const sidebarLinks = [
@@ -54,6 +55,7 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
         <main className="flex-1 overflow-y-auto">
           <RecebedorPendenteAviso />
           <LojaSemNomeAviso />
+          <VacationBanner />
           {children}
         </main>
       </div>

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useClerk, useUser } from '@clerk/clerk-react';
 import SellerLayout from '@/components/layout/SellerLayout';
+import { VacationModeCard } from '@/components/seller/VacationMode';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -430,6 +431,7 @@ export default function SellerSettingsPage() {
   });
 
   const renderProfile = () => (
+    <div className="space-y-6">
     <Card className="bg-gradient-card">
       <CardHeader><CardTitle className="font-heading">Perfil da loja</CardTitle></CardHeader>
       <CardContent className="space-y-5">
@@ -577,6 +579,8 @@ export default function SellerSettingsPage() {
         </Button>
       </CardContent>
     </Card>
+    <VacationModeCard />
+    </div>
   );
 
   // ── Envio ────────────────────────────────────────────────────────────────

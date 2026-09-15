@@ -994,6 +994,17 @@ export const api = {
         body: JSON.stringify({ services, acceptsPickup }),
         token,
       }).then(r => r.data),
+
+    // ── Modo férias ──
+    getVacation: (token: string) =>
+      request<{ data: VacationStatus }>('/api/seller/vacation', { token }).then(r => r.data),
+
+    setVacation: (token: string, ativo: boolean) =>
+      request<{ data: { vacationMode: boolean; listingsAfetados: number } }>('/api/seller/vacation', {
+        method: 'POST',
+        body: JSON.stringify({ ativo }),
+        token,
+      }).then(r => r.data),
   },
 
   // ── Sellers ────────────────────────────────────────────────────────────────
@@ -1267,6 +1278,15 @@ export interface SellerProfile {
   totalSales: number;
   totalReviews: number;
   averageRating: number;
+}
+
+/** Estado do modo férias + o que a tela precisa avisar antes de ligar. */
+export interface VacationStatus {
+  vacationMode: boolean;
+  /** Quantas vendas diretas ativas seriam pausadas ao ligar. */
+  diretosAtivos: number;
+  /** Leilões ainda ativos: continuam até a data de fim, não pausam. */
+  leiloesAtivos: Array<{ title: string; endsAt: string | null }>;
 }
 
 export interface SellerSelfProfile {

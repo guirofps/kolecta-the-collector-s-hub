@@ -173,6 +173,45 @@ export function useSellerSelfProfile() {
   });
 }
 
+/** Estado do modo férias (liga/desliga + prévia de leilões ativos). */
+export function useVacationStatus() {
+  const { getToken } = useAuth();
+  return useQuery({
+    queryKey: ['seller-vacation'],
+    queryFn: async () => {
+      const token = await getToken();
+      return api.sellerSelf.getVacation(token || '');
+    },
+    staleTime: 30_000,
+  });
+}
+
+export function useSetVacationMode() {
+  const queryClient = useQueryClient();
+  const { getToken } = useAuth();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (ativo: boolean) => {
+      const token = await getToken();
+      return api.sellerSelf.setVacation(token || '', ativo);
+    },
+    onSuccess: (r) => {
+      queryClient.invalidateQueries({ queryKey: ['seller-vacation'] });
+      queryClient.invalidateQueries({ queryKey: ['my-listings'] });
+      queryClient.invalidateQueries({ queryKey: ['listings'] });
+      toast({
+        title: r.vacationMode ? 'Modo férias ativado' : 'Modo férias desativado',
+        description: r.vacationMode
+          ? `${r.listingsAfetados} anúncio(s) pausado(s). Suas vendas diretas estão fora do ar.`
+          : `${r.listingsAfetados} anúncio(s) reativado(s). Bem-vindo de volta.`,
+      });
+    },
+    onError: (err: Error) => {
+      toast({ title: 'Não foi possível alterar o modo férias', description: err.message, variant: 'destructive' });
+    },
+  });
+}
+
 export function useUpdateSellerProfile() {
   const queryClient = useQueryClient();
   const { getToken } = useAuth();
